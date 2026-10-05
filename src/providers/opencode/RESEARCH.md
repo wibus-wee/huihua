@@ -14,5 +14,6 @@ Fixtures are synthetic schema contracts, not private user history.
 
 ## Implementation decisions
 
-[Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
+[Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) defines provider ownership;
+[reading contracts](../../../docs/architecture.md#reading-and-streaming) define binary-reading boundaries.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.

@@ -31,8 +31,8 @@ Find the closest implementation, harness and fixture first.
 Reuse existing abstractions.
 New
 public APIs, dependencies, evidence semantics and broad restructuring need explicit design notes
-and review. docs/architecture.md owns layer and API contracts; docs/design.md owns design decisions and compatibility
-evidence.
+and review. [Architecture](docs/architecture.md) owns layer and API contracts and design decisions;
+each provider's RESEARCH.md owns its native-format compatibility evidence.
 Before a provider schema change, update its RESEARCH.md separating producer facts,
 consumer compatibility observations and our decisions.
 Preserve source revisions.
@@ -86,8 +86,9 @@ after checking correctness, pure-JS support, read-only/streaming behavior and li
 Do not build
 another generic implementation to avoid a dependency.
 Reuse existing packages and Node APIs when
-they already meet the requirement. docs/design.md owns the runtime dependency decisions and
-explains the narrow SQLite reader exception.
+they already meet the requirement. [Dependency and ingestion decisions](docs/architecture.md#dependency-and-ingestion-decisions)
+own dependency choices; [reading and streaming](docs/architecture.md#reading-and-streaming)
+defines the narrow SQLite reader boundary.
 
 pnpm-lock.yaml is the only dependency lockfile.
 The registry is fixed in pnpm-workspace.yaml, which configures this single package without adding
