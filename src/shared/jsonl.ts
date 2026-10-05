@@ -7,6 +7,8 @@ import { zstdChunks } from './binary.ts'
 import { ioError, positiveLimit } from './paths.ts'
 import { parseNative } from './value.ts'
 
+const decoder = new TextDecoder('utf-8', { fatal: true })
+
 export interface NativeLine {
   readonly position: number
   readonly native: unknown
@@ -20,7 +22,7 @@ async function* chunks(
   signal?: AbortSignal,
 ): AsyncGenerator<Buffer> {
   const input = createReadStream(path, {
-    highWaterMark: 65536,
+    highWaterMark: 262144,
     ...(signal === undefined ? {} : { signal }),
   })
   try {
@@ -43,11 +45,18 @@ async function* chunks(
   }
 }
 function line(bytes: Buffer, position: number): NativeLine | undefined {
-  if (bytes.every(b => b === 9 || b === 10 || b === 13 || b === 32))
+  let first = 0
+  while (first < bytes.length) {
+    const byte = bytes[first]!
+    if (byte !== 9 && byte !== 10 && byte !== 13 && byte !== 32)
+      break
+    first++
+  }
+  if (first === bytes.length)
     return
   let text: string
   try {
-    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    text = decoder.decode(bytes)
   }
   catch {
     return {
@@ -98,9 +107,12 @@ export async function* jsonLinesFrom(
         )
       }
       // A caller-owned stream may reuse its buffer when the next chunk is requested.
-      pending.push(Buffer.from(part))
+      const completeInChunk = newline >= 0 && pending.length === 0
+      if (!completeInChunk)
+        pending.push(Buffer.from(part))
       if (newline >= 0) {
-        const record = line(Buffer.concat(pending, size), position++)
+        const recordBytes = completeInChunk ? part : Buffer.concat(pending, size)
+        const record = line(recordBytes, position++)
         if (record)
           yield record
         pending = []

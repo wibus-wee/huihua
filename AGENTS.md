@@ -59,6 +59,9 @@ Review semantic diffs.
 Run pnpm check before handing back work.
 It runs Hyoban ESLint/formatting, strict type checking, Knip, layer/dependency policy,
 fixtures, compatibility, streaming and the installed package.
+Do not run `pnpm bench`, its generator, benchmark workers, or profiling workloads unless the user
+explicitly asks you to run a benchmark in the current task. Reading benchmark code or existing
+reports, or changing the benchmark implementation, does not grant permission to run it.
 Run focused tests while fixing
 failures; do not repeatedly rebuild or run the full suite without new evidence.
 Dist is small
