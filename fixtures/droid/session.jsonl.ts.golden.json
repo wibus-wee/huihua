@@ -2,7 +2,8 @@
   "id": "droid-session",
   "provider": "droid",
   "metadata": {
-    "compatibility": "legacy_jsonl"
+    "compatibility": "legacy_jsonl",
+    "id_origin": "native"
   },
   "workspace": {
     "path": "/captured/droid"

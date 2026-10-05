@@ -25,5 +25,6 @@ Keep resets, branches and compactions as observations; do not reconstruct curren
 Native compressed bytes and decoded JSON text remain reachable.
 Cold archives, encrypted storage locations, incognito memory and live Gateway calls are outside coverage.
 
-Fixtures are handwritten synthetic format examples, not collected private sessions or a release-wide certification.
+Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
+[Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

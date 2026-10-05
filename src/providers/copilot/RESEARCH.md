@@ -19,9 +19,11 @@ These observations do not certify every CLI release.
 
 Discover ~/.copilot/session-state and accept explicit roots.
 Map only confirmed event fields, retain both mirrored calls and their native IDs, keep arguments unchanged, and preserve future events as unknown.
+Map standalone assistant.reasoning content and recorded message reasoning; null reasoning fields do not establish a reasoning observation.
 Usage objects remain native; no quota or price calculation.
 Folder-trust prose never establishes a workspace.
 Attachment references remain data and are never opened.
 
-Fixtures are handwritten synthetic format examples, not collected private sessions or a release-wide certification.
+Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
+[Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
