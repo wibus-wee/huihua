@@ -1,0 +1,35 @@
+[
+  {
+    "provider": "oar",
+    "path": "oar/voyage.jsonl"
+  },
+  {
+    "provider": "oar",
+    "path": "oar/truncated.jsonl"
+  },
+  {
+    "provider": "acp",
+    "path": "acp/updates.jsonl"
+  },
+  {
+    "provider": "acp",
+    "path": "acp/v2.jsonl"
+  },
+  {
+    "provider": "kimi",
+    "path": "kimi/session/agents/main/wire.jsonl"
+  },
+  {
+    "provider": "grok",
+    "path": "grok/session/updates.jsonl"
+  },
+  {
+    "provider": "morph",
+    "path": "morph/store",
+    "snapshot": "morph/store.ts.golden.json"
+  },
+  {
+    "provider": "antigravity",
+    "path": "antigravity/steps.db"
+  }
+]

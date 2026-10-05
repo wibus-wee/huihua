@@ -1,0 +1,350 @@
+{
+  "id": "topic",
+  "provider": "morph",
+  "title": "Morph fixture",
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-10-01T00:00:00Z"
+  },
+  "updatedAt": {
+    "format": "rfc3339",
+    "value": "2026-10-01T00:00:01Z"
+  },
+  "metadata": {
+    "id_origin": "native"
+  },
+  "source": {
+    "path": "<fixtures>/morph/store",
+    "format": "morph_journal",
+    "locator": {
+      "id": "topic"
+    }
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "morph",
+      "native": {
+        "version": 1,
+        "items": [
+          {
+            "id": "topic",
+            "title": "Morph fixture",
+            "created_at": "2026-10-01T00:00:00Z",
+            "updated_at": "2026-10-01T00:00:01Z"
+          }
+        ]
+      },
+      "source": {
+        "path": "<fixtures>/morph/store/stats/topics_projection.json"
+      },
+      "text": "{\"version\": 1, \"items\": [{\"id\": \"topic\", \"title\": \"Morph fixture\", \"created_at\": \"2026-10-01T00:00:00Z\", \"updated_at\": \"2026-10-01T00:00:01Z\"}]}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "morph",
+      "type": "task_upsert",
+      "native": {
+        "id": "event",
+        "time": "2026-10-01T00:00:00Z",
+        "domain": "task",
+        "type": "task_upsert",
+        "schema_version": 1,
+        "trace": {
+          "topic_id": "topic",
+          "task_id": "task"
+        },
+        "payload": {
+          "target": "console",
+          "task": {
+            "id": "task",
+            "task": "hello",
+            "topic_id": "topic",
+            "status": "queued"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/morph/store/journal/events.000000000000000001.jsonl",
+        "position": 1
+      },
+      "text": "{\"id\":\"event\",\"time\":\"2026-10-01T00:00:00Z\",\"domain\":\"task\",\"type\":\"task_upsert\",\"schema_version\":1,\"trace\":{\"topic_id\":\"topic\",\"task_id\":\"task\"},\"payload\":{\"target\":\"console\",\"task\":{\"id\":\"task\",\"task\":\"hello\",\"topic_id\":\"topic\",\"status\":\"queued\"}}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "morph",
+      "type": "task_update",
+      "native": {
+        "id": "event",
+        "time": "2026-10-01T00:00:01Z",
+        "domain": "task",
+        "type": "task_update",
+        "schema_version": 1,
+        "trace": {
+          "topic_id": "topic",
+          "task_id": "task"
+        },
+        "payload": {
+          "target": "console",
+          "task": {
+            "id": "task",
+            "task": "hello",
+            "topic_id": "topic",
+            "status": "done",
+            "result": {
+              "final": {
+                "output": "Hello",
+                "reasoning": "native only"
+              }
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/morph/store/journal/events.000000000000000001.jsonl",
+        "position": 2
+      },
+      "text": "{\"id\":\"event\",\"time\":\"2026-10-01T00:00:01Z\",\"domain\":\"task\",\"type\":\"task_update\",\"schema_version\":1,\"trace\":{\"topic_id\":\"topic\",\"task_id\":\"task\"},\"payload\":{\"target\":\"console\",\"task\":{\"id\":\"task\",\"task\":\"hello\",\"topic_id\":\"topic\",\"status\":\"done\",\"result\":{\"final\":{\"output\":\"Hello\",\"reasoning\":\"native only\"}}}}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "morph",
+      "type": "future",
+      "native": {
+        "id": "future",
+        "time": "2026-10-01T00:00:03Z",
+        "domain": "future",
+        "type": "future",
+        "schema_version": 2,
+        "trace": {
+          "topic_id": "topic"
+        },
+        "payload": {
+          "opaque": true
+        }
+      },
+      "source": {
+        "path": "<fixtures>/morph/store/journal/events.000000000000000001.jsonl",
+        "position": 4
+      },
+      "text": "{\"id\":\"future\",\"time\":\"2026-10-01T00:00:03Z\",\"domain\":\"future\",\"type\":\"future\",\"schema_version\":2,\"trace\":{\"topic_id\":\"topic\"},\"payload\":{\"opaque\":true}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "morph_topics",
+        "payload": {
+          "version": 1,
+          "items": [
+            {
+              "id": "topic",
+              "title": "Morph fixture",
+              "created_at": "2026-10-01T00:00:00Z",
+              "updated_at": "2026-10-01T00:00:01Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "event",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-10-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "task_upsert",
+        "native_position": 1,
+        "topic_id": "topic",
+        "task_id": "task",
+        "snapshot": true
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 1,
+      "id": "event",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-10-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "task_upsert",
+        "native_position": 1,
+        "topic_id": "topic",
+        "task_id": "task",
+        "snapshot": true
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "task_upsert",
+        "payload": {
+          "id": "event",
+          "time": "2026-10-01T00:00:00Z",
+          "domain": "task",
+          "type": "task_upsert",
+          "schema_version": 1,
+          "trace": {
+            "topic_id": "topic",
+            "task_id": "task"
+          },
+          "payload": {
+            "target": "console",
+            "task": {
+              "id": "task",
+              "task": "hello",
+              "topic_id": "topic",
+              "status": "queued"
+            }
+          }
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 2,
+      "id": "event",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-10-01T00:00:01Z"
+      },
+      "providerMetadata": {
+        "type": "task_update",
+        "native_position": 2,
+        "topic_id": "topic",
+        "task_id": "task",
+        "snapshot": true
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 2,
+      "id": "event",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-10-01T00:00:01Z"
+      },
+      "providerMetadata": {
+        "type": "task_update",
+        "native_position": 2,
+        "topic_id": "topic",
+        "task_id": "task",
+        "snapshot": true
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 2,
+      "id": "event",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-10-01T00:00:01Z"
+      },
+      "providerMetadata": {
+        "type": "task_update",
+        "native_position": 2,
+        "topic_id": "topic",
+        "task_id": "task",
+        "snapshot": true
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "task_update",
+        "payload": {
+          "id": "event",
+          "time": "2026-10-01T00:00:01Z",
+          "domain": "task",
+          "type": "task_update",
+          "schema_version": 1,
+          "trace": {
+            "topic_id": "topic",
+            "task_id": "task"
+          },
+          "payload": {
+            "target": "console",
+            "task": {
+              "id": "task",
+              "task": "hello",
+              "topic_id": "topic",
+              "status": "done",
+              "result": {
+                "final": {
+                  "output": "Hello",
+                  "reasoning": "native only"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 3,
+      "id": "future",
+      "providerMetadata": {
+        "type": "future",
+        "native_position": 4
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "future",
+        "payload": {
+          "id": "future",
+          "time": "2026-10-01T00:00:03Z",
+          "domain": "future",
+          "type": "future",
+          "schema_version": 2,
+          "trace": {
+            "topic_id": "topic"
+          },
+          "payload": {
+            "opaque": true
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record future",
+      "position": 4
+    }
+  ]
+}

@@ -1,0 +1,461 @@
+{
+  "id": "acp-session",
+  "provider": "acp",
+  "metadata": {
+    "id_origin": "native"
+  },
+  "source": {
+    "path": "<fixtures>/acp/v2.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "user_message",
+            "messageId": "id",
+            "content": [
+              {
+                "type": "text",
+                "text": "full"
+              }
+            ]
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/v2.jsonl",
+        "position": 1
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"user_message\",\"messageId\":\"id\",\"content\":[{\"type\":\"text\",\"text\":\"full\"}]}}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "agent_message_chunk",
+            "messageId": "same",
+            "content": {
+              "type": "text",
+              "text": "a"
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/v2.jsonl",
+        "position": 2
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"messageId\":\"same\",\"content\":{\"type\":\"text\",\"text\":\"a\"}}}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "agent_message",
+            "messageId": "same",
+            "content": [
+              {
+                "type": "text",
+                "text": "ab"
+              }
+            ]
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/v2.jsonl",
+        "position": 3
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"agent_message\",\"messageId\":\"same\",\"content\":[{\"type\":\"text\",\"text\":\"ab\"}]}}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "v2",
+            "name": "write",
+            "rawInput": {},
+            "status": "completed",
+            "content": [
+              {
+                "type": "diff",
+                "changes": [
+                  {
+                    "operation": "add",
+                    "path": "/new"
+                  },
+                  {
+                    "operation": "move",
+                    "oldPath": "/old",
+                    "path": "/renamed"
+                  },
+                  {
+                    "operation": "future",
+                    "path": "/other"
+                  }
+                ],
+                "patch": {
+                  "format": "git_patch",
+                  "text": "native patch"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/v2.jsonl",
+        "position": 4
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"tool_call_update\",\"toolCallId\":\"v2\",\"name\":\"write\",\"rawInput\":{},\"status\":\"completed\",\"content\":[{\"type\":\"diff\",\"changes\":[{\"operation\":\"add\",\"path\":\"/new\"},{\"operation\":\"move\",\"oldPath\":\"/old\",\"path\":\"/renamed\"},{\"operation\":\"future\",\"path\":\"/other\"}],\"patch\":{\"format\":\"git_patch\",\"text\":\"native patch\"}}]}}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "id",
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 1,
+        "acp_update": {
+          "sessionUpdate": "user_message",
+          "messageId": "id",
+          "content": [
+            {
+              "type": "text",
+              "text": "full"
+            }
+          ]
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "full"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "same",
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 2,
+        "acp_update": {
+          "sessionUpdate": "agent_message_chunk",
+          "messageId": "same",
+          "content": {
+            "type": "text",
+            "text": "a"
+          }
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "a"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "same",
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 3,
+        "acp_update": {
+          "sessionUpdate": "agent_message",
+          "messageId": "same",
+          "content": [
+            {
+              "type": "text",
+              "text": "ab"
+            }
+          ]
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "ab"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 4,
+        "acp_update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "v2",
+          "name": "write",
+          "rawInput": {},
+          "status": "completed",
+          "content": [
+            {
+              "type": "diff",
+              "changes": [
+                {
+                  "operation": "add",
+                  "path": "/new"
+                },
+                {
+                  "operation": "move",
+                  "oldPath": "/old",
+                  "path": "/renamed"
+                },
+                {
+                  "operation": "future",
+                  "path": "/other"
+                }
+              ],
+              "patch": {
+                "format": "git_patch",
+                "text": "native patch"
+              }
+            }
+          ]
+        },
+        "tool_scope": [
+          "acp-session"
+        ],
+        "tool_name_origin": "name"
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "v2",
+        "toolName": "write",
+        "arguments": {}
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 3,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 4,
+        "acp_update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "v2",
+          "name": "write",
+          "rawInput": {},
+          "status": "completed",
+          "content": [
+            {
+              "type": "diff",
+              "changes": [
+                {
+                  "operation": "add",
+                  "path": "/new"
+                },
+                {
+                  "operation": "move",
+                  "oldPath": "/old",
+                  "path": "/renamed"
+                },
+                {
+                  "operation": "future",
+                  "path": "/other"
+                }
+              ],
+              "patch": {
+                "format": "git_patch",
+                "text": "native patch"
+              }
+            }
+          ]
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "v2",
+        "toolName": "write",
+        "result": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "v2",
+          "name": "write",
+          "rawInput": {},
+          "status": "completed",
+          "content": [
+            {
+              "type": "diff",
+              "changes": [
+                {
+                  "operation": "add",
+                  "path": "/new"
+                },
+                {
+                  "operation": "move",
+                  "oldPath": "/old",
+                  "path": "/renamed"
+                },
+                {
+                  "operation": "future",
+                  "path": "/other"
+                }
+              ],
+              "patch": {
+                "format": "git_patch",
+                "text": "native patch"
+              }
+            }
+          ]
+        },
+        "isError": false
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 3,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 4,
+        "acp_content": {
+          "type": "diff",
+          "changes": [
+            {
+              "operation": "add",
+              "path": "/new"
+            },
+            {
+              "operation": "move",
+              "oldPath": "/old",
+              "path": "/renamed"
+            },
+            {
+              "operation": "future",
+              "path": "/other"
+            }
+          ],
+          "patch": {
+            "format": "git_patch",
+            "text": "native patch"
+          }
+        },
+        "acp_change": {
+          "operation": "add",
+          "path": "/new"
+        }
+      },
+      "type": "file_change",
+      "data": {
+        "path": "/new",
+        "operation": "create",
+        "diff": "native patch"
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 3,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 4,
+        "acp_content": {
+          "type": "diff",
+          "changes": [
+            {
+              "operation": "add",
+              "path": "/new"
+            },
+            {
+              "operation": "move",
+              "oldPath": "/old",
+              "path": "/renamed"
+            },
+            {
+              "operation": "future",
+              "path": "/other"
+            }
+          ],
+          "patch": {
+            "format": "git_patch",
+            "text": "native patch"
+          }
+        },
+        "acp_change": {
+          "operation": "move",
+          "oldPath": "/old",
+          "path": "/renamed"
+        }
+      },
+      "type": "file_change",
+      "data": {
+        "path": "/renamed",
+        "operation": "rename",
+        "diff": "native patch"
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 3,
+      "providerMetadata": {
+        "native_position": 4
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "acp_diff",
+        "payload": {
+          "operation": "future",
+          "path": "/other"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record acp_diff",
+      "position": 4
+    }
+  ]
+}

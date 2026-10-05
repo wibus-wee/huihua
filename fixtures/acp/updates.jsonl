@@ -1,0 +1,10 @@
+{"jsonrpc":"2.0","method":"session/load","id":1,"params":{"sessionId":"acp-session","cwd":"/native/cwd","mcpServers":[]}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"user_message_chunk","messageId":"user","content":{"type":"text","text":"Read"}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"agent_message_chunk","messageId":"same","content":{"type":"image","data":"AA==","mimeType":"image/png","_meta":{"extra":1}}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"agent_thought_chunk","content":{"type":"text","text":"thinking"}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"tool_call","toolCallId":"call","title":"Read file","status":"in_progress","rawInput":{"path":"/a"}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"tool_call_update","toolCallId":"call","rawOutput":"partial"}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"tool_call_update","toolCallId":"call","status":"completed","content":[{"type":"diff","path":"/a","oldText":"old","newText":"new"}]}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"usage_update","used":50,"size":100}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"_vendor/custom","everything":{"unknown":true}}}}
+{"jsonrpc":"2.0","id":1,"result":{}}

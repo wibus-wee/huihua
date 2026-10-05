@@ -1,5 +1,3 @@
-import { Buffer } from 'node:buffer'
-import { open } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import process from 'node:process'
@@ -13,7 +11,8 @@ import {
   messageEvents,
   openFrom,
 } from '../../shared/ingestion.ts'
-import { exists, files, ioError, positiveLimit } from '../../shared/paths.ts'
+import { readJson } from '../../shared/json-file.ts'
+import { exists, files, positiveLimit } from '../../shared/paths.ts'
 import type { Row } from '../../shared/sqlite.ts'
 import { binarySafe, decodeValue, SqliteReader } from '../../shared/sqlite.ts'
 import {
@@ -57,48 +56,6 @@ function metadata(value: unknown): Partial<Session> {
     metadata: {
       ...optional('id_origin', typeof v.id === 'string' ? 'native' : undefined),
     },
-  }
-}
-async function readJson(
-  path: string,
-  limit: number,
-  prefix = false,
-  signal?: AbortSignal,
-) {
-  signal?.throwIfAborted()
-  let file
-  try {
-    file = await open(path, 'r')
-  }
-  catch (error) {
-    ioError(error, path)
-  }
-  try {
-    const size = (await file.stat()).size
-    if (!prefix && size > limit) {
-      throw new SessionError(
-        'CorruptedSession',
-        `JSON record exceeds ${limit} bytes`,
-      )
-    }
-    const data = Buffer.alloc(Math.min(size, limit))
-    let offset = 0
-    while (offset < data.length) {
-      signal?.throwIfAborted()
-      const { bytesRead } = await file.read(
-        data,
-        offset,
-        data.length - offset,
-        offset,
-      )
-      if (!bytesRead)
-        break
-      offset += bytesRead
-    }
-    return decodeValue(data.subarray(0, offset))
-  }
-  finally {
-    await file.close()
   }
 }
 function partEvents(

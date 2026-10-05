@@ -1,10 +1,19 @@
 {
   "name": "huihua",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "packageManager": "pnpm@12.4.2",
   "description": "Read-only local session evidence for Coding Agents, in pure TypeScript",
-  "license": "UNLICENSED",
+  "author": "wibus-wee",
+  "license": "MIT",
+  "homepage": "https://github.com/wibus-wee/huihua#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wibus-wee/huihua.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wibus-wee/huihua/issues"
+  },
   "sideEffects": false,
   "exports": {
     ".": {
@@ -38,9 +47,34 @@
     "./providers/pi": {
       "types": "./dist/providers/pi/index.d.ts",
       "import": "./dist/providers/pi/index.js"
+    },
+    "./providers/acp": {
+      "types": "./dist/providers/acp/index.d.ts",
+      "import": "./dist/providers/acp/index.js"
+    },
+    "./providers/antigravity": {
+      "types": "./dist/providers/antigravity/index.d.ts",
+      "import": "./dist/providers/antigravity/index.js"
+    },
+    "./providers/grok": {
+      "types": "./dist/providers/grok/index.d.ts",
+      "import": "./dist/providers/grok/index.js"
+    },
+    "./providers/kimi": {
+      "types": "./dist/providers/kimi/index.d.ts",
+      "import": "./dist/providers/kimi/index.js"
+    },
+    "./providers/oar": {
+      "types": "./dist/providers/oar/index.d.ts",
+      "import": "./dist/providers/oar/index.js"
+    },
+    "./providers/morph": {
+      "types": "./dist/providers/morph/index.d.ts",
+      "import": "./dist/providers/morph/index.js"
     }
   },
   "files": [
+    "LICENSE",
     "README.md",
     "dist"
   ],
@@ -60,6 +94,7 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {
+    "@bufbuild/protobuf": "2.16.0",
     "fzstd": "0.1.1",
     "xxhashjs": "0.2.2"
   },

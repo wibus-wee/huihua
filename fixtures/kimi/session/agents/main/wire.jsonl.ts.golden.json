@@ -1,0 +1,482 @@
+{
+  "id": "kimi-session",
+  "provider": "kimi",
+  "metadata": {
+    "id_origin": "native",
+    "protocol_version": "1.5",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "title": "Kimi fixture",
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1000
+  },
+  "updatedAt": {
+    "format": "unix_millis",
+    "value": 1700
+  },
+  "workspace": {
+    "path": "/captured/kimi"
+  },
+  "source": {
+    "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "kimi",
+      "native": {
+        "id": "kimi-session",
+        "title": "Kimi fixture",
+        "createdAt": 1000,
+        "updatedAt": 1700,
+        "cwd": "/captured/kimi",
+        "agents": {
+          "main": {
+            "type": "main"
+          },
+          "child": {
+            "type": "subagent"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/state.json"
+      },
+      "text": "{\n  \"id\": \"kimi-session\",\n  \"title\": \"Kimi fixture\",\n  \"createdAt\": 1000,\n  \"updatedAt\": 1700,\n  \"cwd\": \"/captured/kimi\",\n  \"agents\": {\n    \"main\": {\n      \"type\": \"main\"\n    },\n    \"child\": {\n      \"type\": \"subagent\"\n    }\n  }\n}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "kimi",
+      "type": "metadata",
+      "native": {
+        "type": "metadata",
+        "protocol_version": "1.5",
+        "created_at": 1000
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"metadata\",\"protocol_version\":\"1.5\",\"created_at\":1000}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "kimi",
+      "type": "context.append_message",
+      "native": {
+        "type": "context.append_message",
+        "time": 1100,
+        "agentId": "main",
+        "message": {
+          "id": "u",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "hello"
+            }
+          ],
+          "toolCalls": [],
+          "origin": "user"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"context.append_message\",\"time\":1100,\"agentId\":\"main\",\"message\":{\"id\":\"u\",\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}],\"toolCalls\":[],\"origin\":\"user\"}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "kimi",
+      "type": "context.append_message",
+      "native": {
+        "type": "context.append_message",
+        "time": 1200,
+        "agentId": "main",
+        "message": {
+          "id": "m",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "think",
+              "think": "think",
+              "encrypted": "signature"
+            },
+            {
+              "type": "text",
+              "text": "Hello"
+            }
+          ],
+          "toolCalls": [
+            {
+              "type": "function",
+              "id": "call",
+              "name": "read",
+              "arguments": "{\"path\":\"a\"}"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+        "position": 3
+      },
+      "text": "{\"type\":\"context.append_message\",\"time\":1200,\"agentId\":\"main\",\"message\":{\"id\":\"m\",\"role\":\"assistant\",\"content\":[{\"type\":\"think\",\"think\":\"think\",\"encrypted\":\"signature\"},{\"type\":\"text\",\"text\":\"Hello\"}],\"toolCalls\":[{\"type\":\"function\",\"id\":\"call\",\"name\":\"read\",\"arguments\":\"{\\\"path\\\":\\\"a\\\"}\"}]}}\n"
+    },
+    {
+      "sequence": 4,
+      "provider": "kimi",
+      "type": "context.append_message",
+      "native": {
+        "type": "context.append_message",
+        "time": 1300,
+        "agentId": "main",
+        "message": {
+          "role": "tool",
+          "toolCallId": "call",
+          "content": [
+            {
+              "type": "text",
+              "text": "data"
+            }
+          ],
+          "toolCalls": [],
+          "isError": false
+        }
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+        "position": 4
+      },
+      "text": "{\"type\":\"context.append_message\",\"time\":1300,\"agentId\":\"main\",\"message\":{\"role\":\"tool\",\"toolCallId\":\"call\",\"content\":[{\"type\":\"text\",\"text\":\"data\"}],\"toolCalls\":[],\"isError\":false}}\n"
+    },
+    {
+      "sequence": 5,
+      "provider": "kimi",
+      "type": "subagent.spawned",
+      "native": {
+        "type": "subagent.spawned",
+        "time": 1400,
+        "subagentId": "child",
+        "subagentName": "explore",
+        "parentAgentId": "main",
+        "parentToolCallId": "call",
+        "runInBackground": true
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+        "position": 5
+      },
+      "text": "{\"type\":\"subagent.spawned\",\"time\":1400,\"subagentId\":\"child\",\"subagentName\":\"explore\",\"parentAgentId\":\"main\",\"parentToolCallId\":\"call\",\"runInBackground\":true}\n"
+    },
+    {
+      "sequence": 6,
+      "provider": "kimi",
+      "type": "subagent.completed",
+      "native": {
+        "type": "subagent.completed",
+        "time": 1500,
+        "subagentId": "child",
+        "resultSummary": "done"
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+        "position": 6
+      },
+      "text": "{\"type\":\"subagent.completed\",\"time\":1500,\"subagentId\":\"child\",\"resultSummary\":\"done\"}\n"
+    },
+    {
+      "sequence": 7,
+      "provider": "kimi",
+      "type": "usage.record",
+      "native": {
+        "type": "usage.record",
+        "time": 1600,
+        "agentId": "main",
+        "model": "kimi",
+        "usage": {
+          "inputTokens": 2,
+          "outputTokens": 3
+        }
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+        "position": 7
+      },
+      "text": "{\"type\":\"usage.record\",\"time\":1600,\"agentId\":\"main\",\"model\":\"kimi\",\"usage\":{\"inputTokens\":2,\"outputTokens\":3}}\n"
+    },
+    {
+      "sequence": 8,
+      "provider": "kimi",
+      "type": "future",
+      "native": {
+        "type": "future",
+        "time": 1700,
+        "complete": true
+      },
+      "source": {
+        "path": "<fixtures>/kimi/session/agents/main/wire.jsonl",
+        "position": 8
+      },
+      "text": "{\"type\":\"future\",\"time\":1700,\"complete\":true}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "kimi-session",
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "kimi_record",
+        "payload": {
+          "id": "kimi-session",
+          "title": "Kimi fixture",
+          "createdAt": 1000,
+          "updatedAt": 1700,
+          "cwd": "/captured/kimi",
+          "agents": {
+            "main": {
+              "type": "main"
+            },
+            "child": {
+              "type": "subagent"
+            }
+          }
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "type": "metadata",
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "metadata",
+        "payload": {
+          "type": "metadata",
+          "protocol_version": "1.5",
+          "created_at": 1000
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "u",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1100
+      },
+      "providerMetadata": {
+        "type": "context.append_message",
+        "agentId": "main",
+        "native_position": 2,
+        "message_origin": "user"
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1200
+      },
+      "providerMetadata": {
+        "type": "context.append_message",
+        "agentId": "main",
+        "native_position": 3
+      },
+      "type": "reasoning",
+      "data": {
+        "text": "think",
+        "encrypted": "signature"
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 3,
+      "id": "m",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1200
+      },
+      "providerMetadata": {
+        "type": "context.append_message",
+        "agentId": "main",
+        "native_position": 3
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1200
+      },
+      "providerMetadata": {
+        "type": "context.append_message",
+        "agentId": "main",
+        "native_position": 3
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": "{\"path\":\"a\"}"
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 4,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1300
+      },
+      "providerMetadata": {
+        "type": "context.append_message",
+        "agentId": "main",
+        "native_position": 4
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "result": {
+          "role": "tool",
+          "toolCallId": "call",
+          "content": [
+            {
+              "type": "text",
+              "text": "data"
+            }
+          ],
+          "toolCalls": [],
+          "isError": false
+        },
+        "isError": false
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 5,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1400
+      },
+      "providerMetadata": {
+        "type": "subagent.spawned",
+        "native_position": 5
+      },
+      "type": "subagent",
+      "data": {
+        "agentId": "child",
+        "parentAgentId": "main",
+        "kind": "spawn",
+        "name": "explore",
+        "metadata": {
+          "type": "subagent.spawned",
+          "time": 1400,
+          "subagentId": "child",
+          "subagentName": "explore",
+          "parentAgentId": "main",
+          "parentToolCallId": "call",
+          "runInBackground": true
+        }
+      }
+    },
+    {
+      "sequence": 8,
+      "record": 6,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1500
+      },
+      "providerMetadata": {
+        "type": "subagent.completed",
+        "native_position": 6
+      },
+      "type": "subagent",
+      "data": {
+        "agentId": "child",
+        "kind": "completed",
+        "metadata": {
+          "type": "subagent.completed",
+          "time": 1500,
+          "subagentId": "child",
+          "resultSummary": "done"
+        }
+      }
+    },
+    {
+      "sequence": 9,
+      "record": 7,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1600
+      },
+      "providerMetadata": {
+        "type": "usage.record",
+        "agentId": "main",
+        "native_position": 7,
+        "model": "kimi"
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "inputTokens": 2,
+          "outputTokens": 3
+        }
+      }
+    },
+    {
+      "sequence": 10,
+      "record": 8,
+      "providerMetadata": {
+        "type": "future",
+        "native_position": 8
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "future",
+        "payload": {
+          "type": "future",
+          "time": 1700,
+          "complete": true
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record future",
+      "position": 8
+    }
+  ]
+}

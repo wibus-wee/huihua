@@ -1,0 +1,4 @@
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"user_message","messageId":"id","content":[{"type":"text","text":"full"}]}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"agent_message_chunk","messageId":"same","content":{"type":"text","text":"a"}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"agent_message","messageId":"same","content":[{"type":"text","text":"ab"}]}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"acp-session","update":{"sessionUpdate":"tool_call_update","toolCallId":"v2","name":"write","rawInput":{},"status":"completed","content":[{"type":"diff","changes":[{"operation":"add","path":"/new"},{"operation":"move","oldPath":"/old","path":"/renamed"},{"operation":"future","path":"/other"}],"patch":{"format":"git_patch","text":"native patch"}}]}}}

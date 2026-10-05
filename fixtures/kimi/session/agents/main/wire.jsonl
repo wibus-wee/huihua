@@ -1,0 +1,8 @@
+{"type":"metadata","protocol_version":"1.5","created_at":1000}
+{"type":"context.append_message","time":1100,"agentId":"main","message":{"id":"u","role":"user","content":[{"type":"text","text":"hello"}],"toolCalls":[],"origin":"user"}}
+{"type":"context.append_message","time":1200,"agentId":"main","message":{"id":"m","role":"assistant","content":[{"type":"think","think":"think","encrypted":"signature"},{"type":"text","text":"Hello"}],"toolCalls":[{"type":"function","id":"call","name":"read","arguments":"{\"path\":\"a\"}"}]}}
+{"type":"context.append_message","time":1300,"agentId":"main","message":{"role":"tool","toolCallId":"call","content":[{"type":"text","text":"data"}],"toolCalls":[],"isError":false}}
+{"type":"subagent.spawned","time":1400,"subagentId":"child","subagentName":"explore","parentAgentId":"main","parentToolCallId":"call","runInBackground":true}
+{"type":"subagent.completed","time":1500,"subagentId":"child","resultSummary":"done"}
+{"type":"usage.record","time":1600,"agentId":"main","model":"kimi","usage":{"inputTokens":2,"outputTokens":3}}
+{"type":"future","time":1700,"complete":true}

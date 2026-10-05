@@ -1,0 +1,306 @@
+{
+  "id": "steps",
+  "provider": "antigravity",
+  "source": {
+    "path": "<fixtures>/antigravity/steps.db",
+    "format": "antigravity_sqlite"
+  },
+  "metadata": {
+    "id_origin": "source_locator",
+    "compatibility": "observed_cli_steps"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "antigravity",
+      "native": {
+        "idx": 1,
+        "step_type": 14,
+        "status": 3,
+        "step_payload": {
+          "native_bytes": [
+            154,
+            1,
+            14,
+            18,
+            12,
+            104,
+            101,
+            108,
+            108,
+            111,
+            32,
+            228,
+            184,
+            173,
+            230,
+            150,
+            135
+          ]
+        },
+        "error_details": null,
+        "permissions": null,
+        "task_details": null,
+        "future": null
+      },
+      "source": {
+        "path": "<fixtures>/antigravity/steps.db",
+        "table": "steps",
+        "key": "1"
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "antigravity",
+      "native": {
+        "idx": 2,
+        "step_type": 15,
+        "status": 3,
+        "step_payload": {
+          "native_bytes": [
+            162,
+            1,
+            7,
+            10,
+            5,
+            72,
+            101,
+            108,
+            108,
+            111
+          ]
+        },
+        "error_details": null,
+        "permissions": null,
+        "task_details": null,
+        "future": null
+      },
+      "source": {
+        "path": "<fixtures>/antigravity/steps.db",
+        "table": "steps",
+        "key": "2"
+      }
+    },
+    {
+      "sequence": 2,
+      "provider": "antigravity",
+      "native": {
+        "idx": 3,
+        "step_type": 17,
+        "status": 3,
+        "step_payload": {
+          "native_bytes": [
+            42,
+            28,
+            34,
+            26,
+            10,
+            4,
+            99,
+            97,
+            108,
+            108,
+            18,
+            4,
+            114,
+            101,
+            97,
+            100,
+            26,
+            12,
+            123,
+            34,
+            112,
+            97,
+            116,
+            104,
+            34,
+            58,
+            34,
+            97,
+            34,
+            125
+          ]
+        },
+        "error_details": null,
+        "permissions": {
+          "native_bytes": [
+            0,
+            1
+          ]
+        },
+        "task_details": null,
+        "future": "preserved"
+      },
+      "source": {
+        "path": "<fixtures>/antigravity/steps.db",
+        "table": "steps",
+        "key": "3"
+      }
+    },
+    {
+      "sequence": 3,
+      "provider": "antigravity",
+      "native": {
+        "idx": 4,
+        "step_type": 999,
+        "status": 3,
+        "step_payload": {
+          "native_bytes": [
+            0
+          ]
+        },
+        "error_details": null,
+        "permissions": null,
+        "task_details": null,
+        "future": "future"
+      },
+      "source": {
+        "path": "<fixtures>/antigravity/steps.db",
+        "table": "steps",
+        "key": "4"
+      }
+    },
+    {
+      "sequence": 4,
+      "provider": "antigravity",
+      "native": {
+        "idx": 5,
+        "step_type": 15,
+        "status": 3,
+        "step_payload": {
+          "native_bytes": [
+            162,
+            1,
+            255
+          ]
+        },
+        "error_details": null,
+        "permissions": null,
+        "task_details": null,
+        "future": null
+      },
+      "source": {
+        "path": "<fixtures>/antigravity/steps.db",
+        "table": "steps",
+        "key": "5"
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "1",
+      "providerMetadata": {},
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello 中文"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "2",
+      "providerMetadata": {},
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "3",
+      "providerMetadata": {
+        "step_type": 17,
+        "status": 3
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": {
+          "path": "a"
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "providerMetadata": {},
+      "type": "unknown",
+      "data": {
+        "sourceType": "antigravity_protobuf",
+        "payload": {
+          "idx": 4,
+          "step_type": 999,
+          "status": 3,
+          "step_payload": {
+            "native_bytes": [
+              0
+            ]
+          },
+          "error_details": null,
+          "permissions": null,
+          "task_details": null,
+          "future": "future"
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 4,
+      "providerMetadata": {},
+      "type": "unknown",
+      "data": {
+        "sourceType": "antigravity_protobuf",
+        "payload": {
+          "idx": 5,
+          "step_type": 15,
+          "status": 3,
+          "step_payload": {
+            "native_bytes": [
+              162,
+              1,
+              255
+            ]
+          },
+          "error_details": null,
+          "permissions": null,
+          "task_details": null,
+          "future": null
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "Antigravity tool result/status remains native evidence; no outcome inferred"
+    },
+    {
+      "code": "PartialParse",
+      "message": "invalid or incompatible Antigravity protobuf: Error: illegal tag: field no 0 wire type 0"
+    },
+    {
+      "code": "PartialParse",
+      "message": "invalid or incompatible Antigravity protobuf: RangeError: premature EOF"
+    },
+    {
+      "code": "PartialParse",
+      "message": "tool call call has no recorded result"
+    }
+  ]
+}

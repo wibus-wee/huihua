@@ -1,0 +1,228 @@
+{
+  "id": "grok-session",
+  "provider": "grok",
+  "metadata": {
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "title": "Grok fixture",
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-10-01T00:00:00Z"
+  },
+  "updatedAt": {
+    "format": "unix_millis",
+    "value": 3000
+  },
+  "workspace": {
+    "path": "/captured/grok"
+  },
+  "parentSessionId": "parent",
+  "source": {
+    "path": "<fixtures>/grok/session/updates.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "grok",
+      "native": {
+        "info": {
+          "id": "grok-session",
+          "cwd": "/captured/grok"
+        },
+        "created_at": "2026-10-01T00:00:00Z",
+        "updated_at": "2026-10-01T00:00:01Z",
+        "session_summary": "Summary",
+        "generated_title": "Grok fixture",
+        "parent_session_id": "parent",
+        "chat_format_version": 1
+      },
+      "source": {
+        "path": "<fixtures>/grok/session/summary.json"
+      },
+      "text": "{\n  \"info\": {\n    \"id\": \"grok-session\",\n    \"cwd\": \"/captured/grok\"\n  },\n  \"created_at\": \"2026-10-01T00:00:00Z\",\n  \"updated_at\": \"2026-10-01T00:00:01Z\",\n  \"session_summary\": \"Summary\",\n  \"generated_title\": \"Grok fixture\",\n  \"parent_session_id\": \"parent\",\n  \"chat_format_version\": 1\n}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "grok",
+      "native": {
+        "timestamp": 2,
+        "method": "session/update",
+        "params": {
+          "sessionId": "grok-session",
+          "update": {
+            "sessionUpdate": "user_message_chunk",
+            "content": {
+              "type": "text",
+              "text": "hello"
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/grok/session/updates.jsonl",
+        "position": 1
+      },
+      "text": "{\"timestamp\":2,\"method\":\"session/update\",\"params\":{\"sessionId\":\"grok-session\",\"update\":{\"sessionUpdate\":\"user_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"hello\"}}}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "grok",
+      "native": {
+        "sessionId": "grok-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "messageId": "m",
+          "content": {
+            "type": "text",
+            "text": "legacy"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/grok/session/updates.jsonl",
+        "position": 2
+      },
+      "text": "{\"sessionId\":\"grok-session\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"messageId\":\"m\",\"content\":{\"type\":\"text\",\"text\":\"legacy\"}}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "grok",
+      "native": {
+        "timestamp": 3,
+        "method": "_x.ai/session/update",
+        "params": {
+          "sessionId": "grok-session",
+          "update": {
+            "type": "future",
+            "native_extra": true
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/grok/session/updates.jsonl",
+        "position": 3
+      },
+      "text": "{\"timestamp\":3,\"method\":\"_x.ai/session/update\",\"params\":{\"sessionId\":\"grok-session\",\"update\":{\"type\":\"future\",\"native_extra\":true}}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "grok_summary",
+        "payload": {
+          "info": {
+            "id": "grok-session",
+            "cwd": "/captured/grok"
+          },
+          "created_at": "2026-10-01T00:00:00Z",
+          "updated_at": "2026-10-01T00:00:01Z",
+          "session_summary": "Summary",
+          "generated_title": "Grok fixture",
+          "parent_session_id": "parent",
+          "chat_format_version": 1
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 2000
+      },
+      "providerMetadata": {
+        "sessionId": "grok-session",
+        "native_position": 1,
+        "acp_update": {
+          "sessionUpdate": "user_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "hello"
+          }
+        },
+        "tool_scope": [
+          "grok-session"
+        ]
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "m",
+      "providerMetadata": {
+        "sessionId": "grok-session",
+        "native_position": 2,
+        "acp_update": {
+          "sessionUpdate": "agent_message_chunk",
+          "messageId": "m",
+          "content": {
+            "type": "text",
+            "text": "legacy"
+          }
+        },
+        "tool_scope": [
+          "grok-session"
+        ]
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "legacy"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 3000
+      },
+      "providerMetadata": {
+        "sessionId": "grok-session",
+        "native_position": 3
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "_x.ai/session/update",
+        "payload": {
+          "timestamp": 3,
+          "method": "_x.ai/session/update",
+          "params": {
+            "sessionId": "grok-session",
+            "update": {
+              "type": "future",
+              "native_extra": true
+            }
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record _x.ai/session/update",
+      "position": 3
+    }
+  ]
+}

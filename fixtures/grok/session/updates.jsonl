@@ -1,0 +1,3 @@
+{"timestamp":2,"method":"session/update","params":{"sessionId":"grok-session","update":{"sessionUpdate":"user_message_chunk","content":{"type":"text","text":"hello"}}}}
+{"sessionId":"grok-session","update":{"sessionUpdate":"agent_message_chunk","messageId":"m","content":{"type":"text","text":"legacy"}}}
+{"timestamp":3,"method":"_x.ai/session/update","params":{"sessionId":"grok-session","update":{"type":"future","native_extra":true}}}

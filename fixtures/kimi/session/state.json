@@ -1,0 +1,15 @@
+{
+  "id": "kimi-session",
+  "title": "Kimi fixture",
+  "createdAt": 1000,
+  "updatedAt": 1700,
+  "cwd": "/captured/kimi",
+  "agents": {
+    "main": {
+      "type": "main"
+    },
+    "child": {
+      "type": "subagent"
+    }
+  }
+}

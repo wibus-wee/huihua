@@ -1,0 +1,592 @@
+{
+  "id": "acp-session",
+  "provider": "acp",
+  "metadata": {
+    "id_origin": "native"
+  },
+  "workspace": {
+    "path": "/native/cwd"
+  },
+  "source": {
+    "path": "<fixtures>/acp/updates.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/load",
+        "id": 1,
+        "params": {
+          "sessionId": "acp-session",
+          "cwd": "/native/cwd",
+          "mcpServers": []
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 1
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/load\",\"id\":1,\"params\":{\"sessionId\":\"acp-session\",\"cwd\":\"/native/cwd\",\"mcpServers\":[]}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "user_message_chunk",
+            "messageId": "user",
+            "content": {
+              "type": "text",
+              "text": "Read"
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 2
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"user_message_chunk\",\"messageId\":\"user\",\"content\":{\"type\":\"text\",\"text\":\"Read\"}}}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "agent_message_chunk",
+            "messageId": "same",
+            "content": {
+              "type": "image",
+              "data": "AA==",
+              "mimeType": "image/png",
+              "_meta": {
+                "extra": 1
+              }
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 3
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"messageId\":\"same\",\"content\":{\"type\":\"image\",\"data\":\"AA==\",\"mimeType\":\"image/png\",\"_meta\":{\"extra\":1}}}}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "agent_thought_chunk",
+            "content": {
+              "type": "text",
+              "text": "thinking"
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 4
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"agent_thought_chunk\",\"content\":{\"type\":\"text\",\"text\":\"thinking\"}}}}\n"
+    },
+    {
+      "sequence": 4,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "tool_call",
+            "toolCallId": "call",
+            "title": "Read file",
+            "status": "in_progress",
+            "rawInput": {
+              "path": "/a"
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 5
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"tool_call\",\"toolCallId\":\"call\",\"title\":\"Read file\",\"status\":\"in_progress\",\"rawInput\":{\"path\":\"/a\"}}}}\n"
+    },
+    {
+      "sequence": 5,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "call",
+            "rawOutput": "partial"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 6
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"tool_call_update\",\"toolCallId\":\"call\",\"rawOutput\":\"partial\"}}}\n"
+    },
+    {
+      "sequence": 6,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "call",
+            "status": "completed",
+            "content": [
+              {
+                "type": "diff",
+                "path": "/a",
+                "oldText": "old",
+                "newText": "new"
+              }
+            ]
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 7
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"tool_call_update\",\"toolCallId\":\"call\",\"status\":\"completed\",\"content\":[{\"type\":\"diff\",\"path\":\"/a\",\"oldText\":\"old\",\"newText\":\"new\"}]}}}\n"
+    },
+    {
+      "sequence": 7,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "usage_update",
+            "used": 50,
+            "size": 100
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 8
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"usage_update\",\"used\":50,\"size\":100}}}\n"
+    },
+    {
+      "sequence": 8,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+          "sessionId": "acp-session",
+          "update": {
+            "sessionUpdate": "_vendor/custom",
+            "everything": {
+              "unknown": true
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 9
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"acp-session\",\"update\":{\"sessionUpdate\":\"_vendor/custom\",\"everything\":{\"unknown\":true}}}}\n"
+    },
+    {
+      "sequence": 9,
+      "provider": "acp",
+      "native": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {}
+      },
+      "source": {
+        "path": "<fixtures>/acp/updates.jsonl",
+        "position": 10
+      },
+      "text": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session/load",
+        "payload": {
+          "jsonrpc": "2.0",
+          "method": "session/load",
+          "id": 1,
+          "params": {
+            "sessionId": "acp-session",
+            "cwd": "/native/cwd",
+            "mcpServers": []
+          }
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "user",
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 2,
+        "acp_update": {
+          "sessionUpdate": "user_message_chunk",
+          "messageId": "user",
+          "content": {
+            "type": "text",
+            "text": "Read"
+          }
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Read"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "same",
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 3,
+        "acp_update": {
+          "sessionUpdate": "agent_message_chunk",
+          "messageId": "same",
+          "content": {
+            "type": "image",
+            "data": "AA==",
+            "mimeType": "image/png",
+            "_meta": {
+              "extra": 1
+            }
+          }
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "image",
+            "data": {
+              "mimeType": "image/png",
+              "data": "AA==",
+              "metadata": {
+                "type": "image",
+                "data": "AA==",
+                "mimeType": "image/png",
+                "_meta": {
+                  "extra": 1
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 4,
+        "acp_update": {
+          "sessionUpdate": "agent_thought_chunk",
+          "content": {
+            "type": "text",
+            "text": "thinking"
+          }
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "reasoning",
+      "data": {
+        "text": "thinking"
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 4,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 5,
+        "acp_update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call",
+          "title": "Read file",
+          "status": "in_progress",
+          "rawInput": {
+            "path": "/a"
+          }
+        },
+        "tool_scope": [
+          "acp-session"
+        ],
+        "tool_name_origin": "title"
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "Read file",
+        "arguments": {
+          "path": "/a"
+        }
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 4,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 5,
+        "acp_update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call",
+          "title": "Read file",
+          "status": "in_progress",
+          "rawInput": {
+            "path": "/a"
+          }
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "tool_call",
+        "payload": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call",
+          "title": "Read file",
+          "status": "in_progress",
+          "rawInput": {
+            "path": "/a"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 5,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 6,
+        "acp_update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call",
+          "rawOutput": "partial"
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "tool_call_update",
+        "payload": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call",
+          "rawOutput": "partial"
+        }
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 6,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 7,
+        "acp_update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call",
+          "status": "completed",
+          "content": [
+            {
+              "type": "diff",
+              "path": "/a",
+              "oldText": "old",
+              "newText": "new"
+            }
+          ]
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "result": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call",
+          "status": "completed",
+          "content": [
+            {
+              "type": "diff",
+              "path": "/a",
+              "oldText": "old",
+              "newText": "new"
+            }
+          ]
+        },
+        "isError": false
+      }
+    },
+    {
+      "sequence": 8,
+      "record": 6,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 7,
+        "acp_content": {
+          "type": "diff",
+          "path": "/a",
+          "oldText": "old",
+          "newText": "new"
+        }
+      },
+      "type": "file_change",
+      "data": {
+        "path": "/a",
+        "operation": "modify",
+        "before": "old",
+        "after": "new"
+      }
+    },
+    {
+      "sequence": 9,
+      "record": 7,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 8,
+        "acp_update": {
+          "sessionUpdate": "usage_update",
+          "used": 50,
+          "size": 100
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "sessionUpdate": "usage_update",
+          "used": 50,
+          "size": 100
+        }
+      }
+    },
+    {
+      "sequence": 10,
+      "record": 8,
+      "providerMetadata": {
+        "sessionId": "acp-session",
+        "native_position": 9,
+        "acp_update": {
+          "sessionUpdate": "_vendor/custom",
+          "everything": {
+            "unknown": true
+          }
+        },
+        "tool_scope": [
+          "acp-session"
+        ]
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "_vendor/custom",
+        "payload": {
+          "jsonrpc": "2.0",
+          "method": "session/update",
+          "params": {
+            "sessionId": "acp-session",
+            "update": {
+              "sessionUpdate": "_vendor/custom",
+              "everything": {
+                "unknown": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "sequence": 11,
+      "record": 9,
+      "providerMetadata": {
+        "native_position": 10
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "acp_response",
+        "payload": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {}
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record _vendor/custom",
+      "position": 9
+    }
+  ]
+}

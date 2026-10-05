@@ -6,7 +6,7 @@ import { dirname, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { parseAllDocuments } from 'yaml'
 
-const runtimeDependencies = new Set(['fzstd', 'xxhashjs']) // Binary infrastructure decisions: docs/design.md.
+const runtimeDependencies = new Set(['fzstd', 'xxhashjs', '@bufbuild/protobuf']) // Dependency decisions: docs/architecture.md.
 const developmentDependencies = new Set([
   'typescript',
   '@types/node',
@@ -23,6 +23,7 @@ const permittedLicenses = new Set([
   'ISC',
   'BSD-3-Clause',
   'BSD-2-Clause',
+  '(Apache-2.0 AND BSD-3-Clause)',
 ])
 const developmentLicenses = new Set([
   ...permittedLicenses,
@@ -159,7 +160,7 @@ export async function policy(): Promise<void> {
       throw new Error(`suppression bypass: ${name}`)
     if (
       name.startsWith('shared/')
-      && /["'](?:claude|codex|cursor|opencode|pi)["']/i.test(text)
+      && /["'](?:claude|codex|cursor|opencode|pi|oar|acp|kimi|grok|antigravity|morph)["']/i.test(text)
     ) {
       throw new Error(`provider identity in shared: ${name}`)
     }
@@ -180,7 +181,7 @@ export async function policy(): Promise<void> {
           }
         }
         else {
-          if (!runtimeDependencies.has(specifier)) {
+          if (!runtimeDependencies.has(specifier) && specifier !== '@bufbuild/protobuf/wire') {
             throw new Error(
               `unreviewed dependency import ${name} -> ${specifier}`,
             )

@@ -1,0 +1,4 @@
+{"id":"event","time":"2026-10-01T00:00:00Z","domain":"task","type":"task_upsert","schema_version":1,"trace":{"topic_id":"topic","task_id":"task"},"payload":{"target":"console","task":{"id":"task","task":"hello","topic_id":"topic","status":"queued"}}}
+{"id":"event","time":"2026-10-01T00:00:01Z","domain":"task","type":"task_update","schema_version":1,"trace":{"topic_id":"topic","task_id":"task"},"payload":{"target":"console","task":{"id":"task","task":"hello","topic_id":"topic","status":"done","result":{"final":{"output":"Hello","reasoning":"native only"}}}}}
+{"id":"other","time":"2026-10-01T00:00:02Z","domain":"task","type":"task_update","schema_version":1,"trace":{"topic_id":"foreign"},"payload":{"task":{"id":"foreign","task":"foreign text","topic_id":"foreign"}}}
+{"id":"future","time":"2026-10-01T00:00:03Z","domain":"future","type":"future","schema_version":2,"trace":{"topic_id":"topic"},"payload":{"opaque":true}}

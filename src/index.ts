@@ -1,6 +1,12 @@
+import { acpProvider } from './providers/acp/index.ts'
+import { antigravityProvider } from './providers/antigravity/index.ts'
 import { claudeProvider } from './providers/claude/index.ts'
 import { codexProvider } from './providers/codex/index.ts'
 import { cursorProvider } from './providers/cursor/index.ts'
+import { grokProvider } from './providers/grok/index.ts'
+import { kimiProvider } from './providers/kimi/index.ts'
+import { morphProvider } from './providers/morph/index.ts'
+import { oarProvider } from './providers/oar/index.ts'
 import { opencodeProvider } from './providers/opencode/index.ts'
 import { piProvider } from './providers/pi/index.ts'
 import { createSessionRegistry } from './registry.ts'
@@ -30,5 +36,11 @@ export const sessions = createSessionRegistry([
   cursorProvider,
   opencodeProvider,
   piProvider,
+  acpProvider,
+  antigravityProvider,
+  grokProvider,
+  kimiProvider,
+  oarProvider,
+  morphProvider,
 ])
 export const AgentSession = sessions

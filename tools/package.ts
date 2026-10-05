@@ -40,7 +40,20 @@ export async function packageCheck(): Promise<void> {
     const packageRoot = join(root, 'node_modules/huihua')
     const pkg = JSON.parse(
       await readFile(join(packageRoot, 'package.json'), 'utf8'),
-    ) as { exports: Record<string, { types: string, import: string }>, packageManager?: string, scripts?: Record<string, string> }
+    ) as { name: string, version: string, license: string, exports: Record<string, { types: string, import: string }>, packageManager?: string, scripts?: Record<string, string> }
+    const sourcePkg = JSON.parse(await readFile('package.json', 'utf8')) as {
+      name: string
+      version: string
+      license: string
+    }
+    assert.equal(pkg.name, sourcePkg.name)
+    assert.equal(pkg.version, sourcePkg.version)
+    assert.equal(pkg.license, 'MIT')
+    assert.equal(pkg.license, sourcePkg.license)
+    assert.equal(
+      await readFile(join(packageRoot, 'LICENSE'), 'utf8'),
+      await readFile('LICENSE', 'utf8'),
+    )
     assert.equal(pkg.packageManager, undefined)
     assert.equal(pkg.scripts?.prepack, undefined)
     assert.equal(pkg.scripts?.prepare, undefined)
@@ -62,7 +75,7 @@ export async function packageCheck(): Promise<void> {
       for(const name of ['eventsOf','conversationOf','toolCallsOf','toolResultsOf','fileChangesOf','subagentsOf']){assert.equal(typeof observe[name],'function');assert.equal(huihua[name],observe[name]);}
       assert.equal(Object.hasOwn(observe,'filesOf'),false);
       assert.equal(huihua.SESSION_SCHEMA,'agent-session/v1');
-      for(const name of ['claude','codex','cursor','opencode','pi']){const module=await import('huihua/providers/'+name);assert.ok(Object.values(module).some(value=>value.id===name));}
+      for(const name of ['claude','codex','cursor','opencode','pi','oar','acp','kimi','grok','antigravity','morph']){const module=await import('huihua/providers/'+name);assert.ok(Object.values(module).some(value=>value.id===name));}
       const refs=await sessions.scan({providers:['codex'],roots:{codex:[${JSON.stringify(fixture)}]}});
       assert.equal(refs.length,1);const session=await sessions.read(refs[0]);assertSessionContract(session);assert.equal(conversationOf(session).length,0);
       assert.equal(toolCallsOf(session).length,1);assert.equal(toolResultsOf(session).length,1);
@@ -70,6 +83,9 @@ export async function packageCheck(): Promise<void> {
       assert.throws(()=>eventsOf(session),TypeError);
       const direct=await sessions.parse('codex',{path:${JSON.stringify(fixture)}});assert.deepEqual(direct.events,session.events);
       const {readFile}=await import('node:fs/promises');const acquired=await sessions.parse('codex',{jsonl:await readFile(${JSON.stringify(fixture)})});assert.deepEqual(acquired.events,session.events);
+      const recorded=await sessions.parse('oar',{jsonl:await readFile(${JSON.stringify(resolve('fixtures/oar/voyage.jsonl'))})});assert.equal(recorded.id,'root');assert.equal(toolCallsOf(recorded).length,1);
+      const acp=await sessions.parse('acp',{jsonl:await readFile(${JSON.stringify(resolve('fixtures/acp/v2.jsonl'))})});assert.equal(observe.fileChangesOf(acp).length,2);
+      const agy=await sessions.parse('antigravity',{path:${JSON.stringify(resolve('fixtures/antigravity/steps.db'))},format:'antigravity_sqlite'});assert.equal(conversationOf(agy).length,2);assertSessionContract(agy);
       const opened=await sessions.open(refs[0]);assert.equal(opened.readMode,'incremental');assert.deepEqual(await opened.snapshot(),session);
       await assert.rejects(()=>import('huihua/dist/shared/value.js'),{code:'ERR_PACKAGE_PATH_NOT_EXPORTED'});
     `,

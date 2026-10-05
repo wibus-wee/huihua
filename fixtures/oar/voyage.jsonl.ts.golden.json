@@ -1,0 +1,692 @@
+{
+  "id": "root",
+  "provider": "oar",
+  "metadata": {
+    "kind": "header",
+    "format": "oar-voyage/3",
+    "runtime": "grok",
+    "cwd": "/captured/workspace",
+    "sessionId": "root",
+    "startedAt": 1000,
+    "recorder": "fixture",
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1000
+  },
+  "workspace": {
+    "path": "/captured/workspace"
+  },
+  "source": {
+    "path": "<fixtures>/oar/voyage.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "unix_millis",
+    "value": 1010
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "oar",
+      "native": {
+        "kind": "header",
+        "format": "oar-voyage/3",
+        "runtime": "grok",
+        "cwd": "/captured/workspace",
+        "sessionId": "root",
+        "startedAt": 1000,
+        "recorder": "fixture"
+      },
+      "source": {
+        "path": "<fixtures>/oar/voyage.jsonl",
+        "position": 1
+      },
+      "text": "{\"kind\":\"header\",\"format\":\"oar-voyage/3\",\"runtime\":\"grok\",\"cwd\":\"/captured/workspace\",\"sessionId\":\"root\",\"startedAt\":1000,\"recorder\":\"fixture\"}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "oar",
+      "native": {
+        "kind": "record",
+        "record": {
+          "kind": "request",
+          "sessionId": "root",
+          "agentPath": [],
+          "seq": 0,
+          "receivedAt": 1000,
+          "body": {
+            "kind": "prompt",
+            "input": "hello",
+            "images": []
+          },
+          "id": "request",
+          "direction": "toRuntime"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/oar/voyage.jsonl",
+        "position": 2
+      },
+      "text": "{\"kind\":\"record\",\"record\":{\"kind\":\"request\",\"sessionId\":\"root\",\"agentPath\":[],\"seq\":0,\"receivedAt\":1000,\"body\":{\"kind\":\"prompt\",\"input\":\"hello\",\"images\":[]},\"id\":\"request\",\"direction\":\"toRuntime\"}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "oar",
+      "native": {
+        "kind": "record",
+        "record": {
+          "kind": "frame",
+          "sessionId": "root",
+          "agentPath": [],
+          "seq": 1,
+          "receivedAt": 1001,
+          "body": {
+            "type": "user",
+            "native": {
+              "native_extra": true
+            },
+            "events": [
+              {
+                "kind": "user_message",
+                "input": "hello",
+                "evidence": "acknowledged",
+                "nativeMessageId": "u"
+              }
+            ]
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/oar/voyage.jsonl",
+        "position": 3
+      },
+      "text": "{\"kind\":\"record\",\"record\":{\"kind\":\"frame\",\"sessionId\":\"root\",\"agentPath\":[],\"seq\":1,\"receivedAt\":1001,\"body\":{\"type\":\"user\",\"native\":{\"native_extra\":true},\"events\":[{\"kind\":\"user_message\",\"input\":\"hello\",\"evidence\":\"acknowledged\",\"nativeMessageId\":\"u\"}]}}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "oar",
+      "native": {
+        "kind": "record",
+        "record": {
+          "kind": "frame",
+          "sessionId": "root",
+          "agentPath": [],
+          "seq": 2,
+          "receivedAt": 1002,
+          "body": {
+            "type": "assistant",
+            "native": {
+              "full": "untrimmed"
+            },
+            "events": [
+              {
+                "kind": "reasoning",
+                "content": {
+                  "kind": "redacted"
+                }
+              },
+              {
+                "kind": "text_delta",
+                "text": "Hello",
+                "messageId": "m"
+              },
+              {
+                "kind": "text_delta",
+                "text": " again",
+                "messageId": "m"
+              },
+              {
+                "kind": "tool_call_started",
+                "callId": "same",
+                "tool": "read",
+                "input": "{\"path\":\"a\"}"
+              },
+              {
+                "kind": "tool_call_progress",
+                "callId": "same",
+                "output": "partial"
+              },
+              {
+                "kind": "tool_call_ended",
+                "callId": "same",
+                "result": "ok",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "data"
+                  }
+                ]
+              },
+              {
+                "kind": "usage",
+                "usage": {
+                  "tokens": {
+                    "input": 1,
+                    "output": 2
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/oar/voyage.jsonl",
+        "position": 4
+      },
+      "text": "{\"kind\":\"record\",\"record\":{\"kind\":\"frame\",\"sessionId\":\"root\",\"agentPath\":[],\"seq\":2,\"receivedAt\":1002,\"body\":{\"type\":\"assistant\",\"native\":{\"full\":\"untrimmed\"},\"events\":[{\"kind\":\"reasoning\",\"content\":{\"kind\":\"redacted\"}},{\"kind\":\"text_delta\",\"text\":\"Hello\",\"messageId\":\"m\"},{\"kind\":\"text_delta\",\"text\":\" again\",\"messageId\":\"m\"},{\"kind\":\"tool_call_started\",\"callId\":\"same\",\"tool\":\"read\",\"input\":\"{\\\"path\\\":\\\"a\\\"}\"},{\"kind\":\"tool_call_progress\",\"callId\":\"same\",\"output\":\"partial\"},{\"kind\":\"tool_call_ended\",\"callId\":\"same\",\"result\":\"ok\",\"content\":[{\"type\":\"text\",\"text\":\"data\"}]},{\"kind\":\"usage\",\"usage\":{\"tokens\":{\"input\":1,\"output\":2}}}]}}}\n"
+    },
+    {
+      "sequence": 4,
+      "provider": "oar",
+      "native": {
+        "kind": "record",
+        "record": {
+          "kind": "frame",
+          "sessionId": "root",
+          "agentPath": [],
+          "seq": 3,
+          "receivedAt": 1003,
+          "body": {
+            "type": "future",
+            "native": {
+              "future": [
+                1,
+                2
+              ]
+            },
+            "events": []
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/oar/voyage.jsonl",
+        "position": 5
+      },
+      "text": "{\"kind\":\"record\",\"record\":{\"kind\":\"frame\",\"sessionId\":\"root\",\"agentPath\":[],\"seq\":3,\"receivedAt\":1003,\"body\":{\"type\":\"future\",\"native\":{\"future\":[1,2]},\"events\":[]}}}\n"
+    },
+    {
+      "sequence": 5,
+      "provider": "oar",
+      "native": {
+        "kind": "record",
+        "record": {
+          "kind": "response",
+          "sessionId": "root",
+          "agentPath": [],
+          "seq": 4,
+          "receivedAt": 1004,
+          "body": {
+            "kind": "rejected",
+            "code": "busy",
+            "reason": "Busy"
+          },
+          "requestId": "request"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/oar/voyage.jsonl",
+        "position": 6
+      },
+      "text": "{\"kind\":\"record\",\"record\":{\"kind\":\"response\",\"sessionId\":\"root\",\"agentPath\":[],\"seq\":4,\"receivedAt\":1004,\"body\":{\"kind\":\"rejected\",\"code\":\"busy\",\"reason\":\"Busy\"},\"requestId\":\"request\"}}\n"
+    },
+    {
+      "sequence": 6,
+      "provider": "oar",
+      "native": {
+        "kind": "end",
+        "at": 1010,
+        "reason": "disposed"
+      },
+      "source": {
+        "path": "<fixtures>/oar/voyage.jsonl",
+        "position": 7
+      },
+      "text": "{\"kind\":\"end\",\"at\":1010,\"reason\":\"disposed\"}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "oar_header",
+        "payload": {
+          "kind": "header",
+          "format": "oar-voyage/3",
+          "runtime": "grok",
+          "cwd": "/captured/workspace",
+          "sessionId": "root",
+          "startedAt": 1000,
+          "recorder": "fixture"
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "request",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1000
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 2,
+        "agentPath": [],
+        "native_seq": 0,
+        "receivedAt": 1000,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "request",
+        "message_origin": "request",
+        "oar_input": {
+          "kind": "prompt",
+          "input": "hello",
+          "images": []
+        }
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "u",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1001
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 3,
+        "agentPath": [],
+        "native_seq": 1,
+        "receivedAt": 1001,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame",
+        "oar_event": {
+          "kind": "user_message",
+          "input": "hello",
+          "evidence": "acknowledged",
+          "nativeMessageId": "u"
+        }
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1002
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 4,
+        "agentPath": [],
+        "native_seq": 2,
+        "receivedAt": 1002,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame",
+        "oar_event": {
+          "kind": "reasoning",
+          "content": {
+            "kind": "redacted"
+          }
+        }
+      },
+      "type": "reasoning",
+      "data": {}
+    },
+    {
+      "sequence": 4,
+      "record": 3,
+      "id": "m",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1002
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 4,
+        "agentPath": [],
+        "native_seq": 2,
+        "receivedAt": 1002,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame",
+        "oar_event": {
+          "kind": "text_delta",
+          "text": "Hello",
+          "messageId": "m"
+        }
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 3,
+      "id": "m",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1002
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 4,
+        "agentPath": [],
+        "native_seq": 2,
+        "receivedAt": 1002,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame",
+        "oar_event": {
+          "kind": "text_delta",
+          "text": " again",
+          "messageId": "m"
+        }
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": " again"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1002
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 4,
+        "agentPath": [],
+        "native_seq": 2,
+        "receivedAt": 1002,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame",
+        "oar_event": {
+          "kind": "tool_call_started",
+          "callId": "same",
+          "tool": "read",
+          "input": "{\"path\":\"a\"}"
+        }
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "same",
+        "toolName": "read",
+        "arguments": "{\"path\":\"a\"}"
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1002
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 4,
+        "agentPath": [],
+        "native_seq": 2,
+        "receivedAt": 1002,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame",
+        "oar_event": {
+          "kind": "tool_call_progress",
+          "callId": "same",
+          "output": "partial"
+        }
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "tool_call_progress",
+        "payload": {
+          "kind": "tool_call_progress",
+          "callId": "same",
+          "output": "partial"
+        }
+      }
+    },
+    {
+      "sequence": 8,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1002
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 4,
+        "agentPath": [],
+        "native_seq": 2,
+        "receivedAt": 1002,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame",
+        "oar_event": {
+          "kind": "tool_call_ended",
+          "callId": "same",
+          "result": "ok",
+          "content": [
+            {
+              "type": "text",
+              "text": "data"
+            }
+          ]
+        }
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "same",
+        "result": {
+          "kind": "tool_call_ended",
+          "callId": "same",
+          "result": "ok",
+          "content": [
+            {
+              "type": "text",
+              "text": "data"
+            }
+          ]
+        },
+        "isError": false
+      }
+    },
+    {
+      "sequence": 9,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1002
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 4,
+        "agentPath": [],
+        "native_seq": 2,
+        "receivedAt": 1002,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame",
+        "oar_event": {
+          "kind": "usage",
+          "usage": {
+            "tokens": {
+              "input": 1,
+              "output": 2
+            }
+          }
+        }
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "tokens": {
+            "input": 1,
+            "output": 2
+          }
+        }
+      }
+    },
+    {
+      "sequence": 10,
+      "record": 4,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1003
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 5,
+        "agentPath": [],
+        "native_seq": 3,
+        "receivedAt": 1003,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "frame"
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "future",
+        "payload": {
+          "kind": "record",
+          "record": {
+            "kind": "frame",
+            "sessionId": "root",
+            "agentPath": [],
+            "seq": 3,
+            "receivedAt": 1003,
+            "body": {
+              "type": "future",
+              "native": {
+                "future": [
+                  1,
+                  2
+                ]
+              },
+              "events": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "sequence": 11,
+      "record": 5,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1004
+      },
+      "providerMetadata": {
+        "sessionId": "root",
+        "native_position": 6,
+        "agentPath": [],
+        "native_seq": 4,
+        "receivedAt": 1004,
+        "tool_scope": [
+          "root",
+          []
+        ],
+        "oar_record_kind": "response"
+      },
+      "type": "error",
+      "data": {
+        "message": "Busy",
+        "details": {
+          "kind": "rejected",
+          "code": "busy",
+          "reason": "Busy"
+        }
+      }
+    },
+    {
+      "sequence": 12,
+      "record": 6,
+      "providerMetadata": {
+        "native_position": 7
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "oar_end",
+        "payload": {
+          "kind": "end",
+          "at": 1010,
+          "reason": "disposed"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record future",
+      "position": 5
+    }
+  ]
+}

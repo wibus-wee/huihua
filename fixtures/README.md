@@ -2,7 +2,8 @@
 
 | File | Owner / validation |
 | --- | --- |
-| cases.json | Shared provider manifest: 52 native cases and immutable v1 baseline paths |
+| cases.json | Historical provider manifest: 52 native cases and immutable v1 baseline paths |
+| provider-cases.json | New synthetic provider cases with TypeScript snapshots only; no invented historical baselines |
 | *.jsonl / legacy-files/**/*.json | Minimal handwritten synthetic schema examples; not collected private sessions |
 | *.sql | Native database source of truth |
 | *.db | Explicit pnpm fixtures --regenerate output; tests compare logical rows against SQL |
@@ -23,6 +24,6 @@ Each provider covers conversations, tools, failures, interruption, unknown recor
 input and schema variants. Pi retains branches; Claude covers sidechains; database fixtures
 cover generations and partial migrations. Temporary tests cover large transcripts, cancellation,
 WAL, overflow/btree pages, source preservation and path boundaries without storing large fixtures.
-[Compatibility decisions](../docs/design.md) links provider research and behavior tests.
+[Compatibility decisions](../docs/architecture.md#provider-coverage-and-format-ownership) links provider research and behavior tests.
 Synthetic fixtures do not certify every product release; authorized, anonymized real historical
 samples remain a valuable future addition.

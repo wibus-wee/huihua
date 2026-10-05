@@ -1,0 +1,2 @@
+{"kind":"header","format":"oar-voyage/3","runtime":"grok","cwd":"/captured/workspace","sessionId":"root","startedAt":1000,"recorder":"fixture"}
+{"kind":"record","record":{"kind":"frame","sessionId":"root","agentPath":[],"seq":0,"receivedAt":1000,"body":{"type":"future","native":{"full":true},"events":[{"kind":"future","custom":true}]}}}

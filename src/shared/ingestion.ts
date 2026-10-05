@@ -23,9 +23,10 @@ import type {
 } from '../contracts/session.ts'
 import { SESSION_SCHEMA } from '../contracts/session.ts'
 import type { RawRecord } from '../contracts/source.ts'
+import { readJson } from './json-file.ts'
 import type { NativeLine } from './jsonl.ts'
 import { header, jsonLines, jsonLinesFrom } from './jsonl.ts'
-import { exists, files } from './paths.ts'
+import { exists, files, positiveLimit } from './paths.ts'
 import { array, object, optional, string, timestamp } from './value.ts'
 
 export class Ingestion {
@@ -33,7 +34,7 @@ export class Ingestion {
   #event = 0
   #current: RawRecord | undefined
   #frames: SessionFrame[] = []
-  readonly #pending = new Set<string>()
+  readonly #pending = new Map<string, string>()
   readonly #provider: string
   constructor(provider: string) {
     this.#provider = provider
@@ -61,6 +62,7 @@ export class Ingestion {
     type: K,
     data: EventDataMap[K],
     envelope: unknown = this.#current?.native,
+    evidence: Readonly<Record<string, unknown>> = {},
   ): void {
     const raw = object(envelope)
     const record = this.#current
@@ -86,15 +88,18 @@ export class Ingestion {
       record: record.sequence,
       ...optional('id', string(raw.id) ?? string(raw.uuid)),
       ...optional('timestamp', timestamp(raw.timestamp)),
-      providerMetadata: metadata,
+      providerMetadata: { ...metadata, ...evidence },
       type,
       data,
     } as SessionEvent
     this.#frames.push({ type: 'event', event })
-    if (event.type === 'tool_call' && event.data.callId !== undefined)
-      this.#pending.add(event.data.callId)
-    if (event.type === 'tool_result' && event.data.callId !== undefined)
-      this.#pending.delete(event.data.callId)
+    if ((event.type === 'tool_call' || event.type === 'tool_result') && event.data.callId !== undefined) {
+      const key = evidence.tool_scope === undefined ? event.data.callId : JSON.stringify([evidence.tool_scope, event.data.callId])
+      if (event.type === 'tool_call')
+        this.#pending.set(key, event.data.callId)
+      else
+        this.#pending.delete(key)
+    }
   }
 
   body(body: EventBody, envelope?: unknown): void {
@@ -105,8 +110,10 @@ export class Ingestion {
     type: string,
     payload: unknown,
     message = `unrecognized native record ${type}`,
+    envelope: unknown = this.#current?.native,
+    evidence: Readonly<Record<string, unknown>> = {},
   ): void {
-    this.emit('unknown', { sourceType: type, payload })
+    this.emit('unknown', { sourceType: type, payload }, envelope, evidence)
     this.diagnostic('PartialParse', message, this.#current?.source.position)
   }
 
@@ -132,7 +139,7 @@ export class Ingestion {
   }
 
   finish(): SessionFrame[] {
-    for (const call of [...this.#pending].sort()) {
+    for (const call of [...this.#pending.values()].sort()) {
       this.diagnostic(
         'PartialParse',
         `tool call ${call} has no recorded result`,
@@ -298,6 +305,9 @@ export interface JsonlAdapter {
   roots: (options: ScanOptions) => readonly string[]
   metadata: (records: readonly unknown[], path: string) => Partial<Session>
   parse: (ingest: Ingestion, native: unknown) => void
+  parser?: () => { parse: JsonlAdapter['parse'], finish?: (ingest: Ingestion) => void }
+  metadataFiles?: (path: string) => readonly string[]
+  time?: (native: unknown) => Session['updatedAt']
   accepts?: (path: string) => boolean
 }
 export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
@@ -324,24 +334,37 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
       ref.source.path,
       ref.source.format === 'jsonl_zstd',
       options,
-    )), 'incremental')
+    ), options, true), 'incremental')
   }
-  async function* ingestLines(ref: SessionRef, lines: AsyncIterable<NativeLine>): AsyncGenerator<SessionFrame> {
+  async function* ingestLines(ref: SessionRef, lines: AsyncIterable<NativeLine>, options: ReadOptions = {}, companions = false): AsyncGenerator<SessionFrame> {
     const ingest = new Ingestion(adapter.id)
+    const parser = adapter.parser?.() ?? { parse: adapter.parse }
+    async function* sources(): AsyncGenerator<Omit<NativeLine, 'position'> & { path: string, position?: number }> {
+      if (companions) {
+        for (const path of adapter.metadataFiles?.(ref.source.path) ?? []) {
+          options.signal?.throwIfAborted()
+          if (await exists(path)) {
+            yield { ...await readJson(path, positiveLimit(options.maxRecordBytes, 16 * 1024 * 1024), false, options.signal), path }
+          }
+        }
+      }
+      for await (const line of lines)
+        yield { ...line, path: ref.source.path }
+    }
     let selectedId = ref.id.startsWith('source:') && ref.metadata.id_origin !== 'caller' && ref.metadata.id_origin !== 'native'
       ? undefined
       : ref.id
     let createdKnown = ref.createdAt !== undefined
     let workspace = ref.workspace
-    for await (const line of lines) {
+    for await (const line of sources()) {
       ingest.record(
         line.native,
-        { path: ref.source.path, position: line.position },
+        { path: line.path, ...optional('position', 'position' in line ? line.position : undefined) },
         { ...optional('text', line.text), ...optional('bytes', line.bytes) },
       )
       if (line.malformed) {
         ingest.unknown(
-          'malformed_jsonl',
+          line.path === ref.source.path ? 'malformed_jsonl' : 'malformed_json',
           line.native,
           'corrupted JSONL record',
         )
@@ -358,7 +381,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
             ref.id.startsWith('source:') || ref.metadata.id_origin === 'caller'
               ? 'conflicting native session header retained; selected identity is authoritative'
               : 'conflicting native session header retained; scan-selected identity is authoritative',
-            line.position,
+            'position' in line ? line.position : undefined,
           )
           facts = {}
         }
@@ -374,14 +397,14 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         if (createdAt)
           createdKnown = true
         const before = ingest.eventCount()
-        adapter.parse(ingest, line.native)
+        parser.parse(ingest, line.native)
         if (ingest.eventCount() === before) {
           ingest.unknown(
             string(object(line.native).type) ?? 'unknown',
             line.native,
           )
         }
-        const time = timestamp(object(line.native).timestamp)
+        const time = adapter.time ? adapter.time(line.native) : timestamp(object(line.native).timestamp)
         if (time) {
           ingest.patch({
             updatedAt: time,
@@ -391,6 +414,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
       }
       yield* ingest.drain()
     }
+    parser.finish?.(ingest)
     yield* ingest.finish()
   }
   return {
@@ -411,10 +435,13 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         options.signal,
       )) {
         const compressed = path.endsWith('.jsonl.zst')
-        const facts = adapter.metadata(
-          await header(path, compressed, options.headerBytes, options.signal),
-          path,
-        )
+        const records = await header(path, compressed, options.headerBytes, options.signal)
+        const metadata: unknown[] = []
+        for (const companion of adapter.metadataFiles?.(path) ?? []) {
+          if (await exists(companion))
+            metadata.push((await readJson(companion, positiveLimit(options.headerBytes, 65536), true, options.signal)).native)
+        }
+        const facts = adapter.metadata([...metadata, ...records], path)
         refs.push({
           id: `source:${path}`,
           provider: adapter.id,

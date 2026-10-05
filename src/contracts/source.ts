@@ -6,6 +6,8 @@ export interface SessionSource {
     | 'cursor_sqlite'
     | 'opencode_sqlite'
     | 'opencode_files'
+    | 'antigravity_sqlite'
+    | 'morph_journal'
     | (string & {})
   readonly locator?: Readonly<Record<string, unknown>>
 }

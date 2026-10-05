@@ -7,13 +7,13 @@ import type { Session } from '../src/contracts/session.ts'
 export interface FixtureCase {
   provider: string
   path: string
-  golden: string
+  golden?: string
+  snapshot?: string
 }
 export const fixtureRoot = resolve('fixtures')
 export async function cases(): Promise<FixtureCase[]> {
-  return JSON.parse(
-    await readFile(resolve(fixtureRoot, 'cases.json'), 'utf8'),
-  ) as FixtureCase[]
+  const lists = await Promise.all(['cases.json', 'provider-cases.json'].map(async path => JSON.parse(await readFile(resolve(fixtureRoot, path), 'utf8')) as FixtureCase[]))
+  return lists.flat()
 }
 function clean(value: {
   id: unknown
@@ -129,6 +129,6 @@ export function stableSnapshot(session: Session): unknown {
 export function snapshotPath(fixture: FixtureCase): string {
   return resolve(
     fixtureRoot,
-    fixture.golden.replace('.golden.json', '.ts.golden.json'),
+    fixture.snapshot ?? fixture.golden?.replace('.golden.json', '.ts.golden.json') ?? `${fixture.path}.ts.golden.json`,
   )
 }

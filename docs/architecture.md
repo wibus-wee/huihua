@@ -30,6 +30,7 @@ Raw SQL rows, JSON fields and original text remain reachable.
 Optional properties are absent when the source does not establish a fact.
 Timestamps retain a
 discriminator for native RFC3339 strings versus millisecond epochs, without guessing units.
+Grok's documented epoch seconds are converted to milliseconds; raw records retain their original seconds.
 SessionRef.source identifies the exact store and selector: IDs alone need not be globally unique.
 Scan-derived titles and IDs are metadata, not reconstructed conversation content.
 Fallback IDs
@@ -49,8 +50,8 @@ Public JSON is JSON.stringify
 or jsonOf; it includes records as well as events.
 Consumers must tolerate future optional fields
 and unknown event sourceType values.
-agent-session/v1 is the first public schema under development; the package is unpublished.
-After publication, breaking representation or meaning changes require a new schema.
+agent-session/v1 is the first public schema; its version is independent of the npm package version.
+Breaking representation or meaning changes require a new schema.
 
 ## Reading and streaming
 
@@ -75,8 +76,8 @@ native records (16 MiB default, including a JSONL newline).
 
 OpenSession.readMode describes the selected source's iteration strategy.
 incremental delivers records as read; buffered may collect selected rows for ordering or a complete snapshot before delivering them.
-JSONL, compressed JSONL and historical OpenCode filesystem reads are incremental.
-Cursor IDE and OpenCode SQLite reads, and the registry's read-only SPI fallback, are buffered.
+JSONL, compressed JSONL, Morph journal segments and historical OpenCode filesystem reads are incremental.
+Cursor IDE, OpenCode and Antigravity SQLite reads, and the registry's read-only SPI fallback, are buffered.
 Both modes remain lazy and open a fresh source for each replay; neither promises a fixed memory ceiling.
 snapshot collects the full session in either mode.
 Providers own this declaration; the registry does not infer it from provider IDs or file extensions.
@@ -123,7 +124,7 @@ SQLite inputs need selectors because a database is not a single transcript; hist
 
 JsonlInput supplies uncompressed UTF-8 text, bytes or an asynchronous byte iterable and an optional provenance label.
 The optional provider.parse capability consumes this acquired input; adapters without it fail UnsupportedSchema.
-The four JSONL adapters share one bounded line framer and native-to-event pipeline for file and memory ingestion.
+All JSONL adapters share one bounded line framer and native-to-event pipeline for file and memory ingestion.
 Incomplete JSON, invalid UTF-8, unknown records, limits and tool diagnostics retain the same behavior.
 Caller-owned chunks are copied before requesting another chunk, allowing producers to reuse buffers.
 Text encoding uses bounded chunks without splitting surrogate pairs.
@@ -137,6 +138,82 @@ The serialized schema remains agent-session/v1.
 parse returns a snapshot; byte iterables are consumed once, and events/raw evidence accumulate in the result.
 Cancellation is checked between records and chunks; an external producer waiting on its own I/O must also handle the caller's signal.
 read/open still accept caller-constructed SessionRef values without discovery, including custom providers that implement only the minimal SPI.
+
+## Provider coverage and format ownership
+
+Each `src/providers/<id>/RESEARCH.md` owns its native format evidence and limitations.
+The composition root registers providers; each provider also has an independent package subpath.
+The public schema remains agent-session/v1 and existing provider mappings remain compatible.
+New provider IDs and source formats are additive; consumers should continue accepting custom provider IDs and unknown events.
+
+| Provider    | Source and discovery                                                                             | Mapping boundary                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| oar         | Explicit voyage/3 or RawEvent JSONL; no default directory                                        | Recorded OAR projections for any harness; complete wrappers/native payloads retained            |
+| acp         | Explicit JSON-RPC or bare SessionNotification JSONL; no default directory                        | Stable v1/v2 updates; no universal ACP export archive or live connection                        |
+| kimi        | KIMI_CODE_HOME/sessions or ~/.kimi-code/sessions; each agents/*/wire.jsonl                       | Confirmed flat durable wire records and companion state.json; no Python kimi-cli or ZIP decoder |
+| grok        | GROK_HOME/sessions or ~/.grok/sessions; updates.jsonl                                            | Standard ACP updates and summary.json; unmapped xAI extensions remain unknown                   |
+| antigravity | AGY_CONVERSATIONS_DIR or ~/.gemini/antigravity-cli/conversations; *.db                           | Partial observed CLI steps schema; no guarantee for Google's separate ACP-server/IDE store      |
+| morph       | MISTER_MORPH_FILE_STATE_DIR or ~/.morph; stats/topics_projection.json and journal/events.*.jsonl | Current topic/task journal; repeated snapshots retained; custom config paths use explicit roots |
+
+Together with Claude, Codex, Cursor and Pi, these cover readable native formats for OAR's current harness inventory, including community Morph.
+Coverage is defined by the table and adjacent research, not by harness name alone.
+OpenCode remains independently supported.
+OAR recordings carry their runtime name in metadata; it never replaces source provider=oar or dispatches to another provider.
+The recording reader works for future/custom runtime names when the recorded event vocabulary is known.
+
+ACP does not impose a storage format.
+Its provider accepts recorded protocol objects, not arbitrary exports from every ACP client.
+One ACP capture represents one native session.
+Its first identity wins; foreign session records stay unknown with diagnostics and are excluded from the selected conversation.
+An explicit caller id labels the result and does not select an unrelated session from a multiplexed log.
+Chunks, complete-message upserts, outbound prompts and echoes remain separate observations.
+Partial tool updates never acquire fields from earlier updates; native update objects retain patch/null semantics.
+v1 tool_call titles are explicit display labels, marked tool_name_origin, and v2 programmatic names are used where supplied.
+Only explicit completed/failed statuses become tool results.
+ACP diff operations are normalized only from native structured facts; copy/move provenance remains in event metadata.
+
+OAR records preserve sessionId, agentPath, spanId, seq and receivedAt in normalized event metadata.
+Canonical sequence is physical read order; OAR observation time is distinct from any timestamp inside its native payload.
+Tool diagnostics use an optional native tool_scope to keep same-ID calls from different agents separate; this does not establish a call/result relationship API.
+Unknown event vocabulary and empty frame projections stay unknown evidence.
+A voyage header without an end marker receives a truncation diagnostic on complete consumption.
+Early return does not inspect an unread suffix.
+RawEvent-only captures have a labeled source identity when no authoritative voyage header exists.
+
+Kimi and Grok may supply adjacent metadata files through the shared JSONL adapter's metadataFiles hook.
+Scan reads bounded metadata prefixes; open reads each complete companion within maxRecordBytes, preserves its native value/text and actual path, then reads the wire.
+The companion is a metadata prelude, not an invented historical event in the transcript's chronology.
+Missing companions do not fabricate workspace or identity; malformed companions remain unknown evidence.
+Supplied JSONL never opens companion files, even when its provenance label looks like a real local path.
+Kimi agent files remain separate refs; no timestamp sort invents a global order among independent streams.
+
+Morph's `morph_journal` source is a state directory with locator.id selecting a topic.
+Scan uses bounded topics_projection.json; a larger projection fails the supplied limit instead of scanning the complete journal.
+Open streams zero-padded segments in filename order and physical lines in order, preserving complete selected records.
+Foreign explicitly attributed topics are outside the selector; unscoped records remain unknown without invented attribution.
+The projection is retained as metadata evidence, and current workspace files, runtime endpoints, credentials and config are never read to reconstruct history.
+Direct acquired Morph JSONL represents the recorded capture, with topic attribution, rather than a topic selector.
+
+## Dependency and ingestion decisions
+
+Provider mapping belongs to the adapter and shared format helpers; a runtime library or live protocol client is an alternative acquisition layer outside this package's local read-only scope.
+No OAR, ACP SDK or harness runtime dependency is installed.
+All existing JSONL providers retain the shared bounded line framer and ingestion pipeline.
+Per-stream parser factories add capture-local validation state and reset on every replay; they do not cache or merge transcript history.
+The bounded OpenCode JSON-file reader is reused as shared/json-file.ts for metadata, rather than creating a parallel parser.
+
+`@bufbuild/protobuf@2.16.0` supplies Antigravity's standard BinaryReader through its public /wire entrypoint.
+It is pure JavaScript, has no runtime transitive dependencies or install lifecycle scripts, and uses Apache-2.0 plus BSD-3-Clause licenses.
+The package's codec supports Node 22 without a native core, WASM, protoc or sidecar.
+Provider-specific field selection is a partial observed schema mapping, not another wire parser: the library validates tags/lengths and skips unknown fields, while Huihua retains the original binary SQL columns.
+A generated schema decoder would be preferable if an authoritative schema were available; none was confirmed.
+A handwritten varint codec duplicates general infrastructure; protobufjs adds a larger dependency graph; live ACP replay executes a runtime and changes acquisition semantics.
+The dependency and licenses are explicitly allowed by tools/policy.ts and imported externally by tsdown.
+
+fixtures/provider-cases.json adds synthetic source fixtures with TypeScript snapshots, using the existing oracle and golden-update harness.
+It does not create pretend historical compatibility baselines: fixtures/cases.json and its static v1 goldens remain immutable.
+New provider exports, shared layer directions, source preservation, format/selector rejection, framing, cancellation and the installed package are executable checks.
+Provider completeness still requires review and real authorized historical samples.
 
 ## Projections and review boundaries
 
@@ -154,7 +231,8 @@ Further conditions use ordinary array filtering.
 Selection does not merge split message blocks, strip wrappers, deduplicate mirrored records, match calls to results or construct agent trees.
 Relationship extraction belongs to the provider that understands the native format; future relationship queries must use public facts with evidence and preserve missing or ambiguous targets.
 No relationship store or query framework is part of this API.
-The current builtin adapters do not emit file_change; checkpoints remain unknown evidence rather than inferred historical diffs.
+ACP and Grok emit file_change only for explicit ACP diffs.
+Checkpoints in other formats remain evidence rather than inferred historical diffs.
 
 Machine checks enforce import directions, sources/dependencies, type safety, fixture/golden
 semantics and public package exports.

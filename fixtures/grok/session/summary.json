@@ -1,0 +1,12 @@
+{
+  "info": {
+    "id": "grok-session",
+    "cwd": "/captured/grok"
+  },
+  "created_at": "2026-10-01T00:00:00Z",
+  "updated_at": "2026-10-01T00:00:01Z",
+  "session_summary": "Summary",
+  "generated_title": "Grok fixture",
+  "parent_session_id": "parent",
+  "chat_format_version": 1
+}
