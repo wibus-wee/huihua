@@ -31,5 +31,6 @@ Convert documented seconds to milliseconds without guessing other units.
 Native tool calls, results and reasoning use the shared message mapper.
 Do not traverse parent-session lineage, invoke repair/export commands, or query FTS/index tables.
 
-Fixtures are handwritten synthetic format examples, not collected private sessions or a release-wide certification.
+Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
+[Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

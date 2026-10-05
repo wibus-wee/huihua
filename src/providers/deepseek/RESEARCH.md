@@ -26,5 +26,6 @@ Unknown/future events remain evidence with diagnostics.
 Zstandard uses the existing checksum/window-limited reader.
 No runtime/plugin dependency or native decoder is installed; dictionary frames and oversized windows remain unsupported.
 
-Fixtures are handwritten synthetic format examples, not collected private sessions or a release-wide certification.
+Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
+[Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

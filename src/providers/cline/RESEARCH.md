@@ -24,5 +24,6 @@ Each complete JSON file is one record and all embedded messages refer to it.
 Preserve repeated IDs, reasoning, embedded tool results, per-message modelInfo/metrics and source surface.
 Legacy VS Code api_conversation_history.json and runtime hooks are separate formats outside this adapter.
 
-Fixtures are handwritten synthetic format examples, not collected private sessions or a release-wide certification.
+Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
+[Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

@@ -4,6 +4,7 @@
 | --- | --- |
 | cases.json | Historical provider manifest: 52 native cases and immutable v1 baseline paths |
 | provider-cases.json | New synthetic provider cases with TypeScript snapshots only; no invented historical baselines |
+| compatibility/ | Pinned independent artifacts, provenance hashes and license; public-contract assertions in tests/provider-imports.test.ts, without generated snapshots |
 | *.jsonl / legacy-files/**/*.json | Minimal handwritten synthetic schema examples; not collected private sessions |
 | *.sql | Native database source of truth |
 | *.db / *.sqlite | Explicit pnpm fixtures --regenerate output; tests compare logical rows against SQL |
@@ -30,3 +31,4 @@ WAL, overflow/btree pages, source preservation and path boundaries without stori
 [Compatibility decisions](../docs/architecture.md#provider-coverage-and-format-ownership) links provider research and behavior tests.
 Synthetic fixtures do not certify every product release; authorized, anonymized real historical
 samples remain a valuable future addition.
+The [independent corpus](compatibility/README.md) distinguishes upstream validation from Huihua's tested mappings.

@@ -246,6 +246,9 @@ The dependency and licenses are explicitly allowed by tools/policy.ts and import
 fixtures/provider-cases.json adds synthetic source fixtures with TypeScript snapshots, using the existing oracle and golden-update harness.
 It does not create pretend historical compatibility baselines: fixtures/cases.json and its static v1 goldens remain immutable.
 New provider exports, shared layer directions, source preservation, format/selector rejection, framing, cancellation and the installed package are executable checks.
+The independent artifacts in fixtures/compatibility have pinned provenance, licenses and hash checks; tests/provider-imports.test.ts checks native facts through public provider contracts.
+Those tests exercise all nine added providers, including plain/checksummed DeepSeek v0–v4, without requiring a sibling checkout or network access.
+This establishes the tested mappings, not parity with another application's rendering, migration, branch selection or runtime behavior.
 Provider completeness still requires review and real authorized historical samples.
 
 ## Projections and review boundaries

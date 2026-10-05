@@ -1,0 +1,116 @@
+{
+  "repository": "https://github.com/jazzyalex/agent-sessions",
+  "commit": "b7893c772b0014918211f1c45a5ab58add229703",
+  "files": [
+    {
+      "path": "copilot/small.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/copilot/small.jsonl",
+      "sha256": "45f926d078359cc7e3326166ef77e7e03d2e8368c82c24882e583af5f5bc3ce1"
+    },
+    {
+      "path": "hermes/large.json",
+      "upstream": "Resources/Fixtures/stage0/agents/hermes/large.json",
+      "sha256": "4918758ce2e9444a4f5ce59c86cb40819db5a05e1826198a87b698226acba3e0"
+    },
+    {
+      "path": "openclaw/small.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/openclaw/small.jsonl",
+      "sha256": "bf8bf99007ba593f9bada998beb101c73508c4d67cf750e16618ab96a87e9967"
+    },
+    {
+      "path": "qwen/session.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/qwen/019f0000-0000-7000-8000-000000000001.jsonl",
+      "sha256": "1fbaa883b50a801c78f61d6391c3e86ec9504ec4762036b244d9b98c2a66b2b9"
+    },
+    {
+      "path": "devin/small.json",
+      "upstream": "Resources/Fixtures/stage0/agents/devin/small.json",
+      "sha256": "105a84da599975ebc036a10487b8305aa57d6ec21602f7f525e29af9d803c8d5"
+    },
+    {
+      "path": "fx/session.json",
+      "upstream": "Resources/Fixtures/stage0/agents/fx/small/session.json",
+      "sha256": "04d3d7de878f9fcb1db474b6975deda68df3959a053d240f4c34c289490e0475"
+    },
+    {
+      "path": "fx/checkpoint.json",
+      "upstream": "Resources/Fixtures/stage0/agents/fx/small/checkpoint.json",
+      "sha256": "b4ed0ff7df77ae35c102ea43bd169ed8160ee94d4c6f43ffdd41c222273a1ec5"
+    },
+    {
+      "path": "cline/cline-cli-tool.json",
+      "upstream": "Resources/Fixtures/stage0/agents/cline/cli_tool/cline-cli-tool.json",
+      "sha256": "cfdd4443401932393f288d26c56864f31bbc7f214c77111fc499237f899328e1"
+    },
+    {
+      "path": "cline/cline-cli-tool.messages.json",
+      "upstream": "Resources/Fixtures/stage0/agents/cline/cli_tool/cline-cli-tool.messages.json",
+      "sha256": "b29d336305d5adfbe3d3b9f9546edd4c6c8ff89f07d630a8c36a900ac151c76b"
+    },
+    {
+      "path": "droid/session_store_small.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/droid/session_store_small.jsonl",
+      "sha256": "cdeba35934fb8495844ffc66e274883db874c4bb45f74967be3502f207b55dca"
+    },
+    {
+      "path": "droid/stream_json_small.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/droid/stream_json_small.jsonl",
+      "sha256": "3c5e225e8c69d2664c062ee9af79d865436817874c243214aa3c2a19451d8674"
+    },
+    {
+      "path": "deepseek/v0_minimal_session.jsonl",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v0_minimal_session.jsonl",
+      "sha256": "e1691724ef1d1c882bfcf99848e089b7f5e34202fe2a97ea01a5a51b6cbc77d3"
+    },
+    {
+      "path": "deepseek/v0_minimal_session.jsonl.zstd",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v0_minimal_session.jsonl.zstd",
+      "sha256": "a2e0fa8614e947ffee4dcb9d6f7ec6096ea9837e728c923ac2daa6bedba3689d"
+    },
+    {
+      "path": "deepseek/v1_minimal_session.jsonl",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v1_minimal_session.jsonl",
+      "sha256": "b7db73d791a88d7d73691ddc5692034219a0c6f4be921ee42c406d4bc4bbb222"
+    },
+    {
+      "path": "deepseek/v1_minimal_session.jsonl.zstd",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v1_minimal_session.jsonl.zstd",
+      "sha256": "38d0ae8b097eacaa3af4c0181595b8f225e5c768d750c028097e48315d21066c"
+    },
+    {
+      "path": "deepseek/v2_minimal_session.jsonl",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v2_minimal_session.jsonl",
+      "sha256": "9428c362d0b5897147ff9c17411ba2060f93473627e508e505b5039f08442efe"
+    },
+    {
+      "path": "deepseek/v2_minimal_session.jsonl.zstd",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v2_minimal_session.jsonl.zstd",
+      "sha256": "e7b3d3b8a24330193aa7c09213417289264717ce6258ae79b17c927a669fc92d"
+    },
+    {
+      "path": "deepseek/v3_minimal_session.jsonl",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v3_minimal_session.jsonl",
+      "sha256": "60fd31f88f017c7a4b71bab4f25cb1c3fe60737e9b70b28307fe500886f41edd"
+    },
+    {
+      "path": "deepseek/v3_minimal_session.jsonl.zstd",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v3_minimal_session.jsonl.zstd",
+      "sha256": "95c4f877c15efdf07fb6e2f0ebd078af2f3b1f5861ee14ebc67d5ed8d5421e17"
+    },
+    {
+      "path": "deepseek/v4_tool_session.jsonl",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v4_tool_session.jsonl",
+      "sha256": "315a77cd2c315355cf94eebed6f631fa170cf776d4bf9b6b701deece44889d8a"
+    },
+    {
+      "path": "deepseek/v4_tool_session.jsonl.zstd",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/v4_tool_session.jsonl.zstd",
+      "sha256": "33f7523bafc886ebfde99f2e9b25a70d9213e69629b11712adbb09e284b5ecae"
+    },
+    {
+      "path": "deepseek/manifest.json",
+      "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/manifest.json",
+      "sha256": "2045f477c1a55c7730277f5690e6608fa781d95c450f0cab563846690075aef3"
+    }
+  ]
+}

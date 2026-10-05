@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -10,6 +11,7 @@ import { conversationOf, eventsOf, fileChangesOf, sessions, toolCallsOf, toolRes
 import { assertSessionContract } from '../src/testing/index.ts'
 
 const fixture = (path: string) => resolve('fixtures', path)
+const compatibility = (path: string) => fixture(`compatibility/${path}`)
 
 void it('OAR keeps voyage wrappers, requests, echoes, repeated message IDs and unknown native frames', async () => {
   const input = await readFile(fixture('oar/voyage.jsonl'), 'utf8')
@@ -393,4 +395,205 @@ void it('Devin does not let a result on an abandoned branch satisfy a main-chain
   const session = await sessions.parse('devin', { path, format: 'devin_sqlite', id: 'devin-session' })
   assert.equal(toolResultsOf(session).length, 1)
   assert.ok(session.diagnostics.some(d => d.message.includes('tool call call has no recorded result')))
+})
+
+void it('Droid reads headerless stream identity from message records', async () => {
+  const session = await sessions.parse('droid', { jsonl: JSON.stringify({ type: 'message', session_id: 'headerless', role: 'user', text: 'Hello' }) })
+  assert.equal(session.id, 'headerless')
+  assert.equal(session.createdAt, undefined)
+  assert.equal(conversationOf(session).length, 1)
+})
+
+void it('Droid preserves observed camel/snake aliases, uppercase roles and completion usage', async () => {
+  const lines = [
+    { type: 'system', sessionId: 'aliases', working_directory: '/captured/droid' },
+    { type: 'message', sessionId: 'aliases', role: 'USER', content: 'Do thing' },
+    { type: 'toolCall', sessionId: 'aliases', tool_call_id: 'call', name: 'Shell', input: { command: 'echo hi' } },
+    { type: 'tool_result', sessionId: 'aliases', tool_call_id: 'call', value: 'done', is_error: 'false' },
+    { type: 'completion', sessionId: 'aliases', final: 'all done', usage: { input_tokens: 1 } },
+  ]
+  const session = await sessions.parse('droid', { jsonl: lines.map(line => JSON.stringify(line)).join('\n') })
+  assertSessionContract(session)
+  assert.equal(session.id, 'aliases')
+  assert.equal(session.workspace?.path, '/captured/droid')
+  assert.deepEqual(conversationOf(session).map(e => e.data.content), [[{ type: 'text', data: 'Do thing' }], [{ type: 'text', data: 'all done' }]])
+  assert.equal(toolCallsOf(session)[0]?.data.callId, 'call')
+  assert.deepEqual(toolCallsOf(session)[0]?.data.arguments, { command: 'echo hi' })
+  assert.equal(toolResultsOf(session)[0]?.data.callId, 'call')
+  assert.equal(toolResultsOf(session)[0]?.data.isError, false)
+  assert.deepEqual(eventsOf(session, 'usage')[0]?.data.usage, lines[4]!.usage)
+  assert.deepEqual(session.records.map(r => r.native), lines)
+})
+
+void it('Droid retains explicit event call IDs and determines failures from recorded exit codes', async () => {
+  const lines = [
+    { type: 'system', sessionId: 'numeric', timestamp: 1767812640310 },
+    { type: 'tool_call', sessionId: 'numeric', id: 'call_1', toolName: 'Execute', parameters: { command: 'ls' } },
+    { type: 'tool_result', sessionId: 'numeric', id: 'call_1', value: { exitCode: 1, stdout: 'missing' } },
+  ]
+  const session = await sessions.parse('droid', { jsonl: lines.map(line => JSON.stringify(line)).join('\n') })
+  assert.equal(toolCallsOf(session)[0]?.data.callId, 'call_1')
+  assert.equal(toolResultsOf(session)[0]?.data.callId, 'call_1')
+  assert.equal(toolResultsOf(session)[0]?.data.isError, true)
+  assert.deepEqual(session.createdAt, { format: 'unix_millis', value: 1767812640310 })
+})
+
+void it('Qwen tool-result identity and failure use recorded UI metadata when API parts omit them', async () => {
+  const line = { type: 'tool_result', sessionId: 'qwen-error', message: { role: 'user', parts: [{ functionResponse: { name: 'read_file', response: { output: 'failed' } } }] }, toolCallResult: { callId: 'call', status: 'error' } }
+  const session = await sessions.parse('qwen', { jsonl: JSON.stringify(line) })
+  assert.equal(toolResultsOf(session)[0]?.data.callId, 'call')
+  assert.equal(toolResultsOf(session)[0]?.data.isError, true)
+  assert.deepEqual(session.records[0]?.native, line)
+})
+
+void it('Copilot maps standalone reasoning and does not invent reasoning from null fields', async () => {
+  const lines = [
+    { type: 'assistant.reasoning', id: 'r', data: { reasoningId: 'native-r', content: 'Think first' } },
+    { type: 'assistant.message', data: { content: 'Done', reasoningText: null, reasoningOpaque: null, encryptedContent: null } },
+  ]
+  const session = await sessions.parse('copilot', { jsonl: lines.map(line => JSON.stringify(line)).join('\n') })
+  assert.deepEqual(eventsOf(session, 'reasoning').map(e => e.data), [{ text: 'Think first' }])
+  assert.equal(eventsOf(session, 'reasoning')[0]?.id, 'r')
+  assert.equal(conversationOf(session).length, 1)
+})
+
+void it('independent compatibility artifacts retain their pinned provenance and hashes', async () => {
+  const source = JSON.parse(await readFile(compatibility('sources.json'), 'utf8')) as { commit: string, files: { path: string, sha256: string }[] }
+  assert.equal(source.commit, 'b7893c772b0014918211f1c45a5ab58add229703')
+  assert.equal(source.files.length, 22)
+  for (const entry of source.files)
+    assert.equal(createHash('sha256').update(await readFile(compatibility(entry.path))).digest('hex'), entry.sha256, entry.path)
+})
+
+void it('independent Copilot corpus preserves native evidence, mirrored arguments and standalone reasoning', async () => {
+  const path = compatibility('copilot/small.jsonl')
+  const session = await sessions.parse('copilot', { path })
+  assertSessionContract(session)
+  assert.equal(session.id, 'copilot_stage0_small')
+  assert.equal(session.workspace?.path, '/tmp/repo')
+  assert.deepEqual(toolCallsOf(session).slice(0, 2).map(e => e.data), [
+    { callId: 'call-1', toolName: 'shell', arguments: '{"command":"ls"}' },
+    { callId: 'call-1', toolName: 'shell', arguments: { command: 'ls' } },
+  ])
+  assert.equal(eventsOf(session, 'reasoning').filter(e => e.providerMetadata.type === 'assistant.reasoning').length, 1)
+  assert.deepEqual(session.records.map(r => r.native), (await readFile(path, 'utf8')).trim().split('\n').map(line => JSON.parse(line) as unknown))
+})
+
+void it('independent Hermes snapshot preserves messages, reasoning, arguments and unknown roles', async () => {
+  const session = await sessions.parse('hermes', { path: compatibility('hermes/large.json'), format: 'hermes_json' })
+  assertSessionContract(session)
+  assert.equal(session.id, '20260429_hermes_large')
+  assert.equal(session.workspace?.path, '~/Repository/Codex-History')
+  assert.equal(conversationOf(session).length, 3)
+  assert.deepEqual(eventsOf(session, 'reasoning')[0]?.data, { text: 'Need a shell lookup.' })
+  assert.equal(toolCallsOf(session)[0]?.data.arguments, '{"command":"pwd"}')
+  assert.equal(toolResultsOf(session)[0]?.data.callId, 'call_001')
+  assert.equal(eventsOf(session, 'unknown')[0]?.data.sourceType, 'chat_message')
+})
+
+void it('independent OpenClaw JSONL preserves Pi message parts, IDs, usage and tool results', async () => {
+  const session = await sessions.parse('openclaw', { path: compatibility('openclaw/small.jsonl') })
+  assertSessionContract(session)
+  assert.equal(session.id, 'openclaw-stage0-small')
+  assert.deepEqual(conversationOf(session).map(e => e.id), ['m1', 'm2'])
+  assert.deepEqual(toolCallsOf(session)[0]?.data, { callId: 'tc1', toolName: 'shell_exec', arguments: { command: 'ls' } })
+  assert.equal(toolResultsOf(session)[0]?.data.callId, 'tc1')
+  assert.equal(toolResultsOf(session)[0]?.data.isError, false)
+  assert.equal(eventsOf(session, 'usage').length, 1)
+})
+
+void it('independent Qwen corpus keeps Google tools, reasoning and recorded hook context', async () => {
+  const session = await sessions.parse('qwen', { path: compatibility('qwen/session.jsonl') })
+  assertSessionContract(session)
+  assert.equal(session.id, '019f0000-0000-7000-8000-000000000001')
+  assert.equal(session.records.length, 6)
+  assert.equal(toolCallsOf(session)[0]?.data.callId, 'synthetic-call-1')
+  assert.equal(toolResultsOf(session)[0]?.data.callId, 'synthetic-call-1')
+  assert.equal(eventsOf(session, 'reasoning')[0]?.data.text, 'I should read the synthetic file.')
+  assert.deepEqual(conversationOf(session)[1]?.data.content, [{ type: 'text', data: '<qwen:user-prompt-submit-context>\nSynthetic hook context that is not the user\'s prompt.\n</qwen:user-prompt-submit-context>' }])
+})
+
+void it('independent Devin logical payloads retain flat tool arguments and native message identities', async (t) => {
+  const native = JSON.parse(await readFile(compatibility('devin/small.json'), 'utf8')) as { session: { id: string, title: string, working_directory: string, created_at: number, last_activity_at: number }, nodes: { message_id: string }[] }
+  const root = await mkdtemp(join(tmpdir(), 'huihua-devin-corpus-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'sessions.db')
+  const db = new DatabaseSync(path)
+  try {
+    db.exec(await readFile(fixture('devin/sessions.sql'), 'utf8'))
+    db.exec('DELETE FROM sessions; DELETE FROM message_nodes')
+    const s = native.session
+    db.prepare('INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?)').run(s.id, s.title, s.working_directory, s.created_at, s.last_activity_at, native.nodes.length, 0)
+    for (const [i, message] of native.nodes.entries())
+      db.prepare('INSERT INTO message_nodes VALUES (?, ?, ?, ?, ?, ?)').run(i + 1, s.id, i + 1, i === 0 ? null : i, JSON.stringify(message), null)
+  }
+  finally {
+    db.close()
+  }
+  const session = await sessions.parse('devin', { path, format: 'devin_sqlite', id: native.session.id })
+  assertSessionContract(session)
+  assert.deepEqual(session.records.slice(1).map(r => JSON.parse((r.native as { chat_message: string }).chat_message) as unknown), native.nodes)
+  assert.deepEqual(conversationOf(session).map(e => e.id), ['m2', 'm3'])
+  assert.deepEqual(toolCallsOf(session)[0]?.data, { callId: 'call_1', toolName: 'read_file', arguments: { path: 'hello.py' } })
+  assert.equal(toolResultsOf(session)[0]?.data.callId, 'call_1')
+  assert.equal(eventsOf(session, 'reasoning')[0]?.data.text, 'I should read it first.')
+})
+
+void it('independent fx checkpoint keeps manifest identity, interrupted calls and string arguments', async () => {
+  const session = await sessions.parse('fx', { path: compatibility('fx/session.json'), format: 'fx_json' })
+  assertSessionContract(session)
+  assert.equal(session.id, '1787261000000-1787261000000000000-0000000000000001')
+  assert.equal(session.workspace?.path, '/Users/fx-demo/Projects/alpha')
+  assert.equal(conversationOf(session).filter(e => e.type === 'user_message').length, 4)
+  assert.equal(toolCallsOf(session).length, 5)
+  assert.equal(toolCallsOf(session)[0]?.data.arguments, '{"path":"."}')
+  assert.deepEqual(toolResultsOf(session)[0]?.timestamp, { format: 'unix_millis', value: 1787261100000 })
+  assert.ok(session.diagnostics.some(d => d.message.includes('call_fixture_002 has no recorded result')))
+  assert.ok(session.diagnostics.some(d => d.message.includes('through_seq')))
+})
+
+void it('independent Cline artifacts preserve adjacent messages, failed user-block results and usage', async () => {
+  const session = await sessions.parse('cline', { path: compatibility('cline/cline-cli-tool.json'), format: 'cline_json' })
+  assertSessionContract(session)
+  assert.equal(session.id, 'cline-cli-tool')
+  assert.equal(session.title, 'Inspect the fixture file')
+  assert.equal(session.metadata.surface, 'cli')
+  assert.equal(toolCallsOf(session)[0]?.data.callId, 'cline-tool-1')
+  assert.equal(toolResultsOf(session)[0]?.data.isError, true)
+  assert.equal(toolResultsOf(session)[0]?.data.result, 'fixture line one')
+  assert.equal(eventsOf(session, 'usage').length, 1)
+  assert.equal(eventsOf(session, 'reasoning')[0]?.data.text, 'I should read the requested fixture file.')
+})
+
+void it('independent Droid store and headerless stream keep native call/result pairs', async () => {
+  for (const [path, id, call] of [['session_store_small.jsonl', 'droid_s1', 'tu1'], ['stream_json_small.jsonl', 'sid_stage0_small', 'c1']] as const) {
+    const session = await sessions.parse('droid', { path: compatibility(`droid/${path}`) })
+    assertSessionContract(session)
+    assert.equal(session.id, id)
+    assert.equal(session.records.length, 4)
+    assert.equal(toolCallsOf(session)[0]?.data.callId, call)
+    assert.equal(toolResultsOf(session)[0]?.data.callId, call)
+  }
+})
+
+void it('independently validated DeepSeek v0-v4 plain and checksummed frames share evidence and facts', async () => {
+  for (let version = 0; version <= 4; version++) {
+    const path = compatibility(`deepseek/v${version}_${version === 4 ? 'tool' : 'minimal'}_session.jsonl`)
+    const plain = await sessions.parse('deepseek', { path })
+    const compressed = await sessions.parse('deepseek', { path: `${path}.zstd`, format: 'jsonl_zstd' })
+    assertSessionContract(plain)
+    assertSessionContract(compressed)
+    assert.equal(plain.id, `dsh-synth-v${version}${version === 4 ? '-tool' : ''}-0001`)
+    assert.equal(plain.metadata.version, version)
+    assert.equal(plain.workspace?.path, '/tmp/synthetic-dsh-demo')
+    assert.deepEqual(compressed.events, plain.events)
+    assert.deepEqual(compressed.records.map(r => r.native), plain.records.map(r => r.native))
+    assert.equal(eventsOf(plain, 'unknown').length, 0)
+    if (version >= 2)
+      assert.equal(toolResultsOf(plain).length, 1)
+    if (version === 4) {
+      assert.deepEqual(toolCallsOf(plain).map(e => e.data.callId), ['call-v4-1', 'call-v4-1'])
+      assert.equal(toolResultsOf(plain)[0]?.data.callId, 'call-v4-1')
+    }
+  }
 })

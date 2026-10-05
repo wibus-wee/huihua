@@ -35,8 +35,10 @@ export const copilotProvider = jsonlProvider({
           return contentBlocks(attachment)
         })], ...optional('model', string(d.model)) })
       }
-      if ('reasoningText' in d || 'reasoningOpaque' in d || 'encryptedContent' in d)
-        ingest.emit('reasoning', { ...optional('text', string(d.reasoningText)), ...optional('encrypted', d.encryptedContent ?? d.reasoningOpaque) })
+      const reasoning = string(d.reasoningText)
+      const encrypted = d.encryptedContent ?? d.reasoningOpaque ?? undefined
+      if (reasoning !== undefined || encrypted !== undefined)
+        ingest.emit('reasoning', { ...optional('text', reasoning), ...optional('encrypted', encrypted) })
       for (const request of array(d.toolRequests)) {
         const call = object(request)
         if (typeof call.name === 'string')
@@ -44,6 +46,9 @@ export const copilotProvider = jsonlProvider({
         else
           ingest.unknown('copilot_tool_request', request)
       }
+    }
+    else if (type === 'assistant.reasoning' && typeof d.content === 'string') {
+      ingest.emit('reasoning', { text: d.content })
     }
     else if (type === 'tool.execution_start' && typeof d.toolName === 'string') {
       ingest.emit('tool_call', { ...optional('callId', string(d.toolCallId)), toolName: d.toolName, arguments: d.arguments ?? null })

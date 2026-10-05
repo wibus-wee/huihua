@@ -26,6 +26,7 @@ export const qwenProvider = jsonlProvider({
     const v = object(native)
     const type = string(v.type) ?? 'qwen_record'
     const m = object(v.message)
+    const tool = object(v.toolCallResult)
     if (['user', 'assistant', 'tool_result'].includes(type)) {
       for (const part of array(m.parts)) {
         const p = object(part)
@@ -35,7 +36,7 @@ export const qwenProvider = jsonlProvider({
           ingest.emit('tool_call', { ...optional('callId', string(call.id)), toolName: call.name, arguments: call.args ?? null })
         }
         else if ('functionResponse' in p) {
-          ingest.emit('tool_result', { ...optional('callId', string(result.id) ?? string(object(v.systemPayload).toolCallId)), ...optional('toolName', string(result.name)), result: result.response ?? result, isError: 'error' in object(result.response) })
+          ingest.emit('tool_result', { ...optional('callId', string(result.id) ?? string(object(v.systemPayload).toolCallId) ?? string(tool.callId)), ...optional('toolName', string(result.name)), result: result.response ?? result, isError: object(result.response).error != null || tool.error != null || tool.status === 'error' })
         }
         else if (p.thought === true && typeof p.text === 'string') {
           ingest.emit('reasoning', { text: p.text })
