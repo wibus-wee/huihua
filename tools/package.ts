@@ -83,6 +83,16 @@ export async function packageCheck(): Promise<void> {
       assert.throws(()=>eventsOf(session),TypeError);
       const direct=await sessions.parse('codex',{path:${JSON.stringify(fixture)}});assert.deepEqual(direct.events,session.events);
       const {readFile}=await import('node:fs/promises');const acquired=await sessions.parse('codex',{jsonl:await readFile(${JSON.stringify(fixture)})});assert.deepEqual(acquired.events,session.events);
+      const bytes=await readFile(${JSON.stringify(fixture)});
+      async function* chunks(){for(const byte of bytes)yield new Uint8Array([byte]);}
+      const streamed=sessions.stream('codex',{jsonl:chunks(),source:${JSON.stringify(fixture)}});
+      const frames=[];for await(const frame of streamed)frames.push(frame);
+      const expectedFrames=[];const directOpened=await sessions.open({id:'source:'+${JSON.stringify(fixture)},provider:'codex',source:{path:${JSON.stringify(fixture)},format:'jsonl'},metadata:{id_origin:'source_locator'}});
+      for await(const frame of directOpened.stream())expectedFrames.push(frame);
+      assert.deepEqual(frames,expectedFrames);assert.throws(()=>streamed[Symbol.asyncIterator](),TypeError);
+      const {codexProvider}=await import('huihua/providers/codex');const providerFrames=[];
+      for await(const frame of codexProvider.stream({jsonl:bytes,source:${JSON.stringify(fixture)}}))providerFrames.push(frame);
+      assert.deepEqual(providerFrames,frames);
       const recorded=await sessions.parse('oar',{jsonl:await readFile(${JSON.stringify(resolve('fixtures/oar/voyage.jsonl'))})});assert.equal(recorded.id,'root');assert.equal(toolCallsOf(recorded).length,1);
       const acp=await sessions.parse('acp',{jsonl:await readFile(${JSON.stringify(resolve('fixtures/acp/v2.jsonl'))})});assert.equal(observe.fileChangesOf(acp).length,2);
       const agy=await sessions.parse('antigravity',{path:${JSON.stringify(resolve('fixtures/antigravity/steps.db'))},format:'antigravity_sqlite'});assert.equal(conversationOf(agy).length,2);assertSessionContract(agy);
@@ -97,7 +107,7 @@ export async function packageCheck(): Promise<void> {
     await writeFile(
       join(root, 'consumer.ts'),
       `
-      import {sessions,defineProvider,type SessionEvent} from 'huihua';
+      import {sessions,defineProvider,type SessionEvent,type SessionFrame,type SessionProvider} from 'huihua';
       import {codexProvider} from 'huihua/providers/codex';
       import {conversationOf,eventsOf,fileChangesOf,subagentsOf,toolCallsOf,toolResultsOf} from 'huihua/observe';
       const provider=defineProvider(codexProvider);
@@ -116,7 +126,13 @@ export async function packageCheck(): Promise<void> {
       }
       const acquired=await sessions.parse('codex',{jsonl:new Uint8Array()});
       const fromFile=await sessions.parse('codex',{path:'rollout.jsonl'});
-      void acquired;void fromFile;
+      async function* bytes(){yield new Uint8Array();}
+      const frames:AsyncIterable<SessionFrame>=sessions.stream('codex',{jsonl:bytes(),source:'stored-object:consumer'});
+      const providerFrames:AsyncIterable<SessionFrame>=codexProvider.stream({jsonl:new Uint8Array()});
+      const adapter:SessionProvider=provider;
+      if(adapter.stream){const customFrames:AsyncIterable<SessionFrame>=adapter.stream({jsonl:''});void customFrames;}
+      for await(const frame of frames){if(frame.type==='event'){const event:SessionEvent=frame.event;void event;}}
+      void acquired;void fromFile;void providerFrames;
       `,
     )
     execFileSync(

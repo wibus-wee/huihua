@@ -1,4 +1,4 @@
-import type { OpenSession, Session, SessionRef } from './session.ts'
+import type { OpenSession, Session, SessionFrame, SessionRef } from './session.ts'
 import type { SessionSource } from './source.ts'
 
 export interface DetectOptions {
@@ -43,6 +43,12 @@ export interface SessionProvider {
   open?: (ref: SessionRef, options?: ReadOptions) => Promise<OpenSession>
   /** Optional acquired-data capability. File inputs use the existing read SPI. */
   parse?: (input: JsonlInput, options?: ReadOptions) => Promise<Session>
+  /**
+   * Lazy acquired JSONL frames. Each sequence must reject a second iterator request with TypeError.
+   * Prefixes are provisional until successful EOF; early return must close the input iterator.
+   * Check cancellation between frames/chunks; producers waiting on I/O must handle the signal too.
+   */
+  stream?: (input: JsonlInput, options?: ReadOptions) => AsyncIterable<SessionFrame>
 }
 export function defineProvider<T extends SessionProvider>(provider: T): T {
   if (provider.id.trim() === '')

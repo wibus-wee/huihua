@@ -118,6 +118,7 @@
     "node": ">=22.18.0"
   },
   "scripts": {
+    "bench:stream": "node --expose-gc tools/bench-stream.ts",
     "check": "node tools/check.ts",
     "bench": "node tools/bench-jsonl.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",

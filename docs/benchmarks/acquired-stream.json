@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-05",
+  "environment": {
+    "node": "v26.10.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M4 Max",
+    "os": "macOS 26.5.1"
+  },
+  "warmupRecords": 20000,
+  "defaultChunkBytes": 65536,
+  "signal": "absent",
+  "measurementCount": 310,
+  "baselineSourceSHA256": "5d755ee9444aceac70e2d95ed78ec0df7ebe84b3d476297dc4ac07b9c791bb90",
+  "finalSourceSHA256": "10643d78f8437ef568c9a4a020eb36877c6b34690c6a64784acaefdc7dd3e847",
+  "benchmarkSHA256": "4db09901ebdb3ace4bd4f10ec0f1b8dc9eb321551c5274f25a4f8ad69a2f73c0",
+  "fixtureHashes": {
+    "fixtures/codex/simple.jsonl": "7b3a9df59bba194f7fc9af5736b563d1043bd3116271f83a6f605be7257d6b7d",
+    "fixtures/codex/tool-call.jsonl": "a53f38878153d6a948bef930029ecc3adc3f3e5a341591603b03b8133befd7c2",
+    "fixtures/codex/unknown.jsonl": "acc62064cf99f56325dcb72213b3502fa536c6e11cd971303cc4db20dd69fca7",
+    "fixtures/codex/malformed.jsonl": "c90e9d1f07cae3f8edd63da108fbdb3d9fc841a63fce6016a6aeb038365e0893"
+  },
+  "variants": [
+    {
+      "name": "baseline",
+      "sourceSHA256": "5d755ee9444aceac70e2d95ed78ec0df7ebe84b3d476297dc4ac07b9c791bb90",
+      "testsPassed": 75,
+      "testsTotal": 75
+    },
+    {
+      "name": "frame_owner",
+      "sourceSHA256": "2b5e16e17d4b5ed4c93949b78dc74203a680cb025ae5c736c484e92e7ded52b0",
+      "testsPassed": 75,
+      "testsTotal": 75
+    },
+    {
+      "name": "line_owner",
+      "sourceSHA256": "35e444ae4378804b52eaccf8a51de05863a91542513608c9177816edc0a6c001",
+      "testsPassed": 75,
+      "testsTotal": 75
+    },
+    {
+      "name": "chunk_owner",
+      "sourceSHA256": "e5d881c3f397b5224826ad6f5442f672af5b264d6378626ecbd62049ca3b79b8",
+      "testsPassed": 75,
+      "testsTotal": 75
+    },
+    {
+      "name": "no_guard",
+      "sourceSHA256": "45d3903c5ace23d316fa94677719460192059f5d5bf41e072e0582b9dd0790e8",
+      "testsPassed": 74,
+      "testsTotal": 75
+    },
+    {
+      "name": "no_frame_cancellation",
+      "sourceSHA256": "2802deffa3f6925418a26b68dbca439cadde532348106d855b20655316ac913f",
+      "testsPassed": 73,
+      "testsTotal": 75
+    },
+    {
+      "name": "combined",
+      "sourceSHA256": "cc3e4a13f05e02ed1f0c4689e1892727d6ad292b37b303776cc61195be4bcb89",
+      "testsPassed": 75,
+      "testsTotal": 75
+    },
+    {
+      "name": "frame_line",
+      "sourceSHA256": "a9dbf507fb9fd34e203ca130d71425fc718b8881089ad86337a4de369bb09473"
+    },
+    {
+      "name": "final",
+      "sourceSHA256": "10643d78f8437ef568c9a4a020eb36877c6b34690c6a64784acaefdc7dd3e847",
+      "testsPassed": 75,
+      "testsTotal": 75
+    }
+  ],
+  "phases": {
+    "ablation": {
+      "trials": 7,
+      "order": "seeded shuffle (20261005)"
+    },
+    "chunk-size": {
+      "trials": 5,
+      "order": "same shuffle continuation"
+    },
+    "memory": {
+      "trials": 5,
+      "order": "same shuffle continuation"
+    },
+    "chunk-components": {
+      "trials": 7,
+      "order": "forward/reverse alternation"
+    },
+    "final": {
+      "trials": 7,
+      "order": "seeded pairs (8456)"
+    },
+    "final-memory": {
+      "trials": 5,
+      "order": "same pair continuation"
+    }
+  }
+}
