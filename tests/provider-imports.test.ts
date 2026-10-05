@@ -13,6 +13,42 @@ import { assertSessionContract } from '../src/testing/index.ts'
 const fixture = (path: string) => resolve('fixtures', path)
 const compatibility = (path: string) => fixture(`compatibility/${path}`)
 
+void it('Cursor normalizes role-less turn failures and preserves native evidence', async () => {
+  const native = { type: 'turn_ended', status: 'error', error: 'upstream request failed' }
+  const jsonl = `${JSON.stringify(native)}\n`
+  for (const input of [
+    { jsonl },
+    { path: fixture('cursor/turn-error.jsonl') },
+  ]) {
+    const session = await sessions.parse('cursor', input)
+    assertSessionContract(session)
+    assert.deepEqual(session.events.map(e => ({ type: e.type, data: e.data, record: e.record })), [
+      { type: 'error', data: { message: 'upstream request failed', details: native }, record: 0 },
+    ])
+    assert.deepEqual(session.records[0]?.native, native)
+    assert.equal(session.records[0]?.text, jsonl)
+    assert.deepEqual(session.diagnostics, [])
+  }
+})
+
+void it('Cursor keeps unrecognized turn endings unknown and preserves role messages', async () => {
+  const unknown = [
+    { type: 'turn_ended', status: 'success', error: 'not a failure' },
+    { type: 'turn_ended', status: 'error', error: '' },
+    { type: 'turn_ended', status: 'error' },
+    { type: 'turn_ended', status: 'error', error: { message: 'structured' } },
+    { type: 'future', status: 'error', error: 'future record' },
+    { role: 'system', type: 'turn_ended', status: 'error', error: 'unknown role' },
+  ]
+  const message = { role: 'assistant', type: 'turn_ended', status: 'error', error: 'role message', message: { content: 'answer' } }
+  const emptyRole = { role: '', type: 'turn_ended', status: 'error', error: 'empty role' }
+  const session = await sessions.parse('cursor', { jsonl: [...unknown, message, emptyRole].map(v => JSON.stringify(v)).join('\n') })
+  assertSessionContract(session)
+  assert.deepEqual(eventsOf(session, 'unknown').map(e => e.data.payload), unknown)
+  assert.deepEqual(conversationOf(session).map(e => e.data.content), [[{ type: 'text', data: 'answer' }]])
+  assert.deepEqual(eventsOf(session, 'error').map(e => e.data.message), ['empty role'])
+})
+
 void it('OAR keeps voyage wrappers, requests, echoes, repeated message IDs and unknown native frames', async () => {
   const input = await readFile(fixture('oar/voyage.jsonl'), 'utf8')
   const session = await sessions.parse('oar', { jsonl: input })
