@@ -244,6 +244,11 @@ Supported exports are the root, `/observe`,
 `/testing` and `/providers/{claude,codex,cursor,opencode,pi,oar,acp,kimi,grok,antigravity,morph}`.
 Internal paths are not package exports.
 
+## Development and releases
+
+Use the pinned pnpm version and run pnpm check before submitting changes.
+The [quality and release automation](docs/architecture.md#quality-and-release-automation) contract describes CI, version tags and npm Trusted Publisher setup.
+
 ## License
 
 [MIT](LICENSE) © 2026 wibus-wee.

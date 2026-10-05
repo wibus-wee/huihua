@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
 import { builtinModules } from 'node:module'
@@ -46,6 +47,20 @@ async function sourceFiles(root = 'src'): Promise<string[]> {
   return output
 }
 export async function policy(): Promise<void> {
+  const releaseDocuments = parseAllDocuments(await readFile('.github/workflows/release.yml', 'utf8'))
+  assert.equal(releaseDocuments.length, 1)
+  assert.equal(releaseDocuments[0]!.errors.length, 0)
+  const release = releaseDocuments[0]!.toJS() as {
+    on: unknown
+    permissions: unknown
+    jobs: { publish: { 'if': string, 'runs-on': string, 'permissions': unknown, 'environment'?: unknown } }
+  }
+  assert.deepEqual(release.on, { push: { tags: ['v*'] } }, 'only version tags may trigger publishing')
+  assert.deepEqual(release.permissions, { contents: 'read' })
+  assert.equal(release.jobs.publish.if, 'github.repository == \'wibus-wee/huihua\'')
+  assert.equal(release.jobs.publish['runs-on'], 'ubuntu-latest')
+  assert.deepEqual(release.jobs.publish.permissions, { 'contents': 'read', 'id-token': 'write' })
+  assert.equal(release.jobs.publish.environment, undefined, 'npm Trusted Publisher environment is blank')
   const pkg = JSON.parse(await readFile('package.json', 'utf8')) as {
     dependencies: Record<string, string>
     devDependencies: Record<string, string>

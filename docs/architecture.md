@@ -234,6 +234,31 @@ No relationship store or query framework is part of this API.
 ACP and Grok emit file_change only for explicit ACP diffs.
 Checkpoints in other formats remain evidence rather than inferred historical diffs.
 
+## Quality and release automation
+
+[ci.yml](../.github/workflows/ci.yml) runs pnpm check on pushes, pull requests and a weekly schedule.
+Its matrix checks the minimum Node 22.18.0 runtime on Linux and Node 24 on macOS; the weekly advisory job checks production dependencies.
+
+[release.yml](../.github/workflows/release.yml) owns npm publishing from pushed v* tags in wibus-wee/huihua.
+The tag must equal v followed by package.json.version before dependency installation or validation starts.
+The workflow uses the pinned pnpm version, a frozen lockfile and the existing pnpm check pipeline, then packs the checked dist with pnpm without rebuilding.
+The pack command retains pnpm's manifest cleanup and includes the MIT license; the installed-package check validates this same packing path.
+Stable versions publish to latest; versions containing a prerelease suffix publish to next.
+Update and commit package.json.version, then push its matching tag to release; an existing npm version cannot be overwritten.
+
+The publishing job runs on a GitHub-hosted runner with contents: read and id-token: write.
+Release actions are pinned to commits and release dependency caching is disabled.
+An explicitly pinned npm CLI publishes the tarball with OIDC, using npm's documented trusted-publishing path rather than a stored NPM_TOKEN or another CLI's authentication behavior.
+This changes release automation only; package exports and agent-session/v1 semantics are unchanged.
+[npm's Trusted Publisher contract](https://docs.npmjs.com/trusted-publishers) owns authentication requirements and automatic provenance generation.
+
+Configure the huihua package on npm with GitHub Actions, organization/user wibus-wee, repository huihua and workflow filename release.yml (filename only).
+Leave Environment name blank because the publishing job has no GitHub environment.
+If the form exposes allowed actions, enable direct npm publish.
+The workflow must be pushed to GitHub before this binding can be used.
+tools/policy.ts checks the workflow's trigger, repository, runner, permissions and empty environment binding alongside the existing architecture rules.
+OIDC authentication and the actual upload can only be verified by a GitHub Actions release run.
+
 Machine checks enforce import directions, sources/dependencies, type safety, fixture/golden
 semantics and public package exports.
 Review owns mapping completeness, fact-versus-inference,
