@@ -10,6 +10,8 @@
   "warmupRecords": 20000,
   "defaultChunkBytes": 65536,
   "signal": "absent",
+  "framerRevision": "90d2bf573bb22e4db222c829e1dd8fc971c248e1",
+  "framerSHA256": "1db43baa67c3d071f55912d4a16423940435ef036c42cb518fb79371f8b3f2a7",
   "measurementCount": 310,
   "baselineSourceSHA256": "5d755ee9444aceac70e2d95ed78ec0df7ebe84b3d476297dc4ac07b9c791bb90",
   "finalSourceSHA256": "10643d78f8437ef568c9a4a020eb36877c6b34690c6a64784acaefdc7dd3e847",

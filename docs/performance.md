@@ -13,6 +13,8 @@ Each measurement runs in a fresh process, warms up with 20,000 records, then for
 Throughput trials use seven repetitions per configuration; memory trials use five.
 Variants run sequentially in shuffled or alternating order.
 The benchmark uses Node APIs without a benchmark dependency.
+All recorded runs use the JSONL framer at `90d2bf573bb22e4db222c829e1dd8fc971c248e1`.
+The separate framer optimizations in `de6cc0a` are retained in the current branch; their effects are not part of these recorded timings.
 
 The `messages` workload repeats the two native messages from the Codex simple fixture.
 The `mixed` workload cycles through user/assistant messages, a tool call/result, an unknown record and malformed JSON,
@@ -110,7 +112,8 @@ pnpm bench:stream parse 500000 65536 mixed
 The command emits one JSON result.
 Repeat in separate processes and compare medians; do not benchmark variants concurrently.
 The optional fifth argument selects a local source entrypoint for isolated ablation copies.
-The [baseline patch](benchmarks/acquired-stream-baseline.patch) restores the measured baseline in an isolated copy of the final source:
+The commands above measure the current checkout, including its current framer.
+To reproduce the archived comparison, restore the recorded framer in an isolated copy, measure the final ingester, then apply the [baseline patch](benchmarks/acquired-stream-baseline.patch) and measure again:
 
 ```sh
 bench_repo=$PWD
@@ -118,6 +121,8 @@ bench_root=$(mktemp -d)
 cp -R src "$bench_root/src"
 ln -s "$bench_repo/node_modules" "$bench_root/node_modules"
 printf '{"type":"module"}\n' > "$bench_root/package.json"
+git show 90d2bf573bb22e4db222c829e1dd8fc971c248e1:src/shared/jsonl.ts > "$bench_root/src/shared/jsonl.ts"
+pnpm bench:stream stream 100000 65536 mixed "$bench_root/src/index.ts"
 (cd "$bench_root" && git apply "$bench_repo/docs/benchmarks/acquired-stream-baseline.patch")
 pnpm bench:stream stream 100000 65536 mixed "$bench_root/src/index.ts"
 ```
