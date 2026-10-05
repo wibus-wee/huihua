@@ -16,6 +16,8 @@ Change the native source first, run the owning task and review semantic output. 
 DBs, dist declarations or goldens. Do not blindly update snapshots to resolve a failing test.
 Node's builtin SQLite is an independent test/fixture producer; the distributed library does not
 import it. Database byte layouts may differ between SQLite versions without changing semantics.
+The row oracle JSON-quotes TEXT inside SQLite before crossing Node's binding, preserving embedded
+NUL characters on Node 22.18 as well as newer runtimes; blobs, integers and null retain their types.
 The checksummed binary fixture has a small source recipe; tools/compressed-fixture.ts --regenerate
 uses Node 24.2+ builtin Zstandard as an independent producer, never as a production decoder.
 Regenerating the historical compressed fixture requires a Zstandard producer outside the runtime;
