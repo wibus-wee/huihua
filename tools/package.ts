@@ -75,7 +75,7 @@ export async function packageCheck(): Promise<void> {
       for(const name of ['eventsOf','conversationOf','toolCallsOf','toolResultsOf','fileChangesOf','subagentsOf']){assert.equal(typeof observe[name],'function');assert.equal(huihua[name],observe[name]);}
       assert.equal(Object.hasOwn(observe,'filesOf'),false);
       assert.equal(huihua.SESSION_SCHEMA,'agent-session/v1');
-      for(const name of ['claude','codex','cursor','opencode','pi','oar','acp','kimi','grok','antigravity','morph']){const module=await import('huihua/providers/'+name);assert.ok(Object.values(module).some(value=>value.id===name));}
+      for(const name of ['claude','codex','cursor','opencode','pi','oar','acp','kimi','grok','antigravity','morph','copilot','openclaw','qwen','droid','deepseek','cline','fx','devin','hermes']){const module=await import('huihua/providers/'+name);assert.ok(Object.values(module).some(value=>value.id===name));}
       const refs=await sessions.scan({providers:['codex'],roots:{codex:[${JSON.stringify(fixture)}]}});
       assert.equal(refs.length,1);const session=await sessions.read(refs[0]);assertSessionContract(session);assert.equal(conversationOf(session).length,0);
       assert.equal(toolCallsOf(session).length,1);assert.equal(toolResultsOf(session).length,1);

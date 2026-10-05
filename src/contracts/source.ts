@@ -8,6 +8,12 @@ export interface SessionSource {
     | 'opencode_files'
     | 'antigravity_sqlite'
     | 'morph_journal'
+    | 'openclaw_sqlite'
+    | 'hermes_json'
+    | 'hermes_sqlite'
+    | 'devin_sqlite'
+    | 'cline_json'
+    | 'fx_json'
     | (string & {})
   readonly locator?: Readonly<Record<string, unknown>>
 }

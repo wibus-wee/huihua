@@ -35,32 +35,54 @@ function hasCode(code: string) {
   return (error: unknown) =>
     error instanceof SessionError && error.code === code
 }
-for (const fixture of (await cases()).filter(c => c.path.endsWith('.db'))) {
+function oracleRows(db: DatabaseSync, table: string) {
+  const quote = (name: string) => `"${name.replaceAll('"', '""')}"`
+  const columns = db.prepare(`PRAGMA table_info(${quote(table)})`).all().map(row => String(row.name))
+  // Node 22.18's SQLite binding truncates TEXT at NUL; JSON quoting preserves it across the binding.
+  const selected = columns.map((name, i) => {
+    const column = quote(name)
+    return `typeof(${column}) AS "type${i}", CASE WHEN typeof(${column}) = 'text' THEN json_quote(${column}) ELSE ${column} END AS "value${i}"`
+  })
+  const statement = db.prepare(`SELECT ${selected.join(', ')} FROM ${quote(table)}`)
+  statement.setReadBigInts(true)
+  return statement.all().map(row => Object.fromEntries(columns.map((name, i) => {
+    const value = row[`value${i}`]
+    return [name, row[`type${i}`] === 'text'
+      ? JSON.parse(String(value)) as unknown
+      : typeof value === 'bigint' && Number.isSafeInteger(Number(value))
+        ? Number(value)
+        : value instanceof Uint8Array
+          ? Buffer.from(value)
+          : value]
+  })))
+}
+void it('SQLite oracle preserves NUL text and distinguishes blobs, integers and null', () => {
+  const db = new DatabaseSync(':memory:')
+  try {
+    db.exec('CREATE TABLE "quoted""table" ("__proto__" TEXT, empty TEXT, b BLOB, n INTEGER, missing TEXT)')
+    db.prepare('INSERT INTO "quoted""table" VALUES (?, ?, ?, ?, ?)').run('\0json:before\0after😀', '', Buffer.from([0, 255]), 9007199254740993n, null)
+    assert.deepEqual(oracleRows(db, 'quoted"table'), [{
+      ['__proto__']: '\0json:before\0after😀',
+      empty: '',
+      b: Buffer.from([0, 255]),
+      n: 9007199254740993n,
+      missing: null,
+    }])
+  }
+  finally {
+    db.close()
+  }
+})
+for (const fixture of (await cases()).filter(c => /\.(?:db|sqlite)$/.test(c.path))) {
   void it(`${fixture.path}: rows agree with independent SQLite engine and SQL source`, async () => {
     const path = resolve('fixtures', fixture.path)
-    const sqlPath = path.replace(/\.db$/, '.sql')
+    const sqlPath = path.replace(/\.(?:db|sqlite)$/, '.sql')
     const oracle = new DatabaseSync(':memory:')
     oracle.exec(await readFile(sqlPath, 'utf8'))
     const reader = await SqliteReader.open(path)
     try {
       for (const name of reader.tables.keys()) {
-        const statement = oracle.prepare(
-          `SELECT * FROM "${name.replaceAll('"', '""')}"`,
-        )
-        statement.setReadBigInts(true)
-        const expected = statement
-          .all()
-          .map(row =>
-            Object.fromEntries(
-              Object.entries(row).map(([k, v]) => [
-                k,
-                typeof v === 'bigint' && Number.isSafeInteger(Number(v))
-                  ? Number(v)
-                  : v instanceof Uint8Array
-                    ? Buffer.from(v)
-                    : v,
-              ]),
-            ))
+        const expected = oracleRows(oracle, name)
         const actual = []
         for await (const row of reader.rows(name)) actual.push(row)
         assert.deepEqual(actual, expected, name)

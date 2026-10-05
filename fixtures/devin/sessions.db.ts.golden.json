@@ -1,0 +1,305 @@
+{
+  "id": "devin-session",
+  "provider": "devin",
+  "source": {
+    "path": "<fixtures>/devin/sessions.db",
+    "format": "devin_sqlite",
+    "locator": {
+      "id": "devin-session"
+    }
+  },
+  "metadata": {
+    "id_origin": "native",
+    "main_chain_id": 3,
+    "hidden": 0
+  },
+  "title": "Devin fixture",
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1700000000000
+  },
+  "updatedAt": {
+    "format": "unix_millis",
+    "value": 1700000005000
+  },
+  "workspace": {
+    "path": "/captured/devin"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "devin",
+      "native": {
+        "id": "devin-session",
+        "title": "Devin fixture",
+        "working_directory": "/captured/devin",
+        "created_at": 1700000000,
+        "last_activity_at": 1700000005,
+        "main_chain_id": 3,
+        "hidden": 0
+      },
+      "source": {
+        "path": "<fixtures>/devin/sessions.db",
+        "table": "sessions",
+        "key": "devin-session"
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "devin",
+      "native": {
+        "row_id": 3,
+        "session_id": "devin-session",
+        "node_id": 1,
+        "parent_node_id": null,
+        "chat_message": "{\"message_id\":\"repeat\",\"role\":\"user\",\"content\":\"Inspect\"}",
+        "created_at": 1700000000
+      },
+      "source": {
+        "path": "<fixtures>/devin/sessions.db",
+        "table": "message_nodes",
+        "key": "1"
+      }
+    },
+    {
+      "sequence": 2,
+      "provider": "devin",
+      "native": {
+        "row_id": 1,
+        "session_id": "devin-session",
+        "node_id": 2,
+        "parent_node_id": 1,
+        "chat_message": "{\"message_id\":\"repeat\",\"role\":\"assistant\",\"content\":\"Reading\",\"tool_calls\":[{\"id\":\"call\",\"name\":\"read\",\"arguments\":{\"path\":\"a\"}}]}",
+        "created_at": 1700000001
+      },
+      "source": {
+        "path": "<fixtures>/devin/sessions.db",
+        "table": "message_nodes",
+        "key": "2"
+      }
+    },
+    {
+      "sequence": 3,
+      "provider": "devin",
+      "native": {
+        "row_id": 4,
+        "session_id": "devin-session",
+        "node_id": 3,
+        "parent_node_id": 2,
+        "chat_message": "{\"role\":\"tool\",\"tool_call_id\":\"call\",\"content\":\"denied\",\"is_error\":true}",
+        "created_at": 1700000003
+      },
+      "source": {
+        "path": "<fixtures>/devin/sessions.db",
+        "table": "message_nodes",
+        "key": "3"
+      }
+    },
+    {
+      "sequence": 4,
+      "provider": "devin",
+      "native": {
+        "row_id": 2,
+        "session_id": "devin-session",
+        "node_id": 4,
+        "parent_node_id": 1,
+        "chat_message": "{\"message_id\":\"branch\",\"role\":\"assistant\",\"content\":\"Abandoned branch\"}",
+        "created_at": 1700000002
+      },
+      "source": {
+        "path": "<fixtures>/devin/sessions.db",
+        "table": "message_nodes",
+        "key": "4"
+      }
+    },
+    {
+      "sequence": 5,
+      "provider": "devin",
+      "native": {
+        "row_id": 5,
+        "session_id": "devin-session",
+        "node_id": 5,
+        "parent_node_id": 4,
+        "chat_message": "{\"role\":\"future\",\"opaque\":true}",
+        "created_at": 1700000004
+      },
+      "source": {
+        "path": "<fixtures>/devin/sessions.db",
+        "table": "message_nodes",
+        "key": "5"
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "devin-session",
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "session_metadata",
+        "payload": {
+          "id": "devin-session",
+          "title": "Devin fixture",
+          "working_directory": "/captured/devin",
+          "created_at": 1700000000,
+          "last_activity_at": 1700000005,
+          "main_chain_id": 3,
+          "hidden": 0
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000000
+      },
+      "providerMetadata": {
+        "tool_scope": "main_chain",
+        "node_id": 1,
+        "parent_node_id": null,
+        "on_main_chain": true
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Inspect"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000001000
+      },
+      "providerMetadata": {
+        "tool_scope": "main_chain",
+        "node_id": 2,
+        "parent_node_id": 1,
+        "on_main_chain": true
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Reading"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 2,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000001000
+      },
+      "providerMetadata": {
+        "tool_scope": "main_chain",
+        "node_id": 2,
+        "parent_node_id": 1,
+        "on_main_chain": true
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": {
+          "path": "a"
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 3,
+      "id": "3",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000003000
+      },
+      "providerMetadata": {
+        "tool_scope": "main_chain",
+        "node_id": 3,
+        "parent_node_id": 2,
+        "on_main_chain": true
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "result": {
+          "role": "tool",
+          "tool_call_id": "call",
+          "content": "denied",
+          "is_error": true
+        },
+        "isError": true
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 4,
+      "id": "branch",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000002000
+      },
+      "providerMetadata": {
+        "tool_scope": "branch:4",
+        "node_id": 4,
+        "parent_node_id": 1,
+        "on_main_chain": false
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Abandoned branch"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 5,
+      "id": "5",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000004000
+      },
+      "providerMetadata": {
+        "tool_scope": "branch:4",
+        "node_id": 5,
+        "parent_node_id": 4,
+        "on_main_chain": false
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "chat_message",
+        "payload": {
+          "role": "future",
+          "opaque": true
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record chat_message"
+    }
+  ]
+}

@@ -1,0 +1,345 @@
+{
+  "id": "fx-session",
+  "provider": "fx",
+  "source": {
+    "path": "<fixtures>/fx/session/session.json",
+    "format": "fx_json"
+  },
+  "metadata": {
+    "id_origin": "native"
+  },
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1700000000000
+  },
+  "workspace": {
+    "path": "/captured/fx"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "fx",
+      "native": {
+        "schema_version": 3,
+        "storage_format": "event_log_v1",
+        "id": "fx-session",
+        "created_at_ms": 1700000000000,
+        "workspace_root": "/captured/fx"
+      },
+      "source": {
+        "path": "<fixtures>/fx/session/session.json"
+      },
+      "text": "{\n  \"schema_version\": 3,\n  \"storage_format\": \"event_log_v1\",\n  \"id\": \"fx-session\",\n  \"created_at_ms\": 1700000000000,\n  \"workspace_root\": \"/captured/fx\"\n}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "fx",
+      "native": {
+        "schema_version": 1,
+        "session_id": "fx-session",
+        "through_seq": 4,
+        "state": {
+          "id": "fx-session",
+          "history": [
+            {
+              "kind": "assistant",
+              "user": {
+                "text": "Inspect"
+              },
+              "assistant": null,
+              "execution": {
+                "tool_steps": [
+                  {
+                    "assistant": "Reading",
+                    "tool_calls": [
+                      {
+                        "id": "call",
+                        "name": "read",
+                        "arguments_json": "{\"path\":\"a\"}"
+                      }
+                    ],
+                    "tool_results": [
+                      {
+                        "tool_call_id": "call",
+                        "tool_name": "read",
+                        "status": "failure",
+                        "output": "denied",
+                        "created_at_ms": 1700000000001
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "interrupted",
+              "user": {
+                "text": "Continue"
+              },
+              "tool_call": {
+                "id": "pending",
+                "name": "read",
+                "arguments_json": "{}"
+              },
+              "terminal_reason": "cancelled"
+            },
+            {
+              "kind": "compacted_summary",
+              "summary": "Stored summary"
+            },
+            {
+              "kind": "future",
+              "data": {
+                "keep": true
+              }
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/fx/session/checkpoint.json"
+      },
+      "text": "{\n  \"schema_version\": 1,\n  \"session_id\": \"fx-session\",\n  \"through_seq\": 4,\n  \"state\": {\n    \"id\": \"fx-session\",\n    \"history\": [\n      {\n        \"kind\": \"assistant\",\n        \"user\": {\n          \"text\": \"Inspect\"\n        },\n        \"assistant\": null,\n        \"execution\": {\n          \"tool_steps\": [\n            {\n              \"assistant\": \"Reading\",\n              \"tool_calls\": [\n                {\n                  \"id\": \"call\",\n                  \"name\": \"read\",\n                  \"arguments_json\": \"{\\\"path\\\":\\\"a\\\"}\"\n                }\n              ],\n              \"tool_results\": [\n                {\n                  \"tool_call_id\": \"call\",\n                  \"tool_name\": \"read\",\n                  \"status\": \"failure\",\n                  \"output\": \"denied\",\n                  \"created_at_ms\": 1700000000001\n                }\n              ]\n            }\n          ]\n        }\n      },\n      {\n        \"kind\": \"interrupted\",\n        \"user\": {\n          \"text\": \"Continue\"\n        },\n        \"tool_call\": {\n          \"id\": \"pending\",\n          \"name\": \"read\",\n          \"arguments_json\": \"{}\"\n        },\n        \"terminal_reason\": \"cancelled\"\n      },\n      {\n        \"kind\": \"compacted_summary\",\n        \"summary\": \"Stored summary\"\n      },\n      {\n        \"kind\": \"future\",\n        \"data\": {\n          \"keep\": true\n        }\n      }\n    ]\n  }\n}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "fx-session",
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "fx_manifest",
+        "payload": {
+          "schema_version": 3,
+          "storage_format": "event_log_v1",
+          "id": "fx-session",
+          "created_at_ms": 1700000000000,
+          "workspace_root": "/captured/fx"
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "fx_checkpoint",
+        "payload": {
+          "schema_version": 1,
+          "session_id": "fx-session",
+          "through_seq": 4,
+          "state": {
+            "id": "fx-session",
+            "history": [
+              {
+                "kind": "assistant",
+                "user": {
+                  "text": "Inspect"
+                },
+                "assistant": null,
+                "execution": {
+                  "tool_steps": [
+                    {
+                      "assistant": "Reading",
+                      "tool_calls": [
+                        {
+                          "id": "call",
+                          "name": "read",
+                          "arguments_json": "{\"path\":\"a\"}"
+                        }
+                      ],
+                      "tool_results": [
+                        {
+                          "tool_call_id": "call",
+                          "tool_name": "read",
+                          "status": "failure",
+                          "output": "denied",
+                          "created_at_ms": 1700000000001
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "interrupted",
+                "user": {
+                  "text": "Continue"
+                },
+                "tool_call": {
+                  "id": "pending",
+                  "name": "read",
+                  "arguments_json": "{}"
+                },
+                "terminal_reason": "cancelled"
+              },
+              {
+                "kind": "compacted_summary",
+                "summary": "Stored summary"
+              },
+              {
+                "kind": "future",
+                "data": {
+                  "keep": true
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Inspect"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Reading"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": "{\"path\":\"a\"}"
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 1,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000001
+      },
+      "providerMetadata": {},
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "result": {
+          "tool_call_id": "call",
+          "tool_name": "read",
+          "status": "failure",
+          "output": "denied",
+          "created_at_ms": 1700000000001
+        },
+        "isError": true
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Continue"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "tool_call",
+      "data": {
+        "callId": "pending",
+        "toolName": "read",
+        "arguments": "{}"
+      }
+    },
+    {
+      "sequence": 8,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "interrupted",
+        "payload": {
+          "kind": "interrupted",
+          "user": {
+            "text": "Continue"
+          },
+          "tool_call": {
+            "id": "pending",
+            "name": "read",
+            "arguments_json": "{}"
+          },
+          "terminal_reason": "cancelled"
+        }
+      }
+    },
+    {
+      "sequence": 9,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "compacted_summary",
+        "payload": {
+          "kind": "compacted_summary",
+          "summary": "Stored summary"
+        }
+      }
+    },
+    {
+      "sequence": 10,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "unknown",
+      "data": {
+        "sourceType": "fx_history",
+        "payload": {
+          "kind": "future",
+          "data": {
+            "keep": true
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "fx checkpoint snapshot only; events after through_seq are not replayed"
+    },
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record fx_history"
+    },
+    {
+      "code": "PartialParse",
+      "message": "tool call pending has no recorded result"
+    }
+  ]
+}

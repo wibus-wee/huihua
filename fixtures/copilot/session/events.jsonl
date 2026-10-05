@@ -1,0 +1,8 @@
+{"type":"session.start","id":"start","timestamp":"2026-01-01T00:00:00Z","data":{"sessionId":"copilot-session","version":1,"startTime":"2026-01-01T00:00:00Z","context":{"cwd":"/captured/copilot"}}}
+{"type":"user.message","id":"repeat","data":{"content":"Inspect a file","attachments":[{"type":"file","path":"a"}]}}
+{"type":"assistant.message","id":"repeat","data":{"content":"Reading","model":"fixture-model","reasoningText":"Check first","toolRequests":[{"toolCallId":"call","name":"read_file","arguments":{"path":"a"}}]}}
+{"type":"tool.execution_start","data":{"toolCallId":"call","toolName":"read_file","arguments":{"path":"a"}}}
+{"type":"tool.execution_complete","data":{"toolCallId":"call","success":false,"result":{"content":"missing"}}}
+{"type":"assistant.usage","data":{"inputTokens":10,"outputTokens":2}}
+{"type":"future.event","data":{"secretUnknown":123}}
+{"type":"tool.execution_start","data":{"toolCallId":"interrupted","toolName":"read_file","arguments":{}}}

@@ -1,0 +1,317 @@
+{
+  "id": "cline-session",
+  "provider": "cline",
+  "source": {
+    "path": "<fixtures>/cline/session/session.json",
+    "format": "cline_json"
+  },
+  "metadata": {
+    "surface": "desktop",
+    "id_origin": "native"
+  },
+  "title": "Cline fixture",
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": {
+    "path": "/captured/cline"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cline",
+      "native": {
+        "version": 1,
+        "session_id": "cline-session",
+        "source": "desktop",
+        "started_at": "2026-01-01T00:00:00Z",
+        "cwd": "/captured/cline",
+        "metadata": {
+          "title": "Cline fixture"
+        },
+        "messages_path": "/external/do-not-read.json"
+      },
+      "source": {
+        "path": "<fixtures>/cline/session/session.json"
+      },
+      "text": "{\n  \"version\": 1,\n  \"session_id\": \"cline-session\",\n  \"source\": \"desktop\",\n  \"started_at\": \"2026-01-01T00:00:00Z\",\n  \"cwd\": \"/captured/cline\",\n  \"metadata\": {\n    \"title\": \"Cline fixture\"\n  },\n  \"messages_path\": \"/external/do-not-read.json\"\n}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "cline",
+      "native": {
+        "version": 1,
+        "sessionId": "cline-session",
+        "system_prompt": "Stored system",
+        "messages": [
+          {
+            "id": "repeat",
+            "role": "user",
+            "ts": 1700000000000,
+            "content": [
+              {
+                "type": "text",
+                "text": "Inspect"
+              }
+            ]
+          },
+          {
+            "id": "repeat",
+            "role": "assistant",
+            "ts": 1700000000001,
+            "modelInfo": {
+              "id": "fixture-model"
+            },
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Check"
+              },
+              {
+                "type": "tool_use",
+                "id": "call",
+                "name": "read",
+                "input": {
+                  "path": "a"
+                }
+              }
+            ],
+            "metrics": {
+              "inputTokens": 2
+            }
+          },
+          {
+            "role": "user",
+            "ts": 1700000000002,
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "call",
+                "content": "denied",
+                "is_error": true
+              }
+            ]
+          },
+          {
+            "role": "vendor",
+            "content": [
+              {
+                "type": "vendor",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "path": "<fixtures>/cline/session/session.messages.json"
+      },
+      "text": "{\n  \"version\": 1,\n  \"sessionId\": \"cline-session\",\n  \"system_prompt\": \"Stored system\",\n  \"messages\": [\n    {\n      \"id\": \"repeat\",\n      \"role\": \"user\",\n      \"ts\": 1700000000000,\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Inspect\"\n        }\n      ]\n    },\n    {\n      \"id\": \"repeat\",\n      \"role\": \"assistant\",\n      \"ts\": 1700000000001,\n      \"modelInfo\": {\n        \"id\": \"fixture-model\"\n      },\n      \"content\": [\n        {\n          \"type\": \"thinking\",\n          \"thinking\": \"Check\"\n        },\n        {\n          \"type\": \"tool_use\",\n          \"id\": \"call\",\n          \"name\": \"read\",\n          \"input\": {\n            \"path\": \"a\"\n          }\n        }\n      ],\n      \"metrics\": {\n        \"inputTokens\": 2\n      }\n    },\n    {\n      \"role\": \"user\",\n      \"ts\": 1700000000002,\n      \"content\": [\n        {\n          \"type\": \"tool_result\",\n          \"tool_use_id\": \"call\",\n          \"content\": \"denied\",\n          \"is_error\": true\n        }\n      ]\n    },\n    {\n      \"role\": \"vendor\",\n      \"content\": [\n        {\n          \"type\": \"vendor\",\n          \"value\": 1\n        }\n      ]\n    }\n  ]\n}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "cline_manifest",
+        "payload": {
+          "version": 1,
+          "session_id": "cline-session",
+          "source": "desktop",
+          "started_at": "2026-01-01T00:00:00Z",
+          "cwd": "/captured/cline",
+          "metadata": {
+            "title": "Cline fixture"
+          },
+          "messages_path": "/external/do-not-read.json"
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "sessionId": "cline-session"
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "cline_messages",
+        "payload": {
+          "version": 1,
+          "sessionId": "cline-session",
+          "system_prompt": "Stored system",
+          "messages": [
+            {
+              "id": "repeat",
+              "role": "user",
+              "ts": 1700000000000,
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Inspect"
+                }
+              ]
+            },
+            {
+              "id": "repeat",
+              "role": "assistant",
+              "ts": 1700000000001,
+              "modelInfo": {
+                "id": "fixture-model"
+              },
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "Check"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "call",
+                  "name": "read",
+                  "input": {
+                    "path": "a"
+                  }
+                }
+              ],
+              "metrics": {
+                "inputTokens": 2
+              }
+            },
+            {
+              "role": "user",
+              "ts": 1700000000002,
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "call",
+                  "content": "denied",
+                  "is_error": true
+                }
+              ]
+            },
+            {
+              "role": "vendor",
+              "content": [
+                {
+                  "type": "vendor",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 1,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000000
+      },
+      "providerMetadata": {},
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Inspect"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 1,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000001
+      },
+      "providerMetadata": {},
+      "type": "reasoning",
+      "data": {
+        "text": "Check"
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 1,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000001
+      },
+      "providerMetadata": {},
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": {
+          "path": "a"
+        }
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 1,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000001
+      },
+      "providerMetadata": {},
+      "type": "usage",
+      "data": {
+        "usage": {
+          "inputTokens": 2
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 1,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000002
+      },
+      "providerMetadata": {},
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "result": "denied",
+        "isError": true
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "unknown",
+      "data": {
+        "sourceType": "chat_message",
+        "payload": {
+          "role": "vendor",
+          "content": [
+            {
+              "type": "vendor",
+              "value": 1
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record chat_message"
+    }
+  ]
+}

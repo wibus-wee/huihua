@@ -192,6 +192,8 @@ export function messageEvents(
   role: string,
   content: unknown,
   model?: string,
+  envelope?: unknown,
+  evidence: Readonly<Record<string, unknown>> = {},
 ): void {
   const values: unknown[] = Array.isArray(content) ? content : [content]
   for (const item of values) {
@@ -209,7 +211,7 @@ export function messageEvents(
           'encrypted',
           type === 'redacted_thinking' ? v.data : v.encrypted,
         ),
-      })
+      }, envelope, evidence)
     }
     else if (
       (type === 'tool_use' || type === 'toolCall')
@@ -219,7 +221,7 @@ export function messageEvents(
         ...optional('callId', string(v.id)),
         toolName: v.name,
         arguments: v.input ?? v.arguments ?? null,
-      })
+      }, envelope, evidence)
     }
     else if (type === 'tool_result') {
       ingest.emit('tool_result', {
@@ -227,21 +229,57 @@ export function messageEvents(
         ...optional('toolName', string(v.name)),
         result: v.content ?? null,
         isError: v.is_error === true,
-      })
+      }, envelope, evidence)
     }
     else if (role === 'user') {
-      ingest.emit('user_message', { content: contentBlocks(item) })
+      ingest.emit('user_message', { content: contentBlocks(item) }, envelope, evidence)
     }
     else if (role === 'assistant') {
       ingest.emit('assistant_message', {
         content: contentBlocks(item),
         ...optional('model', model),
-      })
+      }, envelope, evidence)
     }
     else {
-      ingest.unknown('message', { role, content: item })
+      ingest.unknown('message', { role, content: item }, undefined, envelope, evidence)
     }
   }
+}
+/** Map persisted chat messages without resolving, deduplicating or executing tools. */
+export function chatMessageEvents(ingest: Ingestion, native: unknown, envelope: unknown = native, evidence: Readonly<Record<string, unknown>> = {}): void {
+  const m = object(native)
+  const role = string(m.role)
+  if (role === 'user' || role === 'assistant') {
+    if (m.content !== undefined && m.content !== null)
+      messageEvents(ingest, role, m.content, string(m.model) ?? string(object(m.modelInfo).id), envelope, evidence)
+    for (const call of array(m.tool_calls)) {
+      const c = object(call)
+      const fn = 'function' in c ? object(c.function) : c
+      if (typeof fn.name === 'string')
+        ingest.emit('tool_call', { ...optional('callId', string(c.id)), toolName: fn.name, arguments: fn.arguments ?? null }, envelope, evidence)
+      else
+        ingest.unknown('chat_tool_call', call, undefined, envelope, evidence)
+    }
+    const reasoning = string(m.reasoning_content) ?? string(m.reasoning) ?? string(object(m.thinking).thinking)
+    if (reasoning !== undefined)
+      ingest.emit('reasoning', { text: reasoning }, envelope, evidence)
+  }
+  else if (role === 'tool' || role === 'toolResult') {
+    ingest.emit('tool_result', {
+      ...optional('callId', string(m.tool_call_id) ?? string(m.toolCallId)),
+      ...optional('toolName', string(m.tool_name) ?? string(m.toolName) ?? string(m.name)),
+      result: native,
+      isError: m.is_error === true || m.isError === true,
+    }, envelope, evidence)
+  }
+  else if (role === 'system' || role === 'developer') {
+    ingest.emit('system', { sourceType: role, payload: native }, envelope, evidence)
+  }
+  else {
+    ingest.unknown('chat_message', native, undefined, envelope, evidence)
+  }
+  if ('usage' in m || 'metrics' in m)
+    ingest.emit('usage', { usage: m.usage ?? m.metrics }, envelope, evidence)
 }
 export function openFrom(
   ref: SessionRef,
@@ -434,7 +472,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         adapter.accepts ?? (p => p.endsWith('.jsonl')),
         options.signal,
       )) {
-        const compressed = path.endsWith('.jsonl.zst')
+        const compressed = /\.jsonl\.zstd?$/.test(path)
         const records = await header(path, compressed, options.headerBytes, options.signal)
         const metadata: unknown[] = []
         for (const companion of adapter.metadataFiles?.(path) ?? []) {

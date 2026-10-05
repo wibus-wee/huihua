@@ -71,6 +71,42 @@
     "./providers/morph": {
       "types": "./dist/providers/morph/index.d.ts",
       "import": "./dist/providers/morph/index.js"
+    },
+    "./providers/copilot": {
+      "types": "./dist/providers/copilot/index.d.ts",
+      "import": "./dist/providers/copilot/index.js"
+    },
+    "./providers/openclaw": {
+      "types": "./dist/providers/openclaw/index.d.ts",
+      "import": "./dist/providers/openclaw/index.js"
+    },
+    "./providers/qwen": {
+      "types": "./dist/providers/qwen/index.d.ts",
+      "import": "./dist/providers/qwen/index.js"
+    },
+    "./providers/droid": {
+      "types": "./dist/providers/droid/index.d.ts",
+      "import": "./dist/providers/droid/index.js"
+    },
+    "./providers/deepseek": {
+      "types": "./dist/providers/deepseek/index.d.ts",
+      "import": "./dist/providers/deepseek/index.js"
+    },
+    "./providers/cline": {
+      "types": "./dist/providers/cline/index.d.ts",
+      "import": "./dist/providers/cline/index.js"
+    },
+    "./providers/fx": {
+      "types": "./dist/providers/fx/index.d.ts",
+      "import": "./dist/providers/fx/index.js"
+    },
+    "./providers/devin": {
+      "types": "./dist/providers/devin/index.d.ts",
+      "import": "./dist/providers/devin/index.js"
+    },
+    "./providers/hermes": {
+      "types": "./dist/providers/hermes/index.d.ts",
+      "import": "./dist/providers/hermes/index.js"
     }
   },
   "files": [

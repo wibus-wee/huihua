@@ -175,7 +175,7 @@ export async function policy(): Promise<void> {
       throw new Error(`suppression bypass: ${name}`)
     if (
       name.startsWith('shared/')
-      && /["'](?:claude|codex|cursor|opencode|pi|oar|acp|kimi|grok|antigravity|morph)["']/i.test(text)
+      && /["'](?:claude|codex|cursor|opencode|pi|oar|acp|kimi|grok|antigravity|morph|copilot|openclaw|qwen|droid|deepseek|cline|fx|devin|hermes)["']/i.test(text)
     ) {
       throw new Error(`provider identity in shared: ${name}`)
     }
