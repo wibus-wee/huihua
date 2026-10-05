@@ -6,7 +6,8 @@
 | provider-cases.json | New synthetic provider cases with TypeScript snapshots only; no invented historical baselines |
 | *.jsonl / legacy-files/**/*.json | Minimal handwritten synthetic schema examples; not collected private sessions |
 | *.sql | Native database source of truth |
-| *.db | Explicit pnpm fixtures --regenerate output; tests compare logical rows against SQL |
+| *.db / *.sqlite | Explicit pnpm fixtures --regenerate output; tests compare logical rows against SQL |
+| deepseek/compressed/session.v4.jsonl.zstd | tools/compressed-fixture.ts --regenerate output from the plain DeepSeek v4 source; independently produced checksummed frames |
 | codex/simple.jsonl.zst | Historical generated compressed copy of simple.jsonl; tested byte-for-byte after decompression |
 | *.golden.json | Immutable v1 semantic compatibility baselines; current validation never rewrites them |
 | *.ts.golden.json | Canonical TypeScript snapshots, explicitly updated by pnpm goldens --update |

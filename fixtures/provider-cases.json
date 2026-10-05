@@ -31,5 +31,54 @@
   {
     "provider": "antigravity",
     "path": "antigravity/steps.db"
+  },
+  {
+    "provider": "copilot",
+    "path": "copilot/session/events.jsonl"
+  },
+  {
+    "provider": "openclaw",
+    "path": "openclaw/session.jsonl"
+  },
+  {
+    "provider": "qwen",
+    "path": "qwen/session.jsonl"
+  },
+  {
+    "provider": "droid",
+    "path": "droid/session.jsonl"
+  },
+  {
+    "provider": "deepseek",
+    "path": "deepseek/session/session.v4.jsonl"
+  },
+  {
+    "provider": "cline",
+    "path": "cline/session/session.json"
+  },
+  {
+    "provider": "fx",
+    "path": "fx/session/session.json"
+  },
+  {
+    "provider": "hermes",
+    "path": "hermes/session.json"
+  },
+  {
+    "provider": "hermes",
+    "path": "hermes/sessions.db"
+  },
+  {
+    "provider": "devin",
+    "path": "devin/sessions.db"
+  },
+  {
+    "provider": "openclaw",
+    "path": "openclaw/openclaw-agent.sqlite",
+    "snapshot": "openclaw/openclaw-agent.sqlite.ts.golden.json"
+  },
+  {
+    "provider": "deepseek",
+    "path": "deepseek/compressed/session.v4.jsonl.zstd"
   }
 ]

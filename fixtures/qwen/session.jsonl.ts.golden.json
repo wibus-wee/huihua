@@ -1,0 +1,344 @@
+{
+  "id": "qwen-session",
+  "provider": "qwen",
+  "metadata": {
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": {
+    "path": "/captured/qwen"
+  },
+  "title": "Fixture title",
+  "source": {
+    "path": "<fixtures>/qwen/session.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "qwen",
+      "type": "user",
+      "native": {
+        "type": "user",
+        "sessionId": "qwen-session",
+        "uuid": "repeat",
+        "cwd": "/captured/qwen",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "message": {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Inspect"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/qwen/session.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"user\",\"sessionId\":\"qwen-session\",\"uuid\":\"repeat\",\"cwd\":\"/captured/qwen\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"message\":{\"role\":\"user\",\"parts\":[{\"text\":\"Inspect\"}]}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "qwen",
+      "type": "assistant",
+      "native": {
+        "type": "assistant",
+        "sessionId": "qwen-session",
+        "uuid": "repeat",
+        "message": {
+          "role": "model",
+          "parts": [
+            {
+              "thought": true,
+              "text": "Check"
+            },
+            {
+              "functionCall": {
+                "id": "call",
+                "name": "read",
+                "args": {
+                  "path": "a"
+                }
+              }
+            }
+          ]
+        },
+        "model": "fixture-model",
+        "usageMetadata": {
+          "promptTokenCount": 2
+        }
+      },
+      "source": {
+        "path": "<fixtures>/qwen/session.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"assistant\",\"sessionId\":\"qwen-session\",\"uuid\":\"repeat\",\"message\":{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"Check\"},{\"functionCall\":{\"id\":\"call\",\"name\":\"read\",\"args\":{\"path\":\"a\"}}}]},\"model\":\"fixture-model\",\"usageMetadata\":{\"promptTokenCount\":2}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "qwen",
+      "type": "tool_result",
+      "native": {
+        "type": "tool_result",
+        "sessionId": "qwen-session",
+        "systemPayload": {
+          "toolCallId": "call"
+        },
+        "message": {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "name": "read",
+                "response": {
+                  "error": "denied"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/qwen/session.jsonl",
+        "position": 3
+      },
+      "text": "{\"type\":\"tool_result\",\"sessionId\":\"qwen-session\",\"systemPayload\":{\"toolCallId\":\"call\"},\"message\":{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"read\",\"response\":{\"error\":\"denied\"}}}]}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "qwen",
+      "type": "system",
+      "native": {
+        "type": "system",
+        "sessionId": "qwen-session",
+        "subtype": "custom_title",
+        "systemPayload": {
+          "customTitle": "Fixture title"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/qwen/session.jsonl",
+        "position": 4
+      },
+      "text": "{\"type\":\"system\",\"sessionId\":\"qwen-session\",\"subtype\":\"custom_title\",\"systemPayload\":{\"customTitle\":\"Fixture title\"}}\n"
+    },
+    {
+      "sequence": 4,
+      "provider": "qwen",
+      "type": "user",
+      "native": {
+        "type": "user",
+        "sessionId": "qwen-session",
+        "message": {
+          "parts": [
+            {
+              "inlineData": {
+                "mimeType": "image/png",
+                "data": "fixture"
+              }
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/qwen/session.jsonl",
+        "position": 5
+      },
+      "text": "{\"type\":\"user\",\"sessionId\":\"qwen-session\",\"message\":{\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"fixture\"}}]}}\n"
+    },
+    {
+      "sequence": 5,
+      "provider": "qwen",
+      "type": "assistant",
+      "native": {
+        "type": "assistant",
+        "sessionId": "qwen-session",
+        "message": {
+          "parts": [
+            {
+              "vendor": "unknown"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/qwen/session.jsonl",
+        "position": 6
+      },
+      "text": "{\"type\":\"assistant\",\"sessionId\":\"qwen-session\",\"message\":{\"parts\":[{\"vendor\":\"unknown\"}]}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "repeat",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "user",
+        "sessionId": "qwen-session",
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Inspect"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "assistant",
+        "sessionId": "qwen-session",
+        "native_position": 2
+      },
+      "type": "reasoning",
+      "data": {
+        "text": "Check"
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 1,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "assistant",
+        "sessionId": "qwen-session",
+        "native_position": 2
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": {
+          "path": "a"
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 1,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "assistant",
+        "sessionId": "qwen-session",
+        "native_position": 2
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "promptTokenCount": 2
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 2,
+      "providerMetadata": {
+        "type": "tool_result",
+        "sessionId": "qwen-session",
+        "native_position": 3
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "result": {
+          "error": "denied"
+        },
+        "isError": true
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 3,
+      "providerMetadata": {
+        "type": "system",
+        "sessionId": "qwen-session",
+        "native_position": 4
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "custom_title",
+        "payload": {
+          "type": "system",
+          "sessionId": "qwen-session",
+          "subtype": "custom_title",
+          "systemPayload": {
+            "customTitle": "Fixture title"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 4,
+      "providerMetadata": {
+        "type": "user",
+        "sessionId": "qwen-session",
+        "native_position": 5
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "image",
+            "data": {
+              "mimeType": "image/png",
+              "data": "fixture",
+              "metadata": {
+                "inlineData": {
+                  "mimeType": "image/png",
+                  "data": "fixture"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 5,
+      "providerMetadata": {
+        "type": "assistant",
+        "sessionId": "qwen-session",
+        "native_position": 6
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "qwen_part",
+        "payload": {
+          "vendor": "unknown"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record qwen_part",
+      "position": 6
+    }
+  ]
+}

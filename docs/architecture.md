@@ -77,7 +77,7 @@ native records (16 MiB default, including a JSONL newline).
 OpenSession.readMode describes the selected source's iteration strategy.
 incremental delivers records as read; buffered may collect selected rows for ordering or a complete snapshot before delivering them.
 JSONL, compressed JSONL, Morph journal segments and historical OpenCode filesystem reads are incremental.
-Cursor IDE, OpenCode and Antigravity SQLite reads, and the registry's read-only SPI fallback, are buffered.
+Cursor IDE, OpenCode, Antigravity, Hermes, Devin and OpenClaw SQLite reads, JSON snapshots, and the registry's read-only SPI fallback, are buffered.
 Both modes remain lazy and open a fresh source for each replay; neither promises a fixed memory ceiling.
 snapshot collects the full session in either mode.
 Providers own this declaration; the registry does not infer it from provider IDs or file extensions.
@@ -146,14 +146,23 @@ The composition root registers providers; each provider also has an independent 
 The public schema remains agent-session/v1 and existing provider mappings remain compatible.
 New provider IDs and source formats are additive; consumers should continue accepting custom provider IDs and unknown events.
 
-| Provider    | Source and discovery                                                                             | Mapping boundary                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| oar         | Explicit voyage/3 or RawEvent JSONL; no default directory                                        | Recorded OAR projections for any harness; complete wrappers/native payloads retained            |
-| acp         | Explicit JSON-RPC or bare SessionNotification JSONL; no default directory                        | Stable v1/v2 updates; no universal ACP export archive or live connection                        |
-| kimi        | KIMI_CODE_HOME/sessions or ~/.kimi-code/sessions; each agents/*/wire.jsonl                       | Confirmed flat durable wire records and companion state.json; no Python kimi-cli or ZIP decoder |
-| grok        | GROK_HOME/sessions or ~/.grok/sessions; updates.jsonl                                            | Standard ACP updates and summary.json; unmapped xAI extensions remain unknown                   |
-| antigravity | AGY_CONVERSATIONS_DIR or ~/.gemini/antigravity-cli/conversations; *.db                           | Partial observed CLI steps schema; no guarantee for Google's separate ACP-server/IDE store      |
-| morph       | MISTER_MORPH_FILE_STATE_DIR or ~/.morph; stats/topics_projection.json and journal/events.*.jsonl | Current topic/task journal; repeated snapshots retained; custom config paths use explicit roots |
+| Provider    | Source and discovery                                                                             | Mapping boundary                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| oar         | Explicit voyage/3 or RawEvent JSONL; no default directory                                        | Recorded OAR projections for any harness; complete wrappers/native payloads retained                 |
+| acp         | Explicit JSON-RPC or bare SessionNotification JSONL; no default directory                        | Stable v1/v2 updates; no universal ACP export archive or live connection                             |
+| kimi        | KIMI_CODE_HOME/sessions or ~/.kimi-code/sessions; each agents/*/wire.jsonl                       | Confirmed flat durable wire records and companion state.json; no Python kimi-cli or ZIP decoder      |
+| grok        | GROK_HOME/sessions or ~/.grok/sessions; updates.jsonl                                            | Standard ACP updates and summary.json; unmapped xAI extensions remain unknown                        |
+| antigravity | AGY_CONVERSATIONS_DIR or ~/.gemini/antigravity-cli/conversations; *.db                           | Partial observed CLI steps schema; no guarantee for Google's separate ACP-server/IDE store           |
+| morph       | MISTER_MORPH_FILE_STATE_DIR or ~/.morph; stats/topics_projection.json and journal/events.*.jsonl | Current topic/task journal; repeated snapshots retained; custom config paths use explicit roots      |
+| copilot     | ~/.copilot/session-state; flat JSONL and events.jsonl                                            | Native messages, mirrored tool requests/execution and usage; no quota accounting                     |
+| hermes      | HERMES_HOME or ~/.hermes; state.db and historical sessions                                       | All selected SQLite rows, JSON snapshots and JSONL captures/exports; no routing/index ingestion      |
+| openclaw    | OPENCLAW_STATE_DIR/agents or ~/.openclaw/agents and legacy ~/.clawdbot/agents                    | Selected session_windows/transcript_events, Zstandard payloads and legacy JSONL; no cold restoration |
+| qwen        | QWEN_HOME/projects or ~/.qwen/projects; chat JSONL                                               | Native Google parts, usage and system subtypes; telemetry excluded, malformed data never repaired    |
+| devin       | Absolute XDG_DATA_HOME or ~/.local/share; devin/cli/sessions.db                                  | All selected message nodes; native chain order and branch markers; no inferred usage                 |
+| fx          | ~/.fx/sessions; session.json and checkpoint.json                                                 | Manifest-3/checkpoint-1 history snapshots; post-checkpoint event tail diagnosed                      |
+| cline       | ~/.cline/data/sessions; <id>.json and adjacent <id>.messages.json                                | Version-1 CLI/Desktop messages, metrics and surface; external paths never followed                   |
+| deepseek    | DSH_HOME/sessions or ~/.dsh/sessions; session[.vN].jsonl[.zstd]                                  | Highest immutable generation, known v0–v4 facts; no migration or surface replay                      |
+| droid       | ~/.factory/sessions and ~/.factory/projects; JSONL                                               | Legacy stored messages and stream-json captures; no current private-store certification              |
 
 Together with Claude, Codex, Cursor and Pi, these cover readable native formats for OAR's current harness inventory, including community Morph.
 Coverage is defined by the table and adjacent research, not by harness name alone.
@@ -193,6 +202,30 @@ Open streams zero-padded segments in filename order and physical lines in order,
 Foreign explicitly attributed topics are outside the selector; unscoped records remain unknown without invented attribution.
 The projection is retained as metadata evidence, and current workspace files, runtime endpoints, credentials and config are never read to reconstruct history.
 Direct acquired Morph JSONL represents the recorded capture, with topic attribution, rather than a topic selector.
+
+JSON snapshot acquisition belongs to shared/json-store.ts; Cline, fx and historical Hermes own file selection and mapping.
+The helper reuses readJson and Ingestion, retains each complete file as one raw record, and reports buffered mode.
+Scan reads only the discovery JSON file within headerBytes; oversized snapshots fail explicitly rather than scanning their embedded transcript without a bound.
+Companion native identities must agree even when the caller labels the result with another ID.
+Manifest paths never authorize following arbitrary embedded filesystem paths.
+A streaming JSON parser is an alternative for larger snapshots, but these adapters need complete native-object evidence and the existing bounded reader fits the documented limit; no parallel JSON parser is introduced.
+
+Selected row-store acquisition belongs to shared/sqlite-store.ts; Hermes, Devin and OpenClaw own native tables, metadata, ordering and message mapping.
+The helper validates required columns, requires locator.id, preserves the selected metadata row and buffers selected transcript rows.
+It reuses SqliteReader's read-only WAL, source-change and row-limit checks.
+Provider callbacks check cancellation during normalization; unknown embedded JSON remains associated with the complete original SQL row.
+Hermes retains inactive/compacted rows in ID order.
+Devin emits the native main chain in root-to-tip order followed by remaining nodes in database row order; node_id, parent_node_id and on_main_chain retain branch evidence.
+Missing parents, cycles and repeated node IDs invalidate confident membership without discarding nodes.
+The existing tool_scope diagnostic key follows native branch roots so an abandoned-branch result cannot satisfy a main-chain call with the same ID; it does not expose a call/result relationship API.
+OpenClaw selects session_windows.session_id and orders transcript_events by seq; compressed payloads reuse zstdChunks and verify declared byte length.
+Cold archives and live restoration are outside that source selector.
+
+Shared chatMessageEvents extends the existing messageEvents mapping for persisted OpenAI/Pi-style messages, native reasoning, tool results and usage.
+Provider adapters retain responsibility for field aliases, timestamps and provenance.
+The alternative of importing another provider's mapper would couple format owners; duplicating block mapping would create competing projections.
+All additions use agent-session/v1 with additive provider IDs, source-format strings, subpath exports and opaque provider metadata; existing snapshots and public SPI behavior stay compatible.
+The format union, provider fixture manifest, source-import policy and installed-subpath smoke test enforce these additions.
 
 ## Dependency and ingestion decisions
 

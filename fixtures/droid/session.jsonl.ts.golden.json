@@ -1,0 +1,218 @@
+{
+  "id": "droid-session",
+  "provider": "droid",
+  "metadata": {
+    "compatibility": "legacy_jsonl"
+  },
+  "workspace": {
+    "path": "/captured/droid"
+  },
+  "source": {
+    "path": "<fixtures>/droid/session.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "droid",
+      "type": "session_start",
+      "native": {
+        "type": "session_start",
+        "id": "droid-session",
+        "version": 2,
+        "cwd": "/captured/droid"
+      },
+      "source": {
+        "path": "<fixtures>/droid/session.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"session_start\",\"id\":\"droid-session\",\"version\":2,\"cwd\":\"/captured/droid\"}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "droid",
+      "type": "message",
+      "native": {
+        "type": "message",
+        "id": "repeat",
+        "message": {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Inspect"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/droid/session.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"message\",\"id\":\"repeat\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Inspect\"}]}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "droid",
+      "type": "message",
+      "native": {
+        "type": "message",
+        "id": "repeat",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "call",
+              "name": "Read",
+              "input": {
+                "path": "a"
+              }
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/droid/session.jsonl",
+        "position": 3
+      },
+      "text": "{\"type\":\"message\",\"id\":\"repeat\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call\",\"name\":\"Read\",\"input\":{\"path\":\"a\"}}]}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "droid",
+      "type": "message",
+      "native": {
+        "type": "message",
+        "message": {
+          "role": "user",
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "call",
+              "is_error": true,
+              "content": "denied"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/droid/session.jsonl",
+        "position": 4
+      },
+      "text": "{\"type\":\"message\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call\",\"is_error\":true,\"content\":\"denied\"}]}}\n"
+    },
+    {
+      "sequence": 4,
+      "provider": "droid",
+      "type": "future",
+      "native": {
+        "type": "future",
+        "data": {
+          "unknown": true
+        }
+      },
+      "source": {
+        "path": "<fixtures>/droid/session.jsonl",
+        "position": 5
+      },
+      "text": "{\"type\":\"future\",\"data\":{\"unknown\":true}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "droid-session",
+      "providerMetadata": {
+        "type": "session_start",
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session_start",
+        "payload": {
+          "type": "session_start",
+          "id": "droid-session",
+          "version": 2,
+          "cwd": "/captured/droid"
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "message",
+        "native_position": 2
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Inspect"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "message",
+        "native_position": 3
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "Read",
+        "arguments": {
+          "path": "a"
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "providerMetadata": {
+        "type": "message",
+        "native_position": 4
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "result": "denied",
+        "isError": true
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 4,
+      "providerMetadata": {
+        "type": "future",
+        "native_position": 5
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "future",
+        "payload": {
+          "type": "future",
+          "data": {
+            "unknown": true
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record future",
+      "position": 5
+    }
+  ]
+}

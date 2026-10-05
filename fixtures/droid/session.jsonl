@@ -1,0 +1,5 @@
+{"type":"session_start","id":"droid-session","version":2,"cwd":"/captured/droid"}
+{"type":"message","id":"repeat","message":{"role":"user","content":[{"type":"text","text":"Inspect"}]}}
+{"type":"message","id":"repeat","message":{"role":"assistant","content":[{"type":"tool_use","id":"call","name":"Read","input":{"path":"a"}}]}}
+{"type":"message","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"call","is_error":true,"content":"denied"}]}}
+{"type":"future","data":{"unknown":true}}

@@ -1,0 +1,6 @@
+{"type":"session","version":3,"id":"openclaw-session","cwd":"/captured/openclaw","timestamp":"2026-01-01T00:00:00Z"}
+{"type":"message","id":"repeat","message":{"role":"user","content":[{"type":"text","text":"Inspect"},{"type":"image","data":"fixture","mimeType":"image/png"}]}}
+{"type":"message","id":"repeat","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Check"},{"type":"toolCall","id":"call","name":"read","arguments":{"path":"a"}}],"usage":{"input":2,"output":1}}}
+{"type":"message","message":{"role":"toolResult","toolCallId":"call","toolName":"read","content":[{"type":"text","text":"denied"}],"isError":true}}
+{"type":"custom","data":{"native":"state"}}
+{"type":"future","opaque":[1,2]}

@@ -1,0 +1,351 @@
+{
+  "id": "deepseek-session",
+  "provider": "deepseek",
+  "metadata": {
+    "version": 4,
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1700000000000
+  },
+  "workspace": {
+    "path": "/captured/deepseek"
+  },
+  "source": {
+    "path": "<fixtures>/deepseek/session/session.v4.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "unix_millis",
+    "value": 1700000000005
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "deepseek",
+      "type": "session",
+      "native": {
+        "type": "session",
+        "id": "deepseek-session",
+        "version": 4,
+        "createdAt": 1700000000000,
+        "cwd": "/captured/deepseek"
+      },
+      "source": {
+        "path": "<fixtures>/deepseek/session/session.v4.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"session\",\"id\":\"deepseek-session\",\"version\":4,\"createdAt\":1700000000000,\"cwd\":\"/captured/deepseek\"}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "deepseek",
+      "type": "user/message",
+      "native": {
+        "type": "user/message",
+        "seq": 0,
+        "time": 1700000000001,
+        "data": {
+          "id": "repeat",
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Inspect"
+            }
+          ]
+        },
+        "surfaceOp": "append"
+      },
+      "source": {
+        "path": "<fixtures>/deepseek/session/session.v4.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"user/message\",\"seq\":0,\"time\":1700000000001,\"data\":{\"id\":\"repeat\",\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Inspect\"}]},\"surfaceOp\":\"append\"}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "deepseek",
+      "type": "assistant/message",
+      "native": {
+        "type": "assistant/message",
+        "seq": 1,
+        "time": 1700000000002,
+        "data": {
+          "message": {
+            "id": "repeat",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool-call",
+                "id": "call",
+                "name": "read",
+                "arguments": "{\"path\":\"a\"}"
+              }
+            ],
+            "source": {
+              "kind": "model",
+              "provider": "fixture",
+              "model": "fixture-model"
+            }
+          },
+          "usage": {
+            "inputTokens": 2
+          }
+        },
+        "surfaceOp": "append"
+      },
+      "source": {
+        "path": "<fixtures>/deepseek/session/session.v4.jsonl",
+        "position": 3
+      },
+      "text": "{\"type\":\"assistant/message\",\"seq\":1,\"time\":1700000000002,\"data\":{\"message\":{\"id\":\"repeat\",\"role\":\"assistant\",\"content\":[{\"type\":\"tool-call\",\"id\":\"call\",\"name\":\"read\",\"arguments\":\"{\\\"path\\\":\\\"a\\\"}\"}],\"source\":{\"kind\":\"model\",\"provider\":\"fixture\",\"model\":\"fixture-model\"}},\"usage\":{\"inputTokens\":2}},\"surfaceOp\":\"append\"}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "deepseek",
+      "type": "tool/call",
+      "native": {
+        "type": "tool/call",
+        "seq": 2,
+        "time": 1700000000003,
+        "data": {
+          "callId": "call",
+          "name": "read",
+          "arguments": "{\"path\":\"a\"}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/deepseek/session/session.v4.jsonl",
+        "position": 4
+      },
+      "text": "{\"type\":\"tool/call\",\"seq\":2,\"time\":1700000000003,\"data\":{\"callId\":\"call\",\"name\":\"read\",\"arguments\":\"{\\\"path\\\":\\\"a\\\"}\"}}\n"
+    },
+    {
+      "sequence": 4,
+      "provider": "deepseek",
+      "type": "tool/result",
+      "native": {
+        "type": "tool/result",
+        "seq": 3,
+        "time": 1700000000004,
+        "data": {
+          "message": {
+            "role": "tool",
+            "toolCallId": "call",
+            "content": [
+              {
+                "type": "text",
+                "text": "denied"
+              }
+            ],
+            "isError": true
+          }
+        },
+        "surfaceOp": "append",
+        "sourceEventSeqs": [
+          1
+        ]
+      },
+      "source": {
+        "path": "<fixtures>/deepseek/session/session.v4.jsonl",
+        "position": 5
+      },
+      "text": "{\"type\":\"tool/result\",\"seq\":3,\"time\":1700000000004,\"data\":{\"message\":{\"role\":\"tool\",\"toolCallId\":\"call\",\"content\":[{\"type\":\"text\",\"text\":\"denied\"}],\"isError\":true}},\"surfaceOp\":\"append\",\"sourceEventSeqs\":[1]}\n"
+    },
+    {
+      "sequence": 5,
+      "provider": "deepseek",
+      "type": "future/plugin",
+      "native": {
+        "type": "future/plugin",
+        "seq": 4,
+        "time": 1700000000005,
+        "data": {
+          "keep": true
+        }
+      },
+      "source": {
+        "path": "<fixtures>/deepseek/session/session.v4.jsonl",
+        "position": 6
+      },
+      "text": "{\"type\":\"future/plugin\",\"seq\":4,\"time\":1700000000005,\"data\":{\"keep\":true}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "deepseek-session",
+      "providerMetadata": {
+        "type": "session",
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session",
+        "payload": {
+          "type": "session",
+          "id": "deepseek-session",
+          "version": 4,
+          "createdAt": 1700000000000,
+          "cwd": "/captured/deepseek"
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000001
+      },
+      "providerMetadata": {
+        "type": "user/message",
+        "native_position": 2,
+        "native_seq": 0,
+        "surfaceOp": "append"
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Inspect"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "repeat",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000002
+      },
+      "providerMetadata": {
+        "type": "assistant/message",
+        "native_position": 3,
+        "native_seq": 1,
+        "surfaceOp": "append"
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": "{\"path\":\"a\"}"
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 2,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000002
+      },
+      "providerMetadata": {
+        "type": "assistant/message",
+        "native_position": 3,
+        "native_seq": 1,
+        "surfaceOp": "append"
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "inputTokens": 2
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 3,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000003
+      },
+      "providerMetadata": {
+        "type": "tool/call",
+        "native_position": 4,
+        "native_seq": 2
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": "{\"path\":\"a\"}"
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 4,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000004
+      },
+      "providerMetadata": {
+        "type": "tool/result",
+        "native_position": 5,
+        "native_seq": 3,
+        "surfaceOp": "append",
+        "sourceEventSeqs": [
+          1
+        ]
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "result": {
+          "message": {
+            "role": "tool",
+            "toolCallId": "call",
+            "content": [
+              {
+                "type": "text",
+                "text": "denied"
+              }
+            ],
+            "isError": true
+          }
+        },
+        "isError": true
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 5,
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1700000000005
+      },
+      "providerMetadata": {
+        "type": "future/plugin",
+        "native_position": 6,
+        "native_seq": 4
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "future/plugin",
+        "payload": {
+          "type": "future/plugin",
+          "seq": 4,
+          "time": 1700000000005,
+          "data": {
+            "keep": true
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record future/plugin",
+      "position": 6
+    }
+  ]
+}

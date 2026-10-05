@@ -1,14 +1,23 @@
 import { acpProvider } from './providers/acp/index.ts'
 import { antigravityProvider } from './providers/antigravity/index.ts'
 import { claudeProvider } from './providers/claude/index.ts'
+import { clineProvider } from './providers/cline/index.ts'
 import { codexProvider } from './providers/codex/index.ts'
+import { copilotProvider } from './providers/copilot/index.ts'
 import { cursorProvider } from './providers/cursor/index.ts'
+import { deepseekProvider } from './providers/deepseek/index.ts'
+import { devinProvider } from './providers/devin/index.ts'
+import { droidProvider } from './providers/droid/index.ts'
+import { fxProvider } from './providers/fx/index.ts'
 import { grokProvider } from './providers/grok/index.ts'
+import { hermesProvider } from './providers/hermes/index.ts'
 import { kimiProvider } from './providers/kimi/index.ts'
 import { morphProvider } from './providers/morph/index.ts'
 import { oarProvider } from './providers/oar/index.ts'
+import { openclawProvider } from './providers/openclaw/index.ts'
 import { opencodeProvider } from './providers/opencode/index.ts'
 import { piProvider } from './providers/pi/index.ts'
+import { qwenProvider } from './providers/qwen/index.ts'
 import { createSessionRegistry } from './registry.ts'
 
 export type * from './contracts/diagnostic.ts'
@@ -42,5 +51,14 @@ export const sessions = createSessionRegistry([
   kimiProvider,
   oarProvider,
   morphProvider,
+  copilotProvider,
+  openclawProvider,
+  qwenProvider,
+  droidProvider,
+  deepseekProvider,
+  clineProvider,
+  fxProvider,
+  devinProvider,
+  hermesProvider,
 ])
 export const AgentSession = sessions

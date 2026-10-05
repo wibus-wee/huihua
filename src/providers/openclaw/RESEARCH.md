@@ -1,0 +1,29 @@
+# OpenClaw compatibility evidence
+
+Reviewed upstream source and documentation on 2026-10-05.
+
+## Official facts
+
+- [Source](https://github.com/openclaw/openclaw/blob/main/docs/reference/session-management-compaction/store.md): Current runtime transcripts live in per-agent agent/openclaw-agent.sqlite; sessions directories retain legacy JSONL artifacts. session_windows owns transcript generations.
+- [Source](https://github.com/openclaw/openclaw/blob/main/src/state/openclaw-agent-schema.sql): transcript_events selects session_id and orders by seq.
+  Payloads are event_json TEXT or event_zstd BLOB with declared event_utf8_bytes; unrelated indexing and runtime tables are separate owners.
+- [Source](https://github.com/openclaw/openclaw/blob/main/docs/reference/session-management-compaction/schema.md): Transcript entries retain the session header, messages, parentId edges, model/thinking changes, compaction and reset observations.
+
+## Third-party compatibility experience
+
+Older compatibility readers commonly cover Pi-shaped JSONL rather than the current SQLite store.
+A session parentSession path is evidence, not necessarily a canonical session ID.
+These observations do not establish coverage of every database migration.
+
+## Huihua decisions
+
+Discover OPENCLAW_STATE_DIR/agents or ~/.openclaw/agents, plus legacy ~/.clawdbot/agents when no override exists.
+Exclude trajectory logs.
+Select a SQLite session window through locator.id, preserve its row and all selected transcript rows, and decode Zstandard through the existing bounded binary reader.
+Verify declared decompressed size.
+Keep resets, branches and compactions as observations; do not reconstruct current context.
+Native compressed bytes and decoded JSON text remain reachable.
+Cold archives, encrypted storage locations, incognito memory and live Gateway calls are outside coverage.
+
+Fixtures are handwritten synthetic format examples, not collected private sessions or a release-wide certification.
+[Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

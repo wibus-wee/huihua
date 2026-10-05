@@ -28,6 +28,24 @@ Huihua is a TypeScript library for reading local session data produced by differ
 <kbd>Grok</kbd>
 &nbsp;
 <kbd>Antigravity</kbd>
+&nbsp;
+<kbd>Copilot CLI</kbd>
+&nbsp;
+<kbd>Hermes</kbd>
+&nbsp;
+<kbd>OpenClaw</kbd>
+&nbsp;
+<kbd>Qwen Code</kbd>
+&nbsp;
+<kbd>Devin CLI</kbd>
+&nbsp;
+<kbd>fx</kbd>
+&nbsp;
+<kbd>Cline</kbd>
+&nbsp;
+<kbd>DeepSeek Harness</kbd>
+&nbsp;
+<kbd>Droid</kbd>
 </p>
 
 ## Installation
@@ -109,7 +127,7 @@ const fromText = await sessions.parse('claude', {
 })
 ```
 
-JSONL acquisition is supported by Codex, Claude, Pi and Cursor's CLI adapter.
+JSONL acquisition is supported by Codex, Claude, Pi, Cursor's CLI adapter, OAR, ACP, Kimi, Grok, Morph, Copilot, OpenClaw, Qwen, Droid, DeepSeek and Hermes captures/exports.
 File reads and supplied data use the same provider mapping, raw evidence, ordering, diagnostics and record limits.
 The provider is explicit; content and file extensions are not used to guess it.
 The source label is provenance only and is never opened as a path.
@@ -177,6 +195,7 @@ isolates discovery from the process environment.
 Default discovery honors CODEX_HOME,
 CLAUDE_CONFIG_DIR, absolute XDG_CONFIG_HOME/XDG_DATA_HOME and PI_CODING_AGENT_DIR.
 Kimi, Grok, Antigravity and Morph honor the store roots listed in the [coverage contract](docs/architecture.md#provider-coverage-and-format-ownership).
+Copilot, Hermes, OpenClaw, Qwen, Devin, fx, Cline, DeepSeek and legacy Droid discover their native roots listed in the coverage contract.
 OAR and ACP recordings require explicit input or roots.
 
 | Provider                        | Implemented stores                                                                        | Compatibility evidence                            |
@@ -192,6 +211,15 @@ OAR and ACP recordings require explicit input or roots.
 | Grok Build (`grok`)             | Native updates.jsonl and summary.json; xAI extensions retained                            | [Research](src/providers/grok/RESEARCH.md)        |
 | Antigravity CLI (`antigravity`) | Partial observed SQLite/Protobuf steps; native bytes retained                             | [Research](src/providers/antigravity/RESEARCH.md) |
 | Mister Morph (`morph`)          | Topic discovery and ordered native task journal snapshots                                 | [Research](src/providers/morph/RESEARCH.md)       |
+| GitHub Copilot CLI (`copilot`)  | Flat/session-state events JSONL; mirrored calls and native usage                          | [Research](src/providers/copilot/RESEARCH.md)     |
+| Hermes Agent (`hermes`)         | Current state.db, historical JSON snapshots and JSONL captures/exports                    | [Research](src/providers/hermes/RESEARCH.md)      |
+| OpenClaw (`openclaw`)           | Current per-agent SQLite transcripts, compressed payloads and legacy JSONL                | [Research](src/providers/openclaw/RESEARCH.md)    |
+| Qwen Code (`qwen`)              | Project chat JSONL, native Google message parts and system records                        | [Research](src/providers/qwen/RESEARCH.md)        |
+| Devin CLI (`devin`)             | SQLite session metadata and all message-tree nodes with main-chain markers                | [Research](src/providers/devin/RESEARCH.md)       |
+| fx (`fx`)                       | Manifest and checkpoint JSON snapshots; event tail not replayed                           | [Research](src/providers/fx/RESEARCH.md)          |
+| Cline CLI/Desktop (`cline`)     | Version-1 manifests and adjacent messages JSON                                            | [Research](src/providers/cline/RESEARCH.md)       |
+| DeepSeek Harness (`deepseek`)   | v0–v4 immutable JSONL generations and Zstandard logs                                      | [Research](src/providers/deepseek/RESEARCH.md)    |
+| Factory Droid (`droid`)         | Legacy interactive JSONL and captured stream-json records                                 | [Research](src/providers/droid/RESEARCH.md)       |
 
 ```ts
 const voyage = await sessions.parse('oar', { path: '/backups/run.jsonl' })
@@ -212,6 +240,38 @@ Antigravity's native adapter covers an observed CLI database subset; Google's se
 Use `oar` or `acp` for recordings of that server.
 Kimi reads extracted native directories, not ZIP or Markdown exports.
 Morph preserves repeated task snapshots, and OAR preserves submitted requests alongside runtime echoes.
+
+For the new structured stores, parse() requires an explicit format:
+
+```ts
+const hermes = await sessions.parse('hermes', {
+  path: '/backups/state.db',
+  format: 'hermes_sqlite',
+  id: 'session-id',
+})
+const devin = await sessions.parse('devin', {
+  path: '/backups/sessions.db',
+  format: 'devin_sqlite',
+  id: 'session-id',
+})
+const openclaw = await sessions.parse('openclaw', {
+  path: '/backups/openclaw-agent.sqlite',
+  format: 'openclaw_sqlite',
+  id: 'session-id',
+})
+const cline = await sessions.parse('cline', {
+  path: '/backups/session/session.json',
+  format: 'cline_json',
+})
+// Also supported: hermes_json and fx_json, using the exact snapshot/manifest path.
+```
+
+JSON snapshots are bounded complete-file reads and report buffered mode.
+Devin retains abandoned branches; filter on native on_main_chain metadata when you need the selected chain.
+fx reads checkpoint history and diagnoses its unconsumed event tail.
+Cline ignores exported external paths and reads only the adjacent messages file.
+DeepSeek selects the highest generation per session directory and retains surface changes without replaying migrations.
+OpenClaw cold archives and newer private schemas outside the documented tables remain unsupported.
 
 Cursor CLI private store.db protobuf is not decoded.
 SQLite ingestion supports unencrypted rowid
@@ -241,7 +301,7 @@ capability support is member presence on that handle, such as `provider.open`.
 The public
 [SPI](src/contracts/provider.ts) is thin.
 Supported exports are the root, `/observe`,
-`/testing` and `/providers/{claude,codex,cursor,opencode,pi,oar,acp,kimi,grok,antigravity,morph}`.
+`/testing` and `/providers/{claude,codex,cursor,opencode,pi,oar,acp,kimi,grok,antigravity,morph,copilot,hermes,openclaw,qwen,devin,fx,cline,deepseek,droid}`.
 Internal paths are not package exports.
 
 ## License

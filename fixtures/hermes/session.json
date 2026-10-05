@@ -1,0 +1,36 @@
+{
+  "session_id": "hermes-json",
+  "cwd": "/captured/hermes",
+  "session_start": "2026-01-01T00:00:00Z",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Inspect"
+    },
+    {
+      "role": "assistant",
+      "content": "Reading",
+      "tool_calls": [
+        {
+          "id": "call",
+          "type": "function",
+          "function": {
+            "name": "read",
+            "arguments": "{\"path\":\"a\"}"
+          }
+        }
+      ],
+      "reasoning_content": "Check"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call",
+      "content": "denied",
+      "is_error": true
+    },
+    {
+      "role": "future",
+      "opaque": true
+    }
+  ]
+}

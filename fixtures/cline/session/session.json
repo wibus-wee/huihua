@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "session_id": "cline-session",
+  "source": "desktop",
+  "started_at": "2026-01-01T00:00:00Z",
+  "cwd": "/captured/cline",
+  "metadata": {
+    "title": "Cline fixture"
+  },
+  "messages_path": "/external/do-not-read.json"
+}

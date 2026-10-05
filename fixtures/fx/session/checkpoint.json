@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "session_id": "fx-session",
+  "through_seq": 4,
+  "state": {
+    "id": "fx-session",
+    "history": [
+      {
+        "kind": "assistant",
+        "user": {
+          "text": "Inspect"
+        },
+        "assistant": null,
+        "execution": {
+          "tool_steps": [
+            {
+              "assistant": "Reading",
+              "tool_calls": [
+                {
+                  "id": "call",
+                  "name": "read",
+                  "arguments_json": "{\"path\":\"a\"}"
+                }
+              ],
+              "tool_results": [
+                {
+                  "tool_call_id": "call",
+                  "tool_name": "read",
+                  "status": "failure",
+                  "output": "denied",
+                  "created_at_ms": 1700000000001
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "kind": "interrupted",
+        "user": {
+          "text": "Continue"
+        },
+        "tool_call": {
+          "id": "pending",
+          "name": "read",
+          "arguments_json": "{}"
+        },
+        "terminal_reason": "cancelled"
+      },
+      {
+        "kind": "compacted_summary",
+        "summary": "Stored summary"
+      },
+      {
+        "kind": "future",
+        "data": {
+          "keep": true
+        }
+      }
+    ]
+  }
+}

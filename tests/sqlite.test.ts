@@ -35,10 +35,10 @@ function hasCode(code: string) {
   return (error: unknown) =>
     error instanceof SessionError && error.code === code
 }
-for (const fixture of (await cases()).filter(c => c.path.endsWith('.db'))) {
+for (const fixture of (await cases()).filter(c => /\.(?:db|sqlite)$/.test(c.path))) {
   void it(`${fixture.path}: rows agree with independent SQLite engine and SQL source`, async () => {
     const path = resolve('fixtures', fixture.path)
-    const sqlPath = path.replace(/\.db$/, '.sql')
+    const sqlPath = path.replace(/\.(?:db|sqlite)$/, '.sql')
     const oracle = new DatabaseSync(':memory:')
     oracle.exec(await readFile(sqlPath, 'utf8'))
     const reader = await SqliteReader.open(path)

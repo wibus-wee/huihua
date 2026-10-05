@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "sessionId": "cline-session",
+  "system_prompt": "Stored system",
+  "messages": [
+    {
+      "id": "repeat",
+      "role": "user",
+      "ts": 1700000000000,
+      "content": [
+        {
+          "type": "text",
+          "text": "Inspect"
+        }
+      ]
+    },
+    {
+      "id": "repeat",
+      "role": "assistant",
+      "ts": 1700000000001,
+      "modelInfo": {
+        "id": "fixture-model"
+      },
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "Check"
+        },
+        {
+          "type": "tool_use",
+          "id": "call",
+          "name": "read",
+          "input": {
+            "path": "a"
+          }
+        }
+      ],
+      "metrics": {
+        "inputTokens": 2
+      }
+    },
+    {
+      "role": "user",
+      "ts": 1700000000002,
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call",
+          "content": "denied",
+          "is_error": true
+        }
+      ]
+    },
+    {
+      "role": "vendor",
+      "content": [
+        {
+          "type": "vendor",
+          "value": 1
+        }
+      ]
+    }
+  ]
+}

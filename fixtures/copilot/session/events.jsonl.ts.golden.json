@@ -1,0 +1,395 @@
+{
+  "id": "copilot-session",
+  "provider": "copilot",
+  "metadata": {
+    "id_origin": "native",
+    "version": 1,
+    "updated_at_origin": "last_recorded_event"
+  },
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": {
+    "path": "/captured/copilot"
+  },
+  "source": {
+    "path": "<fixtures>/copilot/session/events.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "copilot",
+      "type": "session.start",
+      "native": {
+        "type": "session.start",
+        "id": "start",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "data": {
+          "sessionId": "copilot-session",
+          "version": 1,
+          "startTime": "2026-01-01T00:00:00Z",
+          "context": {
+            "cwd": "/captured/copilot"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/copilot/session/events.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"session.start\",\"id\":\"start\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"data\":{\"sessionId\":\"copilot-session\",\"version\":1,\"startTime\":\"2026-01-01T00:00:00Z\",\"context\":{\"cwd\":\"/captured/copilot\"}}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "copilot",
+      "type": "user.message",
+      "native": {
+        "type": "user.message",
+        "id": "repeat",
+        "data": {
+          "content": "Inspect a file",
+          "attachments": [
+            {
+              "type": "file",
+              "path": "a"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/copilot/session/events.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"user.message\",\"id\":\"repeat\",\"data\":{\"content\":\"Inspect a file\",\"attachments\":[{\"type\":\"file\",\"path\":\"a\"}]}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "copilot",
+      "type": "assistant.message",
+      "native": {
+        "type": "assistant.message",
+        "id": "repeat",
+        "data": {
+          "content": "Reading",
+          "model": "fixture-model",
+          "reasoningText": "Check first",
+          "toolRequests": [
+            {
+              "toolCallId": "call",
+              "name": "read_file",
+              "arguments": {
+                "path": "a"
+              }
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/copilot/session/events.jsonl",
+        "position": 3
+      },
+      "text": "{\"type\":\"assistant.message\",\"id\":\"repeat\",\"data\":{\"content\":\"Reading\",\"model\":\"fixture-model\",\"reasoningText\":\"Check first\",\"toolRequests\":[{\"toolCallId\":\"call\",\"name\":\"read_file\",\"arguments\":{\"path\":\"a\"}}]}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "copilot",
+      "type": "tool.execution_start",
+      "native": {
+        "type": "tool.execution_start",
+        "data": {
+          "toolCallId": "call",
+          "toolName": "read_file",
+          "arguments": {
+            "path": "a"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/copilot/session/events.jsonl",
+        "position": 4
+      },
+      "text": "{\"type\":\"tool.execution_start\",\"data\":{\"toolCallId\":\"call\",\"toolName\":\"read_file\",\"arguments\":{\"path\":\"a\"}}}\n"
+    },
+    {
+      "sequence": 4,
+      "provider": "copilot",
+      "type": "tool.execution_complete",
+      "native": {
+        "type": "tool.execution_complete",
+        "data": {
+          "toolCallId": "call",
+          "success": false,
+          "result": {
+            "content": "missing"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/copilot/session/events.jsonl",
+        "position": 5
+      },
+      "text": "{\"type\":\"tool.execution_complete\",\"data\":{\"toolCallId\":\"call\",\"success\":false,\"result\":{\"content\":\"missing\"}}}\n"
+    },
+    {
+      "sequence": 5,
+      "provider": "copilot",
+      "type": "assistant.usage",
+      "native": {
+        "type": "assistant.usage",
+        "data": {
+          "inputTokens": 10,
+          "outputTokens": 2
+        }
+      },
+      "source": {
+        "path": "<fixtures>/copilot/session/events.jsonl",
+        "position": 6
+      },
+      "text": "{\"type\":\"assistant.usage\",\"data\":{\"inputTokens\":10,\"outputTokens\":2}}\n"
+    },
+    {
+      "sequence": 6,
+      "provider": "copilot",
+      "type": "future.event",
+      "native": {
+        "type": "future.event",
+        "data": {
+          "secretUnknown": 123
+        }
+      },
+      "source": {
+        "path": "<fixtures>/copilot/session/events.jsonl",
+        "position": 7
+      },
+      "text": "{\"type\":\"future.event\",\"data\":{\"secretUnknown\":123}}\n"
+    },
+    {
+      "sequence": 7,
+      "provider": "copilot",
+      "type": "tool.execution_start",
+      "native": {
+        "type": "tool.execution_start",
+        "data": {
+          "toolCallId": "interrupted",
+          "toolName": "read_file",
+          "arguments": {}
+        }
+      },
+      "source": {
+        "path": "<fixtures>/copilot/session/events.jsonl",
+        "position": 8
+      },
+      "text": "{\"type\":\"tool.execution_start\",\"data\":{\"toolCallId\":\"interrupted\",\"toolName\":\"read_file\",\"arguments\":{}}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "start",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "session.start",
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session.start",
+        "payload": {
+          "type": "session.start",
+          "id": "start",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "data": {
+            "sessionId": "copilot-session",
+            "version": 1,
+            "startTime": "2026-01-01T00:00:00Z",
+            "context": {
+              "cwd": "/captured/copilot"
+            }
+          }
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "user.message",
+        "native_position": 2
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Inspect a file"
+          },
+          {
+            "type": "file",
+            "data": {
+              "uri": "a",
+              "metadata": {
+                "type": "file",
+                "path": "a"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "assistant.message",
+        "native_position": 3
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Reading"
+          }
+        ],
+        "model": "fixture-model"
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 2,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "assistant.message",
+        "native_position": 3
+      },
+      "type": "reasoning",
+      "data": {
+        "text": "Check first"
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 2,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "assistant.message",
+        "native_position": 3
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read_file",
+        "arguments": {
+          "path": "a"
+        }
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 3,
+      "providerMetadata": {
+        "type": "tool.execution_start",
+        "native_position": 4
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read_file",
+        "arguments": {
+          "path": "a"
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 4,
+      "providerMetadata": {
+        "type": "tool.execution_complete",
+        "native_position": 5
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "result": {
+          "toolCallId": "call",
+          "success": false,
+          "result": {
+            "content": "missing"
+          }
+        },
+        "isError": true
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 5,
+      "providerMetadata": {
+        "type": "assistant.usage",
+        "native_position": 6
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "inputTokens": 10,
+          "outputTokens": 2
+        }
+      }
+    },
+    {
+      "sequence": 8,
+      "record": 6,
+      "providerMetadata": {
+        "type": "future.event",
+        "native_position": 7
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "future.event",
+        "payload": {
+          "type": "future.event",
+          "data": {
+            "secretUnknown": 123
+          }
+        }
+      }
+    },
+    {
+      "sequence": 9,
+      "record": 7,
+      "providerMetadata": {
+        "type": "tool.execution_start",
+        "native_position": 8
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "interrupted",
+        "toolName": "read_file",
+        "arguments": {}
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record future.event",
+      "position": 7
+    },
+    {
+      "code": "PartialParse",
+      "message": "tool call interrupted has no recorded result"
+    }
+  ]
+}

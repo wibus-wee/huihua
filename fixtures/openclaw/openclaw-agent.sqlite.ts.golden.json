@@ -1,0 +1,338 @@
+{
+  "id": "openclaw-db",
+  "provider": "openclaw",
+  "source": {
+    "path": "<fixtures>/openclaw/openclaw-agent.sqlite",
+    "format": "openclaw_sqlite",
+    "locator": {
+      "id": "openclaw-db"
+    }
+  },
+  "metadata": {
+    "id_origin": "native",
+    "session_key": "agent:main:main",
+    "version": 3
+  },
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1700000000000
+  },
+  "updatedAt": {
+    "format": "unix_millis",
+    "value": 1700000001000
+  },
+  "workspace": {
+    "path": "/captured/openclaw"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "openclaw",
+      "native": {
+        "session_id": "openclaw-db",
+        "session_key": "agent:main:main",
+        "created_at": 1700000000000,
+        "updated_at": 1700000001000
+      },
+      "source": {
+        "path": "<fixtures>/openclaw/openclaw-agent.sqlite",
+        "table": "session_windows",
+        "key": "openclaw-db"
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "openclaw",
+      "native": {
+        "session_id": "openclaw-db",
+        "seq": 0,
+        "event_json": "{\"type\":\"session\",\"id\":\"openclaw-db\",\"version\":3,\"cwd\":\"/captured/openclaw\"}",
+        "event_zstd": null,
+        "event_utf8_bytes": null,
+        "created_at": 1700000000000
+      },
+      "source": {
+        "path": "<fixtures>/openclaw/openclaw-agent.sqlite",
+        "table": "transcript_events",
+        "key": "0"
+      },
+      "text": "{\"type\":\"session\",\"id\":\"openclaw-db\",\"version\":3,\"cwd\":\"/captured/openclaw\"}"
+    },
+    {
+      "sequence": 2,
+      "provider": "openclaw",
+      "native": {
+        "session_id": "openclaw-db",
+        "seq": 1,
+        "event_json": "{\"type\":\"message\",\"id\":\"repeat\",\"message\":{\"role\":\"user\",\"content\":\"SQLite prompt\"}}",
+        "event_zstd": null,
+        "event_utf8_bytes": null,
+        "created_at": 1700000000000
+      },
+      "source": {
+        "path": "<fixtures>/openclaw/openclaw-agent.sqlite",
+        "table": "transcript_events",
+        "key": "1"
+      },
+      "text": "{\"type\":\"message\",\"id\":\"repeat\",\"message\":{\"role\":\"user\",\"content\":\"SQLite prompt\"}}"
+    },
+    {
+      "sequence": 3,
+      "provider": "openclaw",
+      "native": {
+        "session_id": "openclaw-db",
+        "seq": 2,
+        "event_json": null,
+        "event_zstd": {
+          "native_bytes": [
+            40,
+            181,
+            47,
+            253,
+            36,
+            148,
+            133,
+            3,
+            0,
+            18,
+            7,
+            23,
+            26,
+            128,
+            75,
+            115,
+            136,
+            133,
+            149,
+            72,
+            80,
+            147,
+            177,
+            207,
+            140,
+            14,
+            141,
+            136,
+            164,
+            118,
+            16,
+            236,
+            61,
+            167,
+            168,
+            140,
+            140,
+            40,
+            8,
+            239,
+            33,
+            94,
+            151,
+            164,
+            217,
+            1,
+            124,
+            37,
+            24,
+            16,
+            138,
+            12,
+            255,
+            128,
+            61,
+            243,
+            153,
+            146,
+            168,
+            233,
+            89,
+            122,
+            170,
+            204,
+            148,
+            40,
+            174,
+            13,
+            52,
+            53,
+            32,
+            60,
+            167,
+            128,
+            206,
+            129,
+            206,
+            17,
+            64,
+            14,
+            82,
+            108,
+            91,
+            233,
+            233,
+            165,
+            94,
+            211,
+            39,
+            55,
+            187,
+            98,
+            21,
+            170,
+            166,
+            94,
+            164,
+            76,
+            175,
+            98,
+            221,
+            150,
+            183,
+            17,
+            6,
+            0,
+            42,
+            2,
+            122,
+            194,
+            240,
+            98,
+            53,
+            8,
+            135,
+            226,
+            85,
+            145,
+            53,
+            112,
+            80,
+            65,
+            118,
+            120,
+            12
+          ]
+        },
+        "event_utf8_bytes": 148,
+        "created_at": 1700000001000
+      },
+      "source": {
+        "path": "<fixtures>/openclaw/openclaw-agent.sqlite",
+        "table": "transcript_events",
+        "key": "2"
+      },
+      "text": "{\"type\":\"message\",\"id\":\"repeat\",\"timestamp\":\"2026-01-01T00:00:01Z\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"SQLite reply\"}]}}"
+    },
+    {
+      "sequence": 4,
+      "provider": "openclaw",
+      "native": {
+        "session_id": "openclaw-db",
+        "seq": 3,
+        "event_json": "{broken",
+        "event_zstd": null,
+        "event_utf8_bytes": null,
+        "created_at": 1700000001001
+      },
+      "source": {
+        "path": "<fixtures>/openclaw/openclaw-agent.sqlite",
+        "table": "transcript_events",
+        "key": "3"
+      },
+      "text": "{broken"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "session_metadata",
+        "payload": {
+          "session_id": "openclaw-db",
+          "session_key": "agent:main:main",
+          "created_at": 1700000000000,
+          "updated_at": 1700000001000
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "session",
+        "payload": {
+          "type": "session",
+          "id": "openclaw-db",
+          "version": 3,
+          "cwd": "/captured/openclaw"
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "repeat",
+      "providerMetadata": {
+        "type": "message"
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "SQLite prompt"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "id": "repeat",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:01Z"
+      },
+      "providerMetadata": {
+        "type": "message"
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "SQLite reply"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 4,
+      "providerMetadata": {},
+      "type": "unknown",
+      "data": {
+        "sourceType": "openclaw_event_json",
+        "payload": {
+          "session_id": "openclaw-db",
+          "seq": 3,
+          "event_json": "{broken",
+          "event_zstd": null,
+          "event_utf8_bytes": null,
+          "created_at": 1700000001001
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record openclaw_event_json"
+    }
+  ]
+}

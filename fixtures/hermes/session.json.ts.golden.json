@@ -1,0 +1,195 @@
+{
+  "id": "hermes-json",
+  "provider": "hermes",
+  "source": {
+    "path": "<fixtures>/hermes/session.json",
+    "format": "hermes_json"
+  },
+  "metadata": {
+    "id_origin": "native"
+  },
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": {
+    "path": "/captured/hermes"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "hermes",
+      "native": {
+        "session_id": "hermes-json",
+        "cwd": "/captured/hermes",
+        "session_start": "2026-01-01T00:00:00Z",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Inspect"
+          },
+          {
+            "role": "assistant",
+            "content": "Reading",
+            "tool_calls": [
+              {
+                "id": "call",
+                "type": "function",
+                "function": {
+                  "name": "read",
+                  "arguments": "{\"path\":\"a\"}"
+                }
+              }
+            ],
+            "reasoning_content": "Check"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call",
+            "content": "denied",
+            "is_error": true
+          },
+          {
+            "role": "future",
+            "opaque": true
+          }
+        ]
+      },
+      "source": {
+        "path": "<fixtures>/hermes/session.json"
+      },
+      "text": "{\n  \"session_id\": \"hermes-json\",\n  \"cwd\": \"/captured/hermes\",\n  \"session_start\": \"2026-01-01T00:00:00Z\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Inspect\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"Reading\",\n      \"tool_calls\": [\n        {\n          \"id\": \"call\",\n          \"type\": \"function\",\n          \"function\": {\n            \"name\": \"read\",\n            \"arguments\": \"{\\\"path\\\":\\\"a\\\"}\"\n          }\n        }\n      ],\n      \"reasoning_content\": \"Check\"\n    },\n    {\n      \"role\": \"tool\",\n      \"tool_call_id\": \"call\",\n      \"content\": \"denied\",\n      \"is_error\": true\n    },\n    {\n      \"role\": \"future\",\n      \"opaque\": true\n    }\n  ]\n}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "system",
+      "data": {
+        "sourceType": "hermes_snapshot",
+        "payload": {
+          "session_id": "hermes-json",
+          "cwd": "/captured/hermes",
+          "session_start": "2026-01-01T00:00:00Z",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Inspect"
+            },
+            {
+              "role": "assistant",
+              "content": "Reading",
+              "tool_calls": [
+                {
+                  "id": "call",
+                  "type": "function",
+                  "function": {
+                    "name": "read",
+                    "arguments": "{\"path\":\"a\"}"
+                  }
+                }
+              ],
+              "reasoning_content": "Check"
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "call",
+              "content": "denied",
+              "is_error": true
+            },
+            {
+              "role": "future",
+              "opaque": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Inspect"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Reading"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "read",
+        "arguments": "{\"path\":\"a\"}"
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "reasoning",
+      "data": {
+        "text": "Check"
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "result": {
+          "role": "tool",
+          "tool_call_id": "call",
+          "content": "denied",
+          "is_error": true
+        },
+        "isError": true
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 0,
+      "providerMetadata": {},
+      "type": "unknown",
+      "data": {
+        "sourceType": "chat_message",
+        "payload": {
+          "role": "future",
+          "opaque": true
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record chat_message"
+    }
+  ]
+}
