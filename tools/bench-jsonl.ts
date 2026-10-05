@@ -275,7 +275,8 @@ async function worker(mode: Mode, manifest: Manifest, earlyRecords: number): Pro
     if (frame.type === 'diagnostic')
       diagnostics++
   }
-  const refs = await sessions.scan({ providers: [manifest.provider], roots: { [manifest.provider]: [manifest.path] }, headerBytes: 16 * 1024 })
+  const { refs, failures } = await sessions.scan({ providers: [manifest.provider], roots: { [manifest.provider]: [manifest.path] }, headerBytes: 16 * 1024 })
+  assert.deepEqual(failures, [])
   assert.equal(refs.length, 1)
   const ref = refs[0]!
   if (mode === 'scan') {

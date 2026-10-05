@@ -18,11 +18,12 @@ for (const fixture of await cases()) {
   const provider
     = fixture.provider === 'claude_code' ? 'claude' : fixture.provider
   void it(`${provider}: ${fixture.path} retains ${fixture.golden === undefined ? 'canonical evidence' : 'baseline semantics and canonical evidence'}`, async () => {
-    const refs = await sessions.scan({
+    const { refs, failures } = await sessions.scan({
       providers: [provider],
       roots: { [provider]: [resolve(fixtureRoot, fixture.path)] },
       homeDir: fixtureRoot,
     })
+    assert.deepEqual(failures, [])
     assert.equal(refs.length, 1)
     const ref = refs[0]!
     const session = await sessions.read(ref)

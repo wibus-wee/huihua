@@ -1,8 +1,9 @@
 import { SessionError } from '../contracts/diagnostic.ts'
-import type { ReadOptions, ScanOptions } from '../contracts/provider.ts'
+import type { ReadOptions, ScanEvent, ScanOptions } from '../contracts/provider.ts'
 import type { Session, SessionFrame, SessionRef } from '../contracts/session.ts'
 import { Ingestion, openFrom } from './ingestion.ts'
 import { exists, files, positiveLimit } from './paths.ts'
+import { scanSource } from './scan.ts'
 import type { Row } from './sqlite.ts'
 import { binarySafe, SqliteReader } from './sqlite.ts'
 import { optional } from './value.ts'
@@ -76,24 +77,29 @@ export function sqliteStoreProvider(adapter: {
       }
       return { provider: adapter.id, roots, available: roots.length > 0 }
     },
-    async scan(options: ScanOptions = {}) {
-      const refs: SessionRef[] = []
-      for await (const path of files(adapter.roots(options), adapter.accepts, options.signal)) {
-        const db = await SqliteReader.open(path, { ...optional('signal', options.signal), maxRecordBytes: positiveLimit(options.headerBytes, 65536) })
-        try {
-          check(db)
-          for await (const row of db.rows(sessionTable)) {
-            if (typeof row[sessionKey] !== 'string')
-              throw new SessionError('UnsupportedSchema', `${adapter.id} session identity is not a string`)
-            const id = String(row[sessionKey])
-            refs.push({ id, provider: adapter.id, source: { path, format: adapter.format, locator: { id } }, metadata: { id_origin: 'native' }, ...adapter.metadata(row) })
+    async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
+      for await (const path of files(adapter.roots(options), adapter.accepts, options, adapter.id)) {
+        if (typeof path !== 'string') {
+          yield path
+          continue
+        }
+        const source = { path, format: adapter.format }
+        yield* scanSource(adapter.id, source, options, async function* () {
+          const db = await SqliteReader.open(path, { ...optional('signal', options.signal), maxRecordBytes: positiveLimit(options.headerBytes, 65536) })
+          try {
+            check(db)
+            for await (const row of db.rows(sessionTable)) {
+              if (typeof row[sessionKey] !== 'string')
+                throw new SessionError('UnsupportedSchema', `${adapter.id} session identity is not a string`)
+              const id = String(row[sessionKey])
+              yield { type: 'ref', ref: { id, provider: adapter.id, source: { ...source, locator: { id } }, metadata: { id_origin: 'native' }, ...adapter.metadata(row) } }
+            }
           }
-        }
-        finally {
-          await db.close()
-        }
+          finally {
+            await db.close()
+          }
+        })
       }
-      return refs
     },
     open,
     async read(ref: SessionRef, options?: ReadOptions) {

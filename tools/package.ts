@@ -76,8 +76,13 @@ export async function packageCheck(): Promise<void> {
       assert.equal(Object.hasOwn(observe,'filesOf'),false);
       assert.equal(huihua.SESSION_SCHEMA,'agent-session/v1');
       for(const name of ['claude','codex','cursor','opencode','pi','oar','acp','kimi','grok','antigravity','morph','copilot','openclaw','qwen','droid','deepseek','cline','fx','devin','hermes']){const module=await import('huihua/providers/'+name);assert.ok(Object.values(module).some(value=>value.id===name));}
-      const refs=await sessions.scan({providers:['codex'],roots:{codex:[${JSON.stringify(fixture)}]}});
-      assert.equal(refs.length,1);const session=await sessions.read(refs[0]);assertSessionContract(session);assert.equal(conversationOf(session).length,0);
+      const {refs,failures}=await sessions.scan({providers:['codex'],roots:{codex:[${JSON.stringify(fixture)}]}});
+      assert.deepEqual(failures,[]);assert.equal(refs.length,1);const session=await sessions.read(refs[0]);assertSessionContract(session);assert.equal(conversationOf(session).length,0);
+      const discoveries=[];for await(const event of sessions.scanStream({providers:['codex'],roots:{codex:[${JSON.stringify(fixture)}]}}))discoveries.push(event);
+      assert.deepEqual(discoveries,[{type:'ref',ref:refs[0]}]);
+      const cause=new Error('custom adapter failed');const customRef={id:'s',provider:'custom',source:{path:'memory',format:'custom'},metadata:{}};
+      const custom=huihua.defineProvider({id:'custom',async detect(){return {provider:'custom',roots:[],available:true};},async* scan(){yield {type:'ref',ref:customRef};throw cause;},async read(){throw new Error('unexpected read');}});
+      const report=await huihua.createSessionRegistry([custom]).scan();assert.deepEqual(report.refs,[customRef]);assert.equal(report.failures[0].scope,'provider');assert.equal(report.failures[0].code,'Unknown');assert.equal(report.failures[0].cause,cause);
       assert.equal(toolCallsOf(session).length,1);assert.equal(toolResultsOf(session).length,1);
       assert.deepEqual(eventsOf(session,'tool_result','tool_call'),[toolCallsOf(session)[0],toolResultsOf(session)[0]]);
       assert.throws(()=>eventsOf(session),TypeError);
@@ -107,11 +112,18 @@ export async function packageCheck(): Promise<void> {
     await writeFile(
       join(root, 'consumer.ts'),
       `
-      import {sessions,defineProvider,type SessionEvent,type SessionFrame,type SessionProvider} from 'huihua';
+      import {sessions,defineProvider,type SessionEvent,type SessionFrame,type SessionProvider,type ScanEvent,type ScanFailure,type ScanResult,type ErrorCode} from 'huihua';
       import {codexProvider} from 'huihua/providers/codex';
       import {conversationOf,eventsOf,fileChangesOf,subagentsOf,toolCallsOf,toolResultsOf} from 'huihua/observe';
       const provider=defineProvider(codexProvider);
-      const refs=await sessions.scan({providers:[provider.id]});
+      const report:ScanResult=await sessions.scan({providers:[provider.id]});
+      const {refs}=report;
+      const failures:readonly ScanFailure[]=report.failures;
+      const failureCode:ErrorCode|'Unknown'=failures[0]?.code??'Unknown';
+      const discoveries:AsyncIterable<ScanEvent>=sessions.scanStream({providers:[provider.id]});
+      const nativeScan:AsyncIterable<ScanEvent>=provider.scan();
+      for await(const event of discoveries){if(event.type==='ref'){const id:string=event.ref.id;void id;}else{const failure:ScanFailure=event.failure;void failure;}}
+      void failures;void nativeScan;void failureCode;
       if(refs[0]){
         const snapshot=await sessions.read(refs[0]);
         const schema:'agent-session/v1'=snapshot.schema;

@@ -6,15 +6,15 @@ native evidence.
 It does not execute agents, connect to networks, mutate stores or provide runtime
 control, search, indexing, memory, analytics or UI.
 
-| Layer / owner   | Contract                                                                                        |
-| --------------- | ----------------------------------------------------------------------------------------------- |
-| src/contracts   | Public types and thin provider SPI; depends only on contracts                                   |
-| src/registry.ts | Consumer-extensible composition, provider lookup, filtering and dispatch; no builtin identities |
-| src/index.ts    | The sole builtin composition root; exports sessions and its AgentSession alias                  |
-| src/providers/* | Discovery policy and native-to-canonical mapping; no inter-provider imports                     |
-| src/shared      | Provider-independent JSONL, paths, binary/SQLite reads and ingestion primitives                 |
-| src/observe     | Disposable projections using public contracts only                                              |
-| src/testing     | Runner-independent evidence and ordering assertions                                             |
+| Layer / owner   | Contract                                                                                |
+| --------------- | --------------------------------------------------------------------------------------- |
+| src/contracts   | Public types, validation and thin provider SPI; depends only on contracts               |
+| src/registry.ts | Consumer-extensible composition, scan orchestration and dispatch; no builtin identities |
+| src/index.ts    | The sole builtin composition root; exports sessions and its AgentSession alias          |
+| src/providers/* | Discovery policy and native-to-canonical mapping; no inter-provider imports             |
+| src/shared      | Provider-independent discovery failures, paths and bounded ingestion primitives         |
+| src/observe     | Disposable projections using public contracts only                                      |
+| src/testing     | Runner-independent evidence and ordering assertions                                     |
 
 ## Evidence and schema
 
@@ -53,7 +53,7 @@ and unknown event sourceType values.
 agent-session/v1 is the first public schema; its version is independent of the npm package version.
 Breaking representation or meaning changes require a new schema.
 
-## Reading and streaming
+## Scanning and failure reports
 
 scan inspects directory entries, bounded JSONL headers (64 KiB, eight physical lines) and database
 session metadata.
@@ -61,7 +61,81 @@ It never normalizes a full transcript.
 Explicit roots replace defaults;
 explicit homeDir isolates discovery from process environment.
 Relative XDG roots are ignored.
-Missing stores return no refs; permission errors and unsupported schemas remain explicit errors.
+
+[contracts/provider.ts](../src/contracts/provider.ts) owns ScanResult, ScanEvent, ScanFailure and
+the provider scan SPI.
+Provider scan returns `AsyncIterable<ScanEvent>`, emitting ref or failure
+at each discovery boundary. [SessionRegistry](../src/registry.ts) consumes providers sequentially;
+scanStream exposes their events, and scan collects them into { refs, failures }.
+No progress events, concurrent scheduling or retries are part of this contract.
+
+Both registry methods retain the first ref for each JSON.stringify([ref.provider, ref.source]) key.
+IDs from different paths or selectors remain separate. scanStream emits refs in discovery order;
+scan sorts its collected refs by provider, path and ID with the existing English locale comparator.
+Failures retain discovery order and are not deduplicated.
+A failure never retracts earlier refs.
+Those refs establish discovered sources, not successful transcript reads or an atomic store snapshot.
+
+| Condition                                                         | Outcome                                                            |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Missing store or no matching entries                              | No refs or failures                                                |
+| Source permission, I/O, corruption, schema or changed-store error | Source failure; retain its prefix and continue independent sources |
+| Unexpected provider exception                                     | Provider failure; retain its prefix and continue later providers   |
+| Unregistered requested provider or invalid headerBytes            | Throw before entering providers                                    |
+| Aborted caller signal                                             | Propagate the signal reason and stop; collected scan rejects       |
+
+ScanFailure.provider accepts custom IDs. scope identifies a source boundary or a terminated provider;
+source, when known, contains the failing path and optional format.
+Discovery directory failures do
+not fabricate a format or session selector.
+Companion metadata failures name the companion path
+and skip that transcript's ref rather than fabricate metadata. code reuses ErrorCode; unclassified
+exceptions use Unknown.
+message is display text; cause retains the original thrown value or SessionError with its native cause.
+ScanFailure is an in-process report, not a new serialized Session schema.
+There is no partial boolean: even a scan with zero refs can have incomplete coverage.
+
+[shared/paths.ts](../src/shared/paths.ts) owns one filesystem traversal.
+Read-side files(roots, accepts, signal) throws on I/O errors; scan-side
+files(roots, accepts, options, provider) emits failure events and continues sibling entries and roots.
+The same walker uses one stat per entry; ENOENT means no source, and scan options are validated
+before traversal even when roots are empty.
+
+[shared/scan.ts](../src/shared/scan.ts) owns scanSource, the shared source failure boundary.
+It converts SessionError and native filesystem exceptions into failure events; unexpected adapter
+exceptions escape to the registry.
+Shared JSONL, JSON and SQLite adapters reuse it; providers own native selectors, metadata and
+which sources are independent.
+Source handles close on completion, error, cancellation or early return.
+The yielding guards distinguish source/provider exceptions from consumer throw()/return() and
+cleanup errors while returning early; consumer errors propagate instead of becoming discovery events.
+
+Async generators provide backpressure without another stream framework or dependency.
+DeepSeek still gathers candidate filenames before emitting refs so it can select the highest
+generation per directory; an ambiguous or mismatched selection fails that source without falling
+back to an older generation.
+Cursor's modern metadata rows are emitted as discovered; legacy
+indexes are used only when no modern composer metadata exists.
+SQLite close-time validation can
+emit a source failure after refs have already been emitted.
+
+This changes both public scan's former array return and the third-party `Promise<SessionRef[]>` SPI.
+Consumers must destructure { refs, failures }; adapters must yield ScanEvent values and close their
+sources in finally.
+No legacy array-returning SPI is retained.
+An array-returning scan loses its prefix on rejection; a refs-only iterable cannot recover from a
+source exception without ending its iterator.
+The event SPI provides one ordered channel with a collected convenience API.
+Session evidence and agent-session/v1 remain unchanged.
+The existing resource-limit validator lives with the contracts so registry preflight and source
+helpers share it without reversing the registry's dependency direction.
+
+[Behavior regressions](../tests/behavior.test.ts), [SQLite regressions](../tests/sqlite.test.ts) and
+[provider compatibility tests](../tests/provider-imports.test.ts) enforce isolation, prefix retention,
+source identity, ordering, cancellation and cleanup. [Installed-package checks](../tools/package.ts)
+validate report types and the event SPI through supported package exports.
+
+## Reading and streaming
 
 open returns a lazy handle.
 Each stream(), events(), records() or snapshot() invocation opens a
@@ -252,7 +326,7 @@ Cold archives and live restoration are outside that source selector.
 Shared chatMessageEvents extends the existing messageEvents mapping for persisted OpenAI/Pi-style messages, native reasoning, tool results and usage.
 Provider adapters retain responsibility for field aliases, timestamps and provenance.
 The alternative of importing another provider's mapper would couple format owners; duplicating block mapping would create competing projections.
-All additions use agent-session/v1 with additive provider IDs, source-format strings, subpath exports and opaque provider metadata; existing snapshots and public SPI behavior stay compatible.
+All additions use agent-session/v1 with additive provider IDs, source-format strings, subpath exports and opaque provider metadata; existing snapshots stay compatible; the scan SPI migration is defined above.
 The format union, provider fixture manifest, source-import policy and installed-subpath smoke test enforce these additions.
 
 ## Dependency and ingestion decisions

@@ -6,10 +6,11 @@ import process from 'node:process'
 import { BinaryReader, WireType } from '@bufbuild/protobuf/wire'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
-import type { ReadOptions, ScanOptions } from '../../contracts/provider.ts'
+import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
 import type { SessionFrame, SessionRef } from '../../contracts/session.ts'
 import { contentBlocks, Ingestion, openFrom } from '../../shared/ingestion.ts'
 import { exists, files } from '../../shared/paths.ts'
+import { scanSource } from '../../shared/scan.ts'
 import type { Row } from '../../shared/sqlite.ts'
 import { binarySafe, SqliteReader } from '../../shared/sqlite.ts'
 import { optional, parseNative } from '../../shared/value.ts'
@@ -144,19 +145,24 @@ export const antigravityProvider = {
     }
     return { provider: 'antigravity', roots: found, available: found.length > 0 }
   },
-  async scan(options: ScanOptions = {}) {
-    const refs: SessionRef[] = []
-    for await (const path of files(roots(options), p => p.endsWith('.db'), options.signal)) {
-      const db = await SqliteReader.open(path, { ...optional('signal', options.signal), ...optional('maxRecordBytes', options.headerBytes) })
-      try {
-        check(db)
-        refs.push({ id: basename(path, '.db'), provider: 'antigravity', source: { path, format: 'antigravity_sqlite' }, metadata: { id_origin: 'source_locator', compatibility: 'observed_cli_steps' } })
+  async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
+    for await (const path of files(roots(options), p => p.endsWith('.db'), options, 'antigravity')) {
+      if (typeof path !== 'string') {
+        yield path
+        continue
       }
-      finally {
-        await db.close()
-      }
+      const source = { path, format: 'antigravity_sqlite' }
+      yield* scanSource('antigravity', source, options, async function* () {
+        const db = await SqliteReader.open(path, { ...optional('signal', options.signal), ...optional('maxRecordBytes', options.headerBytes) })
+        try {
+          check(db)
+          yield { type: 'ref', ref: { id: basename(path, '.db'), provider: 'antigravity', source, metadata: { id_origin: 'source_locator', compatibility: 'observed_cli_steps' } } }
+        }
+        finally {
+          await db.close()
+        }
+      })
     }
-    return refs
   },
   open,
   async read(ref: SessionRef, options?: ReadOptions) {

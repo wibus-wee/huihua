@@ -43,7 +43,7 @@ void it('acquired streaming emits a consumed prefix before EOF', { timeout: 2000
 for (const provider of ['codex', 'claude', 'pi', 'cursor']) {
   void it(`${provider}: direct file, text, bytes and byte stream share the existing parser`, async () => {
     const path = resolve(`fixtures/${provider}/simple.jsonl`)
-    const refs = await sessions.scan({ providers: [provider], roots: { [provider]: [path] } })
+    const { refs } = await sessions.scan({ providers: [provider], roots: { [provider]: [path] } })
     const expected = await sessions.read(refs[0]!)
     const data = await readFile(path)
     async function* bytes() {
@@ -69,7 +69,7 @@ void it('direct acquisition invokes no discovery and preserves raw evidence thro
   const registry = createSessionRegistry([defineProvider({
     ...provider,
     detect: async () => { throw new Error('must not detect') },
-    scan: async () => { throw new Error('must not scan') },
+    scan: () => { throw new Error('must not scan') },
   })])
   const path = resolve('fixtures/codex/simple.jsonl')
   assert.equal((await registry.parse('codex', { path })).provider, 'codex')
@@ -118,13 +118,13 @@ for (const [provider, file] of [
 ]) {
   void it(`${provider}: explicit ${file} selector reads without discovery`, async () => {
     const path = resolve('fixtures', file!)
-    const ref = (await sessions.scan({ providers: [provider!], roots: { [provider!]: [path] } }))[0]!
+    const ref = (await sessions.scan({ providers: [provider!], roots: { [provider!]: [path] } })).refs[0]!
     const expected = await sessions.read(ref)
     const adapter = sessions.require(provider!)
     const registry = createSessionRegistry([{
       ...adapter,
       detect: async () => { throw new Error('must not detect') },
-      scan: async () => { throw new Error('must not scan') },
+      scan: () => { throw new Error('must not scan') },
     }])
     const parsed = await registry.parse(provider!, {
       path,
@@ -374,7 +374,7 @@ void it('acquired streaming retains reused buffers, invalid UTF-8 and exact nume
 
 void it('acquired streaming dispatches through the public SPI without discovery or snapshot fallback', async () => {
   const provider = sessions.require('codex')
-  const unexpected = async () => {
+  const unexpected = () => {
     throw new Error('must not acquire a file or snapshot')
   }
   const registry = createSessionRegistry([defineProvider({ ...provider, detect: unexpected, scan: unexpected, read: unexpected, open: unexpected, parse: unexpected })])

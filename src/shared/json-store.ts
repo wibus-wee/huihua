@@ -1,9 +1,10 @@
 import { SessionError } from '../contracts/diagnostic.ts'
-import type { ReadOptions, ScanOptions } from '../contracts/provider.ts'
+import type { ReadOptions, ScanEvent, ScanOptions } from '../contracts/provider.ts'
 import type { Session, SessionFrame, SessionRef } from '../contracts/session.ts'
 import { Ingestion, openFrom } from './ingestion.ts'
 import { readJson } from './json-file.ts'
 import { exists, files, positiveLimit } from './paths.ts'
+import { scanSource } from './scan.ts'
 import { optional } from './value.ts'
 
 /** A bounded JSON snapshot is one evidence record, even when it contains many messages. */
@@ -59,13 +60,18 @@ export function jsonStoreProvider(adapter: {
       }
       return { provider: adapter.id, roots, available: roots.length > 0 }
     },
-    async scan(options: ScanOptions = {}) {
-      const refs: SessionRef[] = []
-      for await (const path of files(adapter.roots(options), adapter.accepts, options.signal)) {
-        const data = await readJson(path, positiveLimit(options.headerBytes, 65536), false, options.signal)
-        refs.push({ id: `source:${path}`, provider: adapter.id, source: { path, format: adapter.format }, metadata: { id_origin: 'source_locator' }, ...adapter.metadata(data.native) })
+    async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
+      for await (const path of files(adapter.roots(options), adapter.accepts, options, adapter.id)) {
+        if (typeof path !== 'string') {
+          yield path
+          continue
+        }
+        const source = { path, format: adapter.format }
+        yield* scanSource(adapter.id, source, options, async function* () {
+          const data = await readJson(path, positiveLimit(options.headerBytes, 65536), false, options.signal)
+          yield { type: 'ref', ref: { id: `source:${path}`, provider: adapter.id, source, metadata: { id_origin: 'source_locator' }, ...adapter.metadata(data.native) } }
+        })
       }
-      return refs
     },
     open,
     async read(ref: SessionRef, options?: ReadOptions) {

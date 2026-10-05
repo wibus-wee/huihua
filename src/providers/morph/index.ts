@@ -3,12 +3,13 @@ import { basename, dirname, join } from 'node:path'
 import process from 'node:process'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
-import type { ReadOptions, ScanOptions } from '../../contracts/provider.ts'
+import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
 import type { SessionFrame, SessionRef } from '../../contracts/session.ts'
 import { contentBlocks, Ingestion, jsonlProvider, openFrom } from '../../shared/ingestion.ts'
 import { readJson } from '../../shared/json-file.ts'
 import { jsonLines } from '../../shared/jsonl.ts'
 import { exists, files, positiveLimit } from '../../shared/paths.ts'
+import { scanSource } from '../../shared/scan.ts'
 import { array, object, optional, string, timestamp } from '../../shared/value.ts'
 
 function roots(options: ScanOptions): readonly string[] {
@@ -97,29 +98,33 @@ async function open(ref: SessionRef, options: ReadOptions = {}) {
 }
 export const morphProvider = {
   ...jsonl,
-  async scan(options: ScanOptions = {}) {
-    const refs: SessionRef[] = []
-    for await (const path of files(roots(options), p => basename(p) === 'topics_projection.json', options.signal)) {
-      const value = await readJson(path, positiveLimit(options.headerBytes, 65536), false, options.signal)
-      const projection = object(value.native)
-      if (value.malformed || projection.version !== 1)
-        throw new SessionError('UnsupportedSchema', 'unsupported Morph topics projection')
-      for (const native of array(projection.items)) {
-        const topic = object(native)
-        if (typeof topic.id === 'string') {
-          refs.push({
-            id: topic.id,
-            provider: 'morph',
-            ...optional('title', string(topic.title)),
-            ...optional('createdAt', timestamp(topic.created_at)),
-            ...optional('updatedAt', timestamp(topic.updated_at)),
-            metadata: { id_origin: 'native' },
-            source: { path: dirname(dirname(path)), format: 'morph_journal', locator: { id: topic.id } },
-          })
-        }
+  async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
+    for await (const path of files(roots(options), p => basename(p) === 'topics_projection.json', options, 'morph')) {
+      if (typeof path !== 'string') {
+        yield path
+        continue
       }
+      yield* scanSource('morph', { path, format: 'morph_journal' }, options, async function* () {
+        const value = await readJson(path, positiveLimit(options.headerBytes, 65536), false, options.signal)
+        const projection = object(value.native)
+        if (value.malformed || projection.version !== 1)
+          throw new SessionError('UnsupportedSchema', 'unsupported Morph topics projection')
+        for (const native of array(projection.items)) {
+          const topic = object(native)
+          if (typeof topic.id === 'string') {
+            yield { type: 'ref', ref: {
+              id: topic.id,
+              provider: 'morph',
+              ...optional('title', string(topic.title)),
+              ...optional('createdAt', timestamp(topic.created_at)),
+              ...optional('updatedAt', timestamp(topic.updated_at)),
+              metadata: { id_origin: 'native' },
+              source: { path: dirname(dirname(path)), format: 'morph_journal', locator: { id: topic.id } },
+            } }
+          }
+        }
+      })
     }
-    return refs
   },
   open,
   async read(ref: SessionRef, options?: ReadOptions) {

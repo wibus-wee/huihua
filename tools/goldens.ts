@@ -15,12 +15,12 @@ if (!process.argv.includes('--update'))
 for (const fixture of await cases()) {
   const provider
     = fixture.provider === 'claude_code' ? 'claude' : fixture.provider
-  const refs = await sessions.scan({
+  const { refs, failures } = await sessions.scan({
     providers: [provider],
     roots: { [provider]: [resolve(fixtureRoot, fixture.path)] },
     homeDir: fixtureRoot,
   })
-  if (refs.length !== 1)
+  if (refs.length !== 1 || failures.length !== 0)
     throw new Error(`unexpected refs: ${fixture.path}`)
   const session = await sessions.read(refs[0]!)
   await writeFile(
