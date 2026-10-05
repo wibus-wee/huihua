@@ -308,6 +308,7 @@ Internal paths are not package exports.
 
 Use the pinned pnpm version and run pnpm check before submitting changes.
 The [quality and release automation](docs/architecture.md#quality-and-release-automation) contract describes CI, version tags and npm Trusted Publisher setup.
+The opt-in [`pnpm bench`](docs/jsonl-benchmark.md) command measures synthetic large JSONL reads; it is not part of `pnpm check`.
 
 ## License
 
