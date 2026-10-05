@@ -107,10 +107,13 @@ export async function packageCheck(): Promise<void> {
     await writeFile(
       join(root, 'consumer.ts'),
       `
-      import {sessions,defineProvider,type SessionEvent,type SessionFrame,type SessionProvider} from 'huihua';
+      import {sessions,defineProvider,type Provider,type SessionEvent,type SessionFrame,type SessionProvider} from 'huihua';
       import {codexProvider} from 'huihua/providers/codex';
       import {conversationOf,eventsOf,fileChangesOf,subagentsOf,toolCallsOf,toolResultsOf} from 'huihua/observe';
       const provider=defineProvider(codexProvider);
+      const builtinProviders:readonly Extract<Provider,'copilot'|'hermes'|'openclaw'|'qwen'|'devin'|'fx'|'cline'|'deepseek'|'droid'>[]=['copilot','hermes','openclaw','qwen','devin','fx','cline','deepseek','droid'];
+      const customProvider:Provider='consumer-custom';
+      void builtinProviders;void customProvider;
       const refs=await sessions.scan({providers:[provider.id]});
       if(refs[0]){
         const snapshot=await sessions.read(refs[0]);
