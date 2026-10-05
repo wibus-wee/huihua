@@ -1,0 +1,191 @@
+{
+  "id": "pi-v1",
+  "provider": "pi",
+  "metadata": {
+    "version": 3,
+    "parentSession": "/fixture/parent.jsonl",
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "workspace": {
+    "path": "/fixture/v1"
+  },
+  "source": {
+    "path": "<fixtures>/pi/v1.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:01Z"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "pi",
+      "type": "session",
+      "native": {
+        "type": "session",
+        "version": 3,
+        "id": "pi-fixture",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "cwd": "/fixture/project",
+        "parentSession": "/fixture/parent.jsonl"
+      },
+      "source": {
+        "path": "<fixtures>/pi/v1.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"session\",\"version\":3,\"id\":\"pi-fixture\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"cwd\":\"/fixture/project\",\"parentSession\":\"/fixture/parent.jsonl\"}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "pi",
+      "type": "message",
+      "native": {
+        "type": "message",
+        "id": "u1",
+        "parentId": null,
+        "timestamp": "2026-01-01T00:00:01Z",
+        "message": {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "hello"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/pi/v1.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"message\",\"id\":\"u1\",\"parentId\":null,\"timestamp\":\"2026-01-01T00:00:01Z\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "pi",
+      "type": "session",
+      "native": {
+        "type": "session",
+        "id": "pi-v1",
+        "cwd": "/fixture/v1"
+      },
+      "source": {
+        "path": "<fixtures>/pi/v1.jsonl",
+        "position": 3
+      },
+      "text": "{\"type\":\"session\",\"id\":\"pi-v1\",\"cwd\":\"/fixture/v1\"}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "pi",
+      "type": "message",
+      "native": {
+        "type": "message",
+        "message": {
+          "role": "user",
+          "content": "legacy"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/pi/v1.jsonl",
+        "position": 4
+      },
+      "text": "{\"type\":\"message\",\"message\":{\"role\":\"user\",\"content\":\"legacy\"}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "pi-fixture",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "session",
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session",
+        "payload": {
+          "type": "session",
+          "version": 3,
+          "id": "pi-fixture",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "cwd": "/fixture/project",
+          "parentSession": "/fixture/parent.jsonl"
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "u1",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:01Z"
+      },
+      "providerMetadata": {
+        "type": "message",
+        "parentId": null,
+        "native_position": 2
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "pi-v1",
+      "providerMetadata": {
+        "type": "session",
+        "native_position": 3
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session",
+        "payload": {
+          "type": "session",
+          "id": "pi-v1",
+          "cwd": "/fixture/v1"
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "providerMetadata": {
+        "type": "message",
+        "native_position": 4
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "legacy"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "conflicting native session header retained; scan-selected identity is authoritative",
+      "position": 1
+    }
+  ]
+}

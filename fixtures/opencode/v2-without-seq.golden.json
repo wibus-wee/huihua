@@ -1,0 +1,196 @@
+{
+  "schema": "agent-session/v1",
+  "id": "v2-child",
+  "provider": "opencode",
+  "title": "forked",
+  "created_at": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "updated_at": null,
+  "workspace": null,
+  "parent_session_id": "v2-parent",
+  "events": [
+    {
+      "id": "v2-child",
+      "timestamp": null,
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "session_v2",
+        "payload": {
+          "cost": 0.01,
+          "fork_boundary": "{\"type\":\"through\",\"messageID\":\"m1\"}",
+          "fork_session_id": "v2-parent",
+          "id": "v2-child",
+          "time_created": 1767225600000,
+          "title": "forked",
+          "tokens_input": 12
+        }
+      },
+      "provider_metadata": {
+        "native_position": 0
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "cost": 0.01,
+          "fork_boundary": "{\"type\":\"through\",\"messageID\":\"m1\"}",
+          "fork_session_id": "v2-parent",
+          "id": "v2-child",
+          "time_created": 1767225600000,
+          "title": "forked",
+          "tokens_input": 12
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "timestamp": null,
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "copied history survives"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "text": "copied history survives",
+            "type": "user"
+          },
+          "id": "m1",
+          "native_row": {
+            "data": "{\"text\":\"copied history survives\"}",
+            "id": "m1",
+            "session_id": "v2-child",
+            "type": "user"
+          },
+          "timestamp": null
+        }
+      }
+    },
+    {
+      "id": "m2",
+      "timestamp": null,
+      "sequence": 2,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "child reply"
+          }
+        ],
+        "model": "example-model"
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "content": [
+              {
+                "text": "child reply",
+                "type": "text"
+              }
+            ],
+            "model": {
+              "id": "example-model"
+            },
+            "tokens": {
+              "input": 12,
+              "output": 3
+            },
+            "type": "assistant"
+          },
+          "id": "m2",
+          "native_row": {
+            "data": "{\"model\":{\"id\":\"example-model\"},\"content\":[{\"type\":\"text\",\"text\":\"child reply\"}],\"tokens\":{\"input\":12,\"output\":3}}",
+            "id": "m2",
+            "session_id": "v2-child",
+            "type": "assistant"
+          },
+          "timestamp": null
+        }
+      }
+    },
+    {
+      "id": "m2",
+      "timestamp": null,
+      "sequence": 3,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "cost": null,
+          "tokens": {
+            "input": 12,
+            "output": 3
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "content": [
+              {
+                "text": "child reply",
+                "type": "text"
+              }
+            ],
+            "model": {
+              "id": "example-model"
+            },
+            "tokens": {
+              "input": 12,
+              "output": 3
+            },
+            "type": "assistant"
+          },
+          "id": "m2",
+          "native_row": {
+            "data": "{\"model\":{\"id\":\"example-model\"},\"content\":[{\"type\":\"text\",\"text\":\"child reply\"}],\"tokens\":{\"input\":12,\"output\":3}}",
+            "id": "m2",
+            "session_id": "v2-child",
+            "type": "assistant"
+          },
+          "timestamp": null
+        }
+      }
+    }
+  ],
+  "metadata": {},
+  "raw": {
+    "format": "json",
+    "value": {
+      "cost": 0.01,
+      "fork_boundary": "{\"type\":\"through\",\"messageID\":\"m1\"}",
+      "fork_session_id": "v2-parent",
+      "id": "v2-child",
+      "time_created": 1767225600000,
+      "title": "forked",
+      "tokens_input": 12
+    }
+  },
+  "diagnostics": [
+    {
+      "kind": "partial_parse",
+      "message": "session_message lacks seq; using stable native time/id order",
+      "position": null
+    }
+  ]
+}

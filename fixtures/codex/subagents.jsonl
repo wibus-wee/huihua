@@ -1,0 +1,5 @@
+{"type":"session_meta","timestamp":"2026-01-01T00:00:00Z","payload":{"id":"codex-session","cwd":"/workspace/example","timestamp":"2026-01-01T00:00:00Z","git":{"branch":"main","commit_hash":"abc","repository_url":"https://example.invalid/repo"}}}
+{"type":"event_msg","payload":{"type":"collab_agent_spawn_end","sender_thread_id":"parent","new_thread_id":"child-1","new_agent_nickname":"one","status":"running"}}
+{"type":"event_msg","payload":{"type":"collab_agent_spawn_end","sender_thread_id":"parent","new_thread_id":"child-2","status":"running"}}
+{"type":"event_msg","payload":{"type":"collab_agent_interaction_end","sender_thread_id":"parent","receiver_thread_id":"child-1","status":{"completed":"done"},"prompt":""}}
+{"type":"event_msg","payload":{"type":"collab_agent_interaction_end","sender_thread_id":"parent","receiver_thread_id":"child-2","status":"interrupted","prompt":""}}

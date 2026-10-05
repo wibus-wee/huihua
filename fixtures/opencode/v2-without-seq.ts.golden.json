@@ -1,0 +1,184 @@
+{
+  "id": "v2-child",
+  "provider": "opencode",
+  "metadata": {
+    "id_origin": "native"
+  },
+  "title": "forked",
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "parentSessionId": "v2-parent",
+  "source": {
+    "path": "<fixtures>/opencode/v2-without-seq.db",
+    "format": "opencode_sqlite",
+    "locator": {
+      "id": "v2-child",
+      "table": "session_v2"
+    }
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "opencode",
+      "native": {
+        "id": "v2-child",
+        "title": "forked",
+        "fork_session_id": "v2-parent",
+        "fork_boundary": "{\"type\":\"through\",\"messageID\":\"m1\"}",
+        "time_created": 1767225600000,
+        "cost": 0.01,
+        "tokens_input": 12
+      },
+      "source": {
+        "path": "<fixtures>/opencode/v2-without-seq.db",
+        "table": "session_v2",
+        "position": 0
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "opencode",
+      "native": {
+        "id": "m1",
+        "timestamp": null,
+        "native_row": {
+          "id": "m1",
+          "session_id": "v2-child",
+          "type": "user",
+          "data": "{\"text\":\"copied history survives\"}"
+        },
+        "data": {
+          "text": "copied history survives",
+          "type": "user"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/v2-without-seq.db",
+        "table": "session_message",
+        "position": 1
+      },
+      "text": "{\"text\":\"copied history survives\"}"
+    },
+    {
+      "sequence": 2,
+      "provider": "opencode",
+      "native": {
+        "id": "m2",
+        "timestamp": null,
+        "native_row": {
+          "id": "m2",
+          "session_id": "v2-child",
+          "type": "assistant",
+          "data": "{\"model\":{\"id\":\"example-model\"},\"content\":[{\"type\":\"text\",\"text\":\"child reply\"}],\"tokens\":{\"input\":12,\"output\":3}}"
+        },
+        "data": {
+          "model": {
+            "id": "example-model"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "child reply"
+            }
+          ],
+          "tokens": {
+            "input": 12,
+            "output": 3
+          },
+          "type": "assistant"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/v2-without-seq.db",
+        "table": "session_message",
+        "position": 2
+      },
+      "text": "{\"model\":{\"id\":\"example-model\"},\"content\":[{\"type\":\"text\",\"text\":\"child reply\"}],\"tokens\":{\"input\":12,\"output\":3}}"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "v2-child",
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session_v2",
+        "payload": {
+          "id": "v2-child",
+          "title": "forked",
+          "fork_session_id": "v2-parent",
+          "fork_boundary": "{\"type\":\"through\",\"messageID\":\"m1\"}",
+          "time_created": 1767225600000,
+          "cost": 0.01,
+          "tokens_input": 12
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "m1",
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "copied history survives"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "m2",
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "child reply"
+          }
+        ],
+        "model": "example-model"
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 2,
+      "id": "m2",
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "tokens": {
+            "input": 12,
+            "output": 3
+          },
+          "cost": null
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "session_message lacks seq; using stable native time/id order"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<user_query>hello</user_query>"}]}}
+{"type":"future-cli","secret":{"big":9007199254740993}}

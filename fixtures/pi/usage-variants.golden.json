@@ -1,0 +1,260 @@
+{
+  "schema": "agent-session/v1",
+  "id": "pi-usage",
+  "provider": "pi",
+  "title": null,
+  "created_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "updated_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": "pi-usage",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "session",
+        "payload": {
+          "id": "pi-usage",
+          "parentSession": "/fixture/parent.jsonl",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "session",
+          "version": 3
+        }
+      },
+      "provider_metadata": {
+        "native_position": 1,
+        "type": "session"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "pi-usage",
+          "parentSession": "/fixture/parent.jsonl",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "session",
+          "version": 3
+        }
+      }
+    },
+    {
+      "id": "user",
+      "timestamp": null,
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 2,
+        "parentId": null,
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "user",
+          "message": {
+            "content": "hello",
+            "role": "user"
+          },
+          "parentId": null,
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "left",
+      "timestamp": null,
+      "sequence": 2,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "one branch"
+          }
+        ],
+        "model": null
+      },
+      "provider_metadata": {
+        "native_position": 3,
+        "parentId": "user",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "left",
+          "message": {
+            "content": "one branch",
+            "role": "assistant",
+            "usage": {
+              "cacheRead": 0,
+              "cost": {
+                "total": 0.001
+              },
+              "input": "12",
+              "output": null
+            }
+          },
+          "parentId": "user",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "left",
+      "timestamp": null,
+      "sequence": 3,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "cacheRead": 0,
+          "cost": {
+            "total": 0.001
+          },
+          "input": "12",
+          "output": null
+        }
+      },
+      "provider_metadata": {
+        "native_position": 3,
+        "parentId": "user",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "left",
+          "message": {
+            "content": "one branch",
+            "role": "assistant",
+            "usage": {
+              "cacheRead": 0,
+              "cost": {
+                "total": 0.001
+              },
+              "input": "12",
+              "output": null
+            }
+          },
+          "parentId": "user",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "right",
+      "timestamp": null,
+      "sequence": 4,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "another branch"
+          }
+        ],
+        "model": null
+      },
+      "provider_metadata": {
+        "native_position": 4,
+        "parentId": "user",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "right",
+          "message": {
+            "content": "another branch",
+            "role": "assistant",
+            "usage": {
+              "cacheRead": 0,
+              "cost": {
+                "total": 0.001
+              },
+              "input": "12",
+              "output": null
+            }
+          },
+          "parentId": "user",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "right",
+      "timestamp": null,
+      "sequence": 5,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "cacheRead": 0,
+          "cost": {
+            "total": 0.001
+          },
+          "input": "12",
+          "output": null
+        }
+      },
+      "provider_metadata": {
+        "native_position": 4,
+        "parentId": "user",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "right",
+          "message": {
+            "content": "another branch",
+            "role": "assistant",
+            "usage": {
+              "cacheRead": 0,
+              "cost": {
+                "total": 0.001
+              },
+              "input": "12",
+              "output": null
+            }
+          },
+          "parentId": "user",
+          "type": "message"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "parentSession": "/fixture/parent.jsonl",
+    "updated_at_origin": "last_recorded_event",
+    "version": 3
+  },
+  "raw": {
+    "format": "json",
+    "value": {
+      "id": "pi-usage",
+      "parentSession": "/fixture/parent.jsonl",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "type": "session",
+      "version": 3
+    }
+  },
+  "diagnostics": []
+}

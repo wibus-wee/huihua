@@ -1,0 +1,2 @@
+{"type":"user","uuid":"u1","sessionId":"claude-session","cwd":"/workspace/example","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"Hello"}}
+{"type":"assistant","uuid":"a1","parentUuid":"u1","sessionId":"claude-session","message":{"id":"message-1","role":"assistant","model":"example-model","content":[{"type":"tool_use","id":"call-1","name":"Bash","input":{"command":"pwd"}}]}}

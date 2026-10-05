@@ -1,0 +1,88 @@
+{
+  "id": "source:tool-failure.jsonl",
+  "provider": "cursor",
+  "metadata": {
+    "id_origin": "source_filename"
+  },
+  "source": {
+    "path": "<fixtures>/cursor/tool-failure.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "role": "user",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "<user_query>hello</user_query>"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/tool-failure.jsonl",
+        "position": 1
+      },
+      "text": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"<user_query>hello</user_query>\"}]}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "cursor",
+      "native": {
+        "role": "user",
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "c1",
+              "content": "denied",
+              "is_error": true
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/tool-failure.jsonl",
+        "position": 2
+      },
+      "text": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"c1\",\"content\":\"denied\",\"is_error\":true}]}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "<user_query>hello</user_query>"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "c1",
+        "result": "denied",
+        "isError": true
+      }
+    }
+  ],
+  "diagnostics": []
+}

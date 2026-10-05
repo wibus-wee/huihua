@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "tests/*.test.ts",
+    "tools/compressed-fixture.ts"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "tools/**/*.ts"
+  ],
+  "ignoreIssues": {
+    "src/index.ts": [
+      "duplicates"
+    ]
+  }
+}

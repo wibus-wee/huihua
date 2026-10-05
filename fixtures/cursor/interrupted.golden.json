@@ -1,0 +1,84 @@
+{
+  "schema": "agent-session/v1",
+  "id": "source:interrupted.jsonl",
+  "provider": "cursor",
+  "title": null,
+  "created_at": null,
+  "updated_at": null,
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 0,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "<user_query>hello</user_query>"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "message": {
+            "content": [
+              {
+                "text": "<user_query>hello</user_query>",
+                "type": "text"
+              }
+            ]
+          },
+          "role": "user"
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 1,
+      "type": "tool_call",
+      "data": {
+        "call_id": "c1",
+        "tool_name": "shell",
+        "arguments": {}
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "message": {
+            "content": [
+              {
+                "id": "c1",
+                "input": {},
+                "name": "shell",
+                "type": "tool_use"
+              }
+            ]
+          },
+          "role": "assistant"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "id_origin": "source_filename"
+  },
+  "raw": null,
+  "diagnostics": [
+    {
+      "kind": "partial_parse",
+      "message": "tool call c1 has no recorded result",
+      "position": null
+    }
+  ]
+}

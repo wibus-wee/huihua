@@ -1,0 +1,127 @@
+{
+  "id": "source:tool-call.jsonl",
+  "provider": "cursor",
+  "metadata": {
+    "id_origin": "source_filename"
+  },
+  "source": {
+    "path": "<fixtures>/cursor/tool-call.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "role": "user",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "<user_query>hello</user_query>"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/tool-call.jsonl",
+        "position": 1
+      },
+      "text": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"<user_query>hello</user_query>\"}]}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "cursor",
+      "native": {
+        "role": "assistant",
+        "message": {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "c1",
+              "name": "shell",
+              "input": {
+                "command": "echo hi"
+              }
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/tool-call.jsonl",
+        "position": 2
+      },
+      "text": "{\"role\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"c1\",\"name\":\"shell\",\"input\":{\"command\":\"echo hi\"}}]}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "cursor",
+      "native": {
+        "role": "user",
+        "message": {
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "c1",
+              "content": "hi",
+              "is_error": false
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/tool-call.jsonl",
+        "position": 3
+      },
+      "text": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"c1\",\"content\":\"hi\",\"is_error\":false}]}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "<user_query>hello</user_query>"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "c1",
+        "toolName": "shell",
+        "arguments": {
+          "command": "echo hi"
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "providerMetadata": {
+        "native_position": 3
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "c1",
+        "result": "hi",
+        "isError": false
+      }
+    }
+  ],
+  "diagnostics": []
+}

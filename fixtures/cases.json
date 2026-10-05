@@ -1,0 +1,262 @@
+[
+  {
+    "provider": "codex",
+    "path": "codex/simple.jsonl",
+    "golden": "codex/simple.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/tool-call.jsonl",
+    "golden": "codex/tool-call.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/tool-failure.jsonl",
+    "golden": "codex/tool-failure.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/interrupted.jsonl",
+    "golden": "codex/interrupted.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/unknown.jsonl",
+    "golden": "codex/unknown.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/schema-variation.jsonl",
+    "golden": "codex/schema-variation.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/malformed.jsonl",
+    "golden": "codex/malformed.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/simple.jsonl",
+    "golden": "claude/simple.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/tool-call.jsonl",
+    "golden": "claude/tool-call.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/tool-failure.jsonl",
+    "golden": "claude/tool-failure.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/interrupted.jsonl",
+    "golden": "claude/interrupted.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/unknown.jsonl",
+    "golden": "claude/unknown.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/schema-variation.jsonl",
+    "golden": "claude/schema-variation.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/malformed.jsonl",
+    "golden": "claude/malformed.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/subagent.jsonl",
+    "golden": "claude/subagent.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/simple.jsonl",
+    "golden": "pi/simple.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/tool-call.jsonl",
+    "golden": "pi/tool-call.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/tool-failure.jsonl",
+    "golden": "pi/tool-failure.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/interrupted.jsonl",
+    "golden": "pi/interrupted.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/unknown.jsonl",
+    "golden": "pi/unknown.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/schema-variation.jsonl",
+    "golden": "pi/schema-variation.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/tree.jsonl",
+    "golden": "pi/tree.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/malformed.jsonl",
+    "golden": "pi/malformed.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/v1.jsonl",
+    "golden": "pi/v1.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/future-version.jsonl",
+    "golden": "pi/future-version.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/simple.jsonl",
+    "golden": "cursor/simple.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/tool-call.jsonl",
+    "golden": "cursor/tool-call.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/tool-failure.jsonl",
+    "golden": "cursor/tool-failure.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/interrupted.jsonl",
+    "golden": "cursor/interrupted.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/unknown.jsonl",
+    "golden": "cursor/unknown.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/schema-variation.jsonl",
+    "golden": "cursor/schema-variation.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/malformed.jsonl",
+    "golden": "cursor/malformed.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/ide-current.db",
+    "golden": "cursor/ide-current.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/ide-legacy.db",
+    "golden": "cursor/ide-legacy.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/ide-partial.db",
+    "golden": "cursor/ide-partial.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/simple.db",
+    "golden": "opencode/simple.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/tool-call.db",
+    "golden": "opencode/tool-call.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/tool-failure.db",
+    "golden": "opencode/tool-failure.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/interrupted.db",
+    "golden": "opencode/interrupted.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/unknown.db",
+    "golden": "opencode/unknown.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/malformed.db",
+    "golden": "opencode/malformed.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/schema-variation.db",
+    "golden": "opencode/schema-variation.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/partially-migrated.db",
+    "golden": "opencode/partially-migrated.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/legacy-files",
+    "golden": "opencode/legacy-files.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/simple.jsonl.zst",
+    "golden": "codex/compressed.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/subagents.jsonl",
+    "golden": "codex/subagents.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/ide-index.db",
+    "golden": "cursor/ide-index.golden.json"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/ide-conversation-map.db",
+    "golden": "cursor/ide-conversation-map.golden.json"
+  },
+  {
+    "provider": "claude_code",
+    "path": "claude/usage-only.jsonl",
+    "golden": "claude/usage-only.golden.json"
+  },
+  {
+    "provider": "codex",
+    "path": "codex/usage-records.jsonl",
+    "golden": "codex/usage-records.golden.json"
+  },
+  {
+    "provider": "opencode",
+    "path": "opencode/v2-without-seq.db",
+    "golden": "opencode/v2-without-seq.golden.json"
+  },
+  {
+    "provider": "pi",
+    "path": "pi/usage-variants.jsonl",
+    "golden": "pi/usage-variants.golden.json"
+  }
+]

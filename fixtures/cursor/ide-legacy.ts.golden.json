@@ -1,0 +1,169 @@
+{
+  "id": "legacy-1",
+  "provider": "cursor",
+  "title": "legacy",
+  "source": {
+    "path": "<fixtures>/cursor/ide-legacy.db",
+    "format": "cursor_sqlite",
+    "locator": {
+      "id": "legacy-1",
+      "storage": "legacy"
+    }
+  },
+  "metadata": {},
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "key": "composer.composerData",
+        "value": {
+          "composerId": "legacy-1",
+          "name": "legacy",
+          "conversation": [
+            {
+              "type": 1,
+              "text": "hi"
+            },
+            {
+              "type": 2,
+              "richText": {
+                "root": {
+                  "children": [
+                    {
+                      "text": "hello"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "native_row": {
+          "key": "composer.composerData",
+          "value": "{\"allComposers\":[{\"composerId\":\"legacy-1\",\"name\":\"legacy\",\"conversation\":[{\"type\":1,\"text\":\"hi\"},{\"type\":2,\"richText\":{\"root\":{\"children\":[{\"text\":\"hello\"}]}}}]}]}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-legacy.db",
+        "table": "ItemTable",
+        "key": "composer.composerData",
+        "position": 0
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "cursor",
+      "native": {
+        "type": 1,
+        "text": "hi"
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-legacy.db",
+        "position": 1
+      }
+    },
+    {
+      "sequence": 2,
+      "provider": "cursor",
+      "native": {
+        "type": 2,
+        "richText": {
+          "root": {
+            "children": [
+              {
+                "text": "hello"
+              }
+            ]
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-legacy.db",
+        "position": 2
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "composerData",
+        "payload": {
+          "key": "composer.composerData",
+          "value": {
+            "composerId": "legacy-1",
+            "name": "legacy",
+            "conversation": [
+              {
+                "type": 1,
+                "text": "hi"
+              },
+              {
+                "type": 2,
+                "richText": {
+                  "root": {
+                    "children": [
+                      {
+                        "text": "hello"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "type": 1,
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hi"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "providerMetadata": {
+        "type": 2,
+        "native_position": 2
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "structured",
+            "data": {
+              "root": {
+                "children": [
+                  {
+                    "text": "hello"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

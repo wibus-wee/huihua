@@ -1,0 +1,85 @@
+{
+  "schema": "agent-session/v1",
+  "id": "source:unknown.jsonl",
+  "provider": "cursor",
+  "title": null,
+  "created_at": null,
+  "updated_at": null,
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 0,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "<user_query>hello</user_query>"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "message": {
+            "content": [
+              {
+                "text": "<user_query>hello</user_query>",
+                "type": "text"
+              }
+            ]
+          },
+          "role": "user"
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 1,
+      "type": "unknown",
+      "data": {
+        "source_type": "future-cli",
+        "payload": {
+          "format": "json",
+          "value": {
+            "secret": {
+              "big": 9007199254740993
+            },
+            "type": "future-cli"
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 2,
+        "type": "future-cli"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "secret": {
+            "big": 9007199254740993
+          },
+          "type": "future-cli"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "id_origin": "source_filename"
+  },
+  "raw": null,
+  "diagnostics": [
+    {
+      "kind": "partial_parse",
+      "message": "native record retained without full semantic normalization",
+      "position": 2
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "p1",
+  "messageID": "file-message",
+  "sessionID": "file-session",
+  "type": "text",
+  "text": "hello"
+}

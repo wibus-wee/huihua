@@ -1,0 +1,412 @@
+{
+  "schema": "agent-session/v1",
+  "id": "pi-fixture",
+  "provider": "pi",
+  "title": "branched",
+  "created_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "updated_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:01Z"
+  },
+  "workspace": {
+    "path": "/fixture/project",
+    "repository": null,
+    "branch": null,
+    "commit": null
+  },
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": "pi-fixture",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "session",
+        "payload": {
+          "cwd": "/fixture/project",
+          "id": "pi-fixture",
+          "parentSession": "/fixture/parent.jsonl",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "session",
+          "version": 3
+        }
+      },
+      "provider_metadata": {
+        "native_position": 1,
+        "type": "session"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "cwd": "/fixture/project",
+          "id": "pi-fixture",
+          "parentSession": "/fixture/parent.jsonl",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "session",
+          "version": 3
+        }
+      }
+    },
+    {
+      "id": "u1",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:01Z"
+      },
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 2,
+        "parentId": null,
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "u1",
+          "message": {
+            "content": [
+              {
+                "text": "hello",
+                "type": "text"
+              }
+            ],
+            "role": "user"
+          },
+          "parentId": null,
+          "timestamp": "2026-01-01T00:00:01Z",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "a1",
+      "timestamp": null,
+      "sequence": 2,
+      "type": "reasoning",
+      "data": {
+        "text": "recorded reasoning",
+        "summary": null,
+        "encrypted": null
+      },
+      "provider_metadata": {
+        "native_position": 3,
+        "parentId": "u1",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "a1",
+          "message": {
+            "content": [
+              {
+                "signature": "signature-is-not-encryption",
+                "thinking": "recorded reasoning",
+                "type": "thinking"
+              },
+              {
+                "text": "reply",
+                "type": "text"
+              }
+            ],
+            "model": "fixture-model",
+            "role": "assistant",
+            "usage": {
+              "input": 1,
+              "output": 2
+            }
+          },
+          "parentId": "u1",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "a1",
+      "timestamp": null,
+      "sequence": 3,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "reply"
+          }
+        ],
+        "model": "fixture-model"
+      },
+      "provider_metadata": {
+        "native_position": 3,
+        "parentId": "u1",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "a1",
+          "message": {
+            "content": [
+              {
+                "signature": "signature-is-not-encryption",
+                "thinking": "recorded reasoning",
+                "type": "thinking"
+              },
+              {
+                "text": "reply",
+                "type": "text"
+              }
+            ],
+            "model": "fixture-model",
+            "role": "assistant",
+            "usage": {
+              "input": 1,
+              "output": 2
+            }
+          },
+          "parentId": "u1",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "a1",
+      "timestamp": null,
+      "sequence": 4,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "input": 1,
+          "output": 2
+        }
+      },
+      "provider_metadata": {
+        "native_position": 3,
+        "parentId": "u1",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "a1",
+          "message": {
+            "content": [
+              {
+                "signature": "signature-is-not-encryption",
+                "thinking": "recorded reasoning",
+                "type": "thinking"
+              },
+              {
+                "text": "reply",
+                "type": "text"
+              }
+            ],
+            "model": "fixture-model",
+            "role": "assistant",
+            "usage": {
+              "input": 1,
+              "output": 2
+            }
+          },
+          "parentId": "u1",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "branch-2",
+      "timestamp": null,
+      "sequence": 5,
+      "type": "reasoning",
+      "data": {
+        "text": "recorded reasoning",
+        "summary": null,
+        "encrypted": null
+      },
+      "provider_metadata": {
+        "native_position": 4,
+        "parentId": "u1",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "branch-2",
+          "message": {
+            "content": [
+              {
+                "signature": "signature-is-not-encryption",
+                "thinking": "recorded reasoning",
+                "type": "thinking"
+              },
+              {
+                "text": "reply",
+                "type": "text"
+              }
+            ],
+            "model": "fixture-model",
+            "role": "assistant",
+            "usage": {
+              "input": 1,
+              "output": 2
+            }
+          },
+          "parentId": "u1",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "branch-2",
+      "timestamp": null,
+      "sequence": 6,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "reply"
+          }
+        ],
+        "model": "fixture-model"
+      },
+      "provider_metadata": {
+        "native_position": 4,
+        "parentId": "u1",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "branch-2",
+          "message": {
+            "content": [
+              {
+                "signature": "signature-is-not-encryption",
+                "thinking": "recorded reasoning",
+                "type": "thinking"
+              },
+              {
+                "text": "reply",
+                "type": "text"
+              }
+            ],
+            "model": "fixture-model",
+            "role": "assistant",
+            "usage": {
+              "input": 1,
+              "output": 2
+            }
+          },
+          "parentId": "u1",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "branch-2",
+      "timestamp": null,
+      "sequence": 7,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "input": 1,
+          "output": 2
+        }
+      },
+      "provider_metadata": {
+        "native_position": 4,
+        "parentId": "u1",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "branch-2",
+          "message": {
+            "content": [
+              {
+                "signature": "signature-is-not-encryption",
+                "thinking": "recorded reasoning",
+                "type": "thinking"
+              },
+              {
+                "text": "reply",
+                "type": "text"
+              }
+            ],
+            "model": "fixture-model",
+            "role": "assistant",
+            "usage": {
+              "input": 1,
+              "output": 2
+            }
+          },
+          "parentId": "u1",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "title",
+      "timestamp": null,
+      "sequence": 8,
+      "type": "system",
+      "data": {
+        "source_type": "session_info",
+        "payload": {
+          "id": "title",
+          "name": "branched",
+          "parentId": "branch-2",
+          "type": "session_info"
+        }
+      },
+      "provider_metadata": {
+        "native_position": 5,
+        "parentId": "branch-2",
+        "type": "session_info"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "title",
+          "name": "branched",
+          "parentId": "branch-2",
+          "type": "session_info"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "parentSession": "/fixture/parent.jsonl",
+    "updated_at_origin": "last_recorded_event",
+    "version": 3
+  },
+  "raw": {
+    "format": "json",
+    "value": {
+      "cwd": "/fixture/project",
+      "id": "pi-fixture",
+      "parentSession": "/fixture/parent.jsonl",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "type": "session",
+      "version": 3
+    }
+  },
+  "diagnostics": []
+}

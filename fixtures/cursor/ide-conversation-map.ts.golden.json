@@ -1,0 +1,167 @@
+{
+  "id": "old-map",
+  "provider": "cursor",
+  "title": "old format",
+  "source": {
+    "path": "<fixtures>/cursor/ide-conversation-map.db",
+    "format": "cursor_sqlite",
+    "locator": {
+      "id": "old-map",
+      "storage": "modern"
+    }
+  },
+  "metadata": {},
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "key": "composerData:old-map",
+        "value": {
+          "composerId": "old-map",
+          "name": "old format",
+          "fullConversationHeadersOnly": [
+            {
+              "bubbleId": "b1"
+            },
+            {
+              "bubbleId": "b2"
+            }
+          ],
+          "conversationMap": {
+            "b1": {
+              "type": 1,
+              "text": "legacy hello"
+            },
+            "b2": {
+              "type": 2,
+              "text": "legacy reply"
+            }
+          }
+        },
+        "native_row": {
+          "key": "composerData:old-map",
+          "value": "{\"composerId\":\"old-map\",\"name\":\"old format\",\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"}],\"conversationMap\":{\"b1\":{\"type\":1,\"text\":\"legacy hello\"},\"b2\":{\"type\":2,\"text\":\"legacy reply\"}}}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-conversation-map.db",
+        "table": "cursorDiskKV",
+        "key": "composerData:old-map",
+        "position": 0
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "cursor",
+      "native": {
+        "id": "b1",
+        "value": {
+          "type": 1,
+          "text": "legacy hello"
+        },
+        "native_field": "conversationMap"
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-conversation-map.db",
+        "position": 1,
+        "table": "cursorDiskKV"
+      }
+    },
+    {
+      "sequence": 2,
+      "provider": "cursor",
+      "native": {
+        "id": "b2",
+        "value": {
+          "type": 2,
+          "text": "legacy reply"
+        },
+        "native_field": "conversationMap"
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-conversation-map.db",
+        "position": 2,
+        "table": "cursorDiskKV"
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "composerData",
+        "payload": {
+          "key": "composerData:old-map",
+          "value": {
+            "composerId": "old-map",
+            "name": "old format",
+            "fullConversationHeadersOnly": [
+              {
+                "bubbleId": "b1"
+              },
+              {
+                "bubbleId": "b2"
+              }
+            ],
+            "conversationMap": {
+              "b1": {
+                "type": 1,
+                "text": "legacy hello"
+              },
+              "b2": {
+                "type": 2,
+                "text": "legacy reply"
+              }
+            }
+          },
+          "native_row": {
+            "key": "composerData:old-map",
+            "value": "{\"composerId\":\"old-map\",\"name\":\"old format\",\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"}],\"conversationMap\":{\"b1\":{\"type\":1,\"text\":\"legacy hello\"},\"b2\":{\"type\":2,\"text\":\"legacy reply\"}}}"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "b1",
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "legacy hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "b2",
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "legacy reply"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

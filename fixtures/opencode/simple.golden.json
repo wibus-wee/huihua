@@ -1,0 +1,192 @@
+{
+  "schema": "agent-session/v1",
+  "id": "session-1",
+  "provider": "opencode",
+  "title": "fixture",
+  "created_at": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "updated_at": {
+    "format": "unix_millis",
+    "value": 1767225601000
+  },
+  "workspace": {
+    "path": "/fixture/project",
+    "repository": null,
+    "branch": null,
+    "commit": null
+  },
+  "parent_session_id": "parent-1",
+  "events": [
+    {
+      "id": "session-1",
+      "timestamp": null,
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "session",
+        "payload": {
+          "directory": "/fixture/project",
+          "id": "session-1",
+          "parent_id": "parent-1",
+          "time_created": 1767225600000,
+          "time_updated": 1767225601000,
+          "title": "fixture"
+        }
+      },
+      "provider_metadata": {
+        "native_position": 0
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "directory": "/fixture/project",
+          "id": "session-1",
+          "parent_id": "parent-1",
+          "time_created": 1767225600000,
+          "time_updated": 1767225601000,
+          "title": "fixture"
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 1,
+      "type": "system",
+      "data": {
+        "source_type": "message_metadata",
+        "payload": {
+          "modelID": "fixture-model",
+          "role": "assistant",
+          "tokens": {
+            "input": 1,
+            "output": 2
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "modelID": "fixture-model",
+            "role": "assistant",
+            "tokens": {
+              "input": 1,
+              "output": 2
+            }
+          },
+          "id": "m1",
+          "native_row": {
+            "data": "{\"role\":\"assistant\",\"modelID\":\"fixture-model\",\"tokens\":{\"input\":1,\"output\":2}}",
+            "id": "m1",
+            "session_id": "session-1",
+            "time_created": 1767225600000
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 2,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "cost": null,
+          "tokens": {
+            "input": 1,
+            "output": 2
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "modelID": "fixture-model",
+            "role": "assistant",
+            "tokens": {
+              "input": 1,
+              "output": 2
+            }
+          },
+          "id": "m1",
+          "native_row": {
+            "data": "{\"role\":\"assistant\",\"modelID\":\"fixture-model\",\"tokens\":{\"input\":1,\"output\":2}}",
+            "id": "m1",
+            "session_id": "session-1",
+            "time_created": 1767225600000
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    },
+    {
+      "id": "p0",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 3,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ],
+        "model": "fixture-model"
+      },
+      "provider_metadata": {
+        "native_position": 3
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "text": "hello",
+            "type": "text"
+          },
+          "id": "p0",
+          "native_row": {
+            "data": "{\"type\":\"text\",\"text\":\"hello\"}",
+            "id": "p0",
+            "message_id": "m1",
+            "session_id": "session-1",
+            "time_created": 1767225600000
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    }
+  ],
+  "metadata": {},
+  "raw": {
+    "format": "json",
+    "value": {
+      "directory": "/fixture/project",
+      "id": "session-1",
+      "parent_id": "parent-1",
+      "time_created": 1767225600000,
+      "time_updated": 1767225601000,
+      "title": "fixture"
+    }
+  },
+  "diagnostics": []
+}

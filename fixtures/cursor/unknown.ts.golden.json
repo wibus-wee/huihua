@@ -1,0 +1,93 @@
+{
+  "id": "source:unknown.jsonl",
+  "provider": "cursor",
+  "metadata": {
+    "id_origin": "source_filename"
+  },
+  "source": {
+    "path": "<fixtures>/cursor/unknown.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "role": "user",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "<user_query>hello</user_query>"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/unknown.jsonl",
+        "position": 1
+      },
+      "text": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"<user_query>hello</user_query>\"}]}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "cursor",
+      "type": "future-cli",
+      "native": {
+        "type": "future-cli",
+        "secret": {
+          "big": 9007199254740992
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/unknown.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"future-cli\",\"secret\":{\"big\":9007199254740993}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "<user_query>hello</user_query>"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "type": "future-cli",
+        "native_position": 2
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "future-cli",
+        "payload": {
+          "type": "future-cli",
+          "secret": {
+            "big": 9007199254740992
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record future-cli",
+      "position": 2
+    }
+  ]
+}

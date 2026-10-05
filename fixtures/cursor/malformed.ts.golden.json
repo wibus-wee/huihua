@@ -1,0 +1,112 @@
+{
+  "id": "source:malformed.jsonl",
+  "provider": "cursor",
+  "metadata": {
+    "id_origin": "source_filename"
+  },
+  "source": {
+    "path": "<fixtures>/cursor/malformed.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "role": "user",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "<user_query>hello</user_query>"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/malformed.jsonl",
+        "position": 1
+      },
+      "text": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"<user_query>hello</user_query>\"}]}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "cursor",
+      "native": "{broken\n",
+      "source": {
+        "path": "<fixtures>/cursor/malformed.jsonl",
+        "position": 2
+      },
+      "text": "{broken\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "cursor",
+      "native": {
+        "role": "assistant",
+        "message": {
+          "content": "survives"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/malformed.jsonl",
+        "position": 3
+      },
+      "text": "{\"role\":\"assistant\",\"message\":{\"content\":\"survives\"}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "<user_query>hello</user_query>"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "malformed_jsonl",
+        "payload": "{broken\n"
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "providerMetadata": {
+        "native_position": 3
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "survives"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "corrupted JSONL record",
+      "position": 2
+    }
+  ]
+}

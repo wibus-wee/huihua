@@ -1,0 +1,2 @@
+{"type":"user","uuid":"u1","sessionId":"claude-session","cwd":"/workspace/example","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"Hello"}}
+{"type":"file-history-snapshot","snapshot":{"files":{"a.rs":{"version":2}}}}

@@ -1,0 +1,89 @@
+{
+  "id": "source:simple.jsonl",
+  "provider": "cursor",
+  "metadata": {
+    "id_origin": "source_filename"
+  },
+  "source": {
+    "path": "<fixtures>/cursor/simple.jsonl",
+    "format": "jsonl"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "role": "user",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "<user_query>hello</user_query>"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/simple.jsonl",
+        "position": 1
+      },
+      "text": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"<user_query>hello</user_query>\"}]}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "cursor",
+      "native": {
+        "role": "assistant",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "reply"
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/simple.jsonl",
+        "position": 2
+      },
+      "text": "{\"role\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"reply\"}]}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "<user_query>hello</user_query>"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "reply"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

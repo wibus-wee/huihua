@@ -1,0 +1,2 @@
+{"type":"session_meta","timestamp":"2026-01-01T00:00:00Z","payload":{"id":"codex-session","cwd":"/workspace/example","timestamp":"2026-01-01T00:00:00Z","git":{"branch":"main","commit_hash":"abc","repository_url":"https://example.invalid/repo"}}}
+{"type":"future_record","payload":{"meaningful":{"a":[1,2]}}}

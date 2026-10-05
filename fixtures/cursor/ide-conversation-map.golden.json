@@ -1,0 +1,178 @@
+{
+  "schema": "agent-session/v1",
+  "id": "old-map",
+  "provider": "cursor",
+  "title": "old format",
+  "created_at": null,
+  "updated_at": null,
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "composerData",
+        "payload": {
+          "key": "composerData:old-map",
+          "native_row": {
+            "key": "composerData:old-map",
+            "value": "{\"composerId\":\"old-map\",\"name\":\"old format\",\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"}],\"conversationMap\":{\"b1\":{\"type\":1,\"text\":\"legacy hello\"},\"b2\":{\"type\":2,\"text\":\"legacy reply\"}}}"
+          },
+          "value": {
+            "composerId": "old-map",
+            "conversationMap": {
+              "b1": {
+                "text": "legacy hello",
+                "type": 1
+              },
+              "b2": {
+                "text": "legacy reply",
+                "type": 2
+              }
+            },
+            "fullConversationHeadersOnly": [
+              {
+                "bubbleId": "b1"
+              },
+              {
+                "bubbleId": "b2"
+              }
+            ],
+            "name": "old format"
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 0
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "key": "composerData:old-map",
+          "native_row": {
+            "key": "composerData:old-map",
+            "value": "{\"composerId\":\"old-map\",\"name\":\"old format\",\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"}],\"conversationMap\":{\"b1\":{\"type\":1,\"text\":\"legacy hello\"},\"b2\":{\"type\":2,\"text\":\"legacy reply\"}}}"
+          },
+          "value": {
+            "composerId": "old-map",
+            "conversationMap": {
+              "b1": {
+                "text": "legacy hello",
+                "type": 1
+              },
+              "b2": {
+                "text": "legacy reply",
+                "type": 2
+              }
+            },
+            "fullConversationHeadersOnly": [
+              {
+                "bubbleId": "b1"
+              },
+              {
+                "bubbleId": "b2"
+              }
+            ],
+            "name": "old format"
+          }
+        }
+      }
+    },
+    {
+      "id": "b1",
+      "timestamp": null,
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "legacy hello"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "b1",
+          "native_field": "conversationMap",
+          "timestamp": null,
+          "value": {
+            "text": "legacy hello",
+            "type": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "b2",
+      "timestamp": null,
+      "sequence": 2,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "legacy reply"
+          }
+        ],
+        "model": null
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "b2",
+          "native_field": "conversationMap",
+          "timestamp": null,
+          "value": {
+            "text": "legacy reply",
+            "type": 2
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {},
+  "raw": {
+    "format": "json",
+    "value": {
+      "key": "composerData:old-map",
+      "native_row": {
+        "key": "composerData:old-map",
+        "value": "{\"composerId\":\"old-map\",\"name\":\"old format\",\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"}],\"conversationMap\":{\"b1\":{\"type\":1,\"text\":\"legacy hello\"},\"b2\":{\"type\":2,\"text\":\"legacy reply\"}}}"
+      },
+      "value": {
+        "composerId": "old-map",
+        "conversationMap": {
+          "b1": {
+            "text": "legacy hello",
+            "type": 1
+          },
+          "b2": {
+            "text": "legacy reply",
+            "type": 2
+          }
+        },
+        "fullConversationHeadersOnly": [
+          {
+            "bubbleId": "b1"
+          },
+          {
+            "bubbleId": "b2"
+          }
+        ],
+        "name": "old format"
+      }
+    }
+  },
+  "diagnostics": []
+}

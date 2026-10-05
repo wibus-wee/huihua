@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"pi-usage","timestamp":"2026-01-01T00:00:00Z","parentSession":"/fixture/parent.jsonl"}
+{"type":"message","id":"user","parentId":null,"message":{"role":"user","content":"hello"}}
+{"type":"message","id":"left","parentId":"user","message":{"role":"assistant","content":"one branch","usage":{"input":"12","output":null,"cacheRead":0,"cost":{"total":0.001}}}}
+{"type":"message","id":"right","parentId":"user","message":{"role":"assistant","content":"another branch","usage":{"input":"12","output":null,"cacheRead":0,"cost":{"total":0.001}}}}

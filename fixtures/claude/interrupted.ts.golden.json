@@ -1,0 +1,128 @@
+{
+  "id": "claude-session",
+  "provider": "claude",
+  "metadata": {
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "workspace": {
+    "path": "/workspace/example"
+  },
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "source": {
+    "path": "<fixtures>/claude/interrupted.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "claude",
+      "type": "user",
+      "native": {
+        "type": "user",
+        "uuid": "u1",
+        "sessionId": "claude-session",
+        "cwd": "/workspace/example",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "message": {
+          "role": "user",
+          "content": "Hello"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/claude/interrupted.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"user\",\"uuid\":\"u1\",\"sessionId\":\"claude-session\",\"cwd\":\"/workspace/example\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"Hello\"}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "claude",
+      "type": "assistant",
+      "native": {
+        "type": "assistant",
+        "uuid": "a1",
+        "parentUuid": "u1",
+        "sessionId": "claude-session",
+        "message": {
+          "id": "message-1",
+          "role": "assistant",
+          "model": "example-model",
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "call-1",
+              "name": "Bash",
+              "input": {
+                "command": "pwd"
+              }
+            }
+          ]
+        }
+      },
+      "source": {
+        "path": "<fixtures>/claude/interrupted.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"assistant\",\"uuid\":\"a1\",\"parentUuid\":\"u1\",\"sessionId\":\"claude-session\",\"message\":{\"id\":\"message-1\",\"role\":\"assistant\",\"model\":\"example-model\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call-1\",\"name\":\"Bash\",\"input\":{\"command\":\"pwd\"}}]}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "u1",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "user",
+        "sessionId": "claude-session",
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "a1",
+      "providerMetadata": {
+        "type": "assistant",
+        "parentUuid": "u1",
+        "sessionId": "claude-session",
+        "native_position": 2
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call-1",
+        "toolName": "Bash",
+        "arguments": {
+          "command": "pwd"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "tool call call-1 has no recorded result"
+    }
+  ]
+}

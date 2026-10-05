@@ -1,0 +1,355 @@
+{
+  "id": "session-1",
+  "provider": "opencode",
+  "metadata": {
+    "id_origin": "native"
+  },
+  "title": "fixture",
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "updatedAt": {
+    "format": "unix_millis",
+    "value": 1767225601000
+  },
+  "workspace": {
+    "path": "/fixture/project"
+  },
+  "parentSessionId": "parent-1",
+  "source": {
+    "path": "<fixtures>/opencode/schema-variation.db",
+    "format": "opencode_sqlite",
+    "locator": {
+      "id": "session-1"
+    }
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "opencode",
+      "native": {
+        "id": "session-1",
+        "title": "fixture",
+        "directory": "/fixture/project",
+        "parent_id": "parent-1",
+        "time_created": 1767225600000,
+        "time_updated": 1767225601000
+      },
+      "source": {
+        "path": "<fixtures>/opencode/schema-variation.db",
+        "table": "session",
+        "position": 0
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "opencode",
+      "native": {
+        "id": "m0",
+        "timestamp": 1767225600000,
+        "native_row": {
+          "id": "m0",
+          "session_id": "session-1",
+          "seq": 0,
+          "type": "user",
+          "time_created": 1767225600000,
+          "data": "{\"text\":\"hello\",\"files\":[{\"url\":\"file:///fixture/image.png\",\"mime\":\"image/png\"}]}"
+        },
+        "data": {
+          "text": "hello",
+          "files": [
+            {
+              "url": "file:///fixture/image.png",
+              "mime": "image/png"
+            }
+          ],
+          "type": "user"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/schema-variation.db",
+        "table": "session_message",
+        "position": 1
+      },
+      "text": "{\"text\":\"hello\",\"files\":[{\"url\":\"file:///fixture/image.png\",\"mime\":\"image/png\"}]}"
+    },
+    {
+      "sequence": 2,
+      "provider": "opencode",
+      "native": {
+        "id": "m1",
+        "timestamp": 1767225600000,
+        "native_row": {
+          "id": "m1",
+          "session_id": "session-1",
+          "seq": 1,
+          "type": "assistant",
+          "time_created": 1767225600000,
+          "data": "{\"model\":{\"id\":\"fixture-model\"},\"content\":[{\"type\":\"text\",\"text\":\"reply\"},{\"type\":\"reasoning\",\"text\":\"reason\"},{\"type\":\"tool\",\"id\":\"call\",\"name\":\"exec\",\"state\":{\"status\":\"completed\",\"input\":{},\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}],\"tokens\":{\"input\":1,\"output\":2}}"
+        },
+        "data": {
+          "model": {
+            "id": "fixture-model"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "reply"
+            },
+            {
+              "type": "reasoning",
+              "text": "reason"
+            },
+            {
+              "type": "tool",
+              "id": "call",
+              "name": "exec",
+              "state": {
+                "status": "completed",
+                "input": {},
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "ok"
+                  }
+                ]
+              }
+            }
+          ],
+          "tokens": {
+            "input": 1,
+            "output": 2
+          },
+          "type": "assistant"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/schema-variation.db",
+        "table": "session_message",
+        "position": 2
+      },
+      "text": "{\"model\":{\"id\":\"fixture-model\"},\"content\":[{\"type\":\"text\",\"text\":\"reply\"},{\"type\":\"reasoning\",\"text\":\"reason\"},{\"type\":\"tool\",\"id\":\"call\",\"name\":\"exec\",\"state\":{\"status\":\"completed\",\"input\":{},\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}],\"tokens\":{\"input\":1,\"output\":2}}"
+    },
+    {
+      "sequence": 3,
+      "provider": "opencode",
+      "native": {
+        "id": "m2",
+        "timestamp": 1767225600000,
+        "native_row": {
+          "id": "m2",
+          "session_id": "session-1",
+          "seq": 2,
+          "type": "future",
+          "time_created": 1767225600000,
+          "data": "{\"opaque\":[1,2]}"
+        },
+        "data": {
+          "opaque": [
+            1,
+            2
+          ],
+          "type": "future"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/schema-variation.db",
+        "table": "session_message",
+        "position": 7
+      },
+      "text": "{\"opaque\":[1,2]}"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "session-1",
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session",
+        "payload": {
+          "id": "session-1",
+          "title": "fixture",
+          "directory": "/fixture/project",
+          "parent_id": "parent-1",
+          "time_created": 1767225600000,
+          "time_updated": 1767225601000
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "m0",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          },
+          {
+            "type": "file",
+            "data": {
+              "uri": "file:///fixture/image.png",
+              "mimeType": "image/png",
+              "metadata": {
+                "url": "file:///fixture/image.png",
+                "mime": "image/png"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "reply"
+          }
+        ],
+        "model": "fixture-model"
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 2,
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "reasoning",
+      "data": {
+        "text": "reason"
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 2,
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "exec",
+        "arguments": {}
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 2,
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call",
+        "toolName": "exec",
+        "result": {
+          "status": "completed",
+          "input": {},
+          "content": [
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ]
+        },
+        "isError": false
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 2,
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "tokens": {
+            "input": 1,
+            "output": 2
+          },
+          "cost": null
+        }
+      }
+    },
+    {
+      "sequence": 7,
+      "record": 3,
+      "id": "m2",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "providerMetadata": {
+        "native_position": 7
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "future",
+        "payload": {
+          "opaque": [
+            1,
+            2
+          ],
+          "type": "future"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record future",
+      "position": 7
+    }
+  ]
+}

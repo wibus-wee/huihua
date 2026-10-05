@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"pi-fixture","timestamp":"2026-01-01T00:00:00Z","cwd":"/fixture/project","parentSession":"/fixture/parent.jsonl"}
+{"type":"message","id":"u1","parentId":null,"timestamp":"2026-01-01T00:00:01Z","message":{"role":"user","content":[{"type":"text","text":"hello"}]}}
+{broken
+{"type":"message","id":"a1","parentId":"u1","message":{"role":"assistant","model":"fixture-model","content":[{"type":"thinking","thinking":"recorded reasoning","signature":"signature-is-not-encryption"},{"type":"text","text":"reply"}],"usage":{"input":1,"output":2}}}

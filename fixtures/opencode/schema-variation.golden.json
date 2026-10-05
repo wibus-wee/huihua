@@ -1,0 +1,530 @@
+{
+  "schema": "agent-session/v1",
+  "id": "session-1",
+  "provider": "opencode",
+  "title": "fixture",
+  "created_at": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "updated_at": {
+    "format": "unix_millis",
+    "value": 1767225601000
+  },
+  "workspace": {
+    "path": "/fixture/project",
+    "repository": null,
+    "branch": null,
+    "commit": null
+  },
+  "parent_session_id": "parent-1",
+  "events": [
+    {
+      "id": "session-1",
+      "timestamp": null,
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "session",
+        "payload": {
+          "directory": "/fixture/project",
+          "id": "session-1",
+          "parent_id": "parent-1",
+          "time_created": 1767225600000,
+          "time_updated": 1767225601000,
+          "title": "fixture"
+        }
+      },
+      "provider_metadata": {
+        "native_position": 0
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "directory": "/fixture/project",
+          "id": "session-1",
+          "parent_id": "parent-1",
+          "time_created": 1767225600000,
+          "time_updated": 1767225601000,
+          "title": "fixture"
+        }
+      }
+    },
+    {
+      "id": "m0",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          },
+          {
+            "type": "file",
+            "data": {
+              "uri": "file:///fixture/image.png",
+              "mime_type": "image/png",
+              "data": null,
+              "metadata": {
+                "mime": "image/png",
+                "url": "file:///fixture/image.png"
+              }
+            }
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "files": [
+              {
+                "mime": "image/png",
+                "url": "file:///fixture/image.png"
+              }
+            ],
+            "text": "hello",
+            "type": "user"
+          },
+          "id": "m0",
+          "native_row": {
+            "data": "{\"text\":\"hello\",\"files\":[{\"url\":\"file:///fixture/image.png\",\"mime\":\"image/png\"}]}",
+            "id": "m0",
+            "seq": 0,
+            "session_id": "session-1",
+            "time_created": 1767225600000,
+            "type": "user"
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 2,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "reply"
+          }
+        ],
+        "model": "fixture-model"
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "content": [
+              {
+                "text": "reply",
+                "type": "text"
+              },
+              {
+                "text": "reason",
+                "type": "reasoning"
+              },
+              {
+                "id": "call",
+                "name": "exec",
+                "state": {
+                  "content": [
+                    {
+                      "text": "ok",
+                      "type": "text"
+                    }
+                  ],
+                  "input": {},
+                  "status": "completed"
+                },
+                "type": "tool"
+              }
+            ],
+            "model": {
+              "id": "fixture-model"
+            },
+            "tokens": {
+              "input": 1,
+              "output": 2
+            },
+            "type": "assistant"
+          },
+          "id": "m1",
+          "native_row": {
+            "data": "{\"model\":{\"id\":\"fixture-model\"},\"content\":[{\"type\":\"text\",\"text\":\"reply\"},{\"type\":\"reasoning\",\"text\":\"reason\"},{\"type\":\"tool\",\"id\":\"call\",\"name\":\"exec\",\"state\":{\"status\":\"completed\",\"input\":{},\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}],\"tokens\":{\"input\":1,\"output\":2}}",
+            "id": "m1",
+            "seq": 1,
+            "session_id": "session-1",
+            "time_created": 1767225600000,
+            "type": "assistant"
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 3,
+      "type": "reasoning",
+      "data": {
+        "text": "reason",
+        "summary": null,
+        "encrypted": null
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "content": [
+              {
+                "text": "reply",
+                "type": "text"
+              },
+              {
+                "text": "reason",
+                "type": "reasoning"
+              },
+              {
+                "id": "call",
+                "name": "exec",
+                "state": {
+                  "content": [
+                    {
+                      "text": "ok",
+                      "type": "text"
+                    }
+                  ],
+                  "input": {},
+                  "status": "completed"
+                },
+                "type": "tool"
+              }
+            ],
+            "model": {
+              "id": "fixture-model"
+            },
+            "tokens": {
+              "input": 1,
+              "output": 2
+            },
+            "type": "assistant"
+          },
+          "id": "m1",
+          "native_row": {
+            "data": "{\"model\":{\"id\":\"fixture-model\"},\"content\":[{\"type\":\"text\",\"text\":\"reply\"},{\"type\":\"reasoning\",\"text\":\"reason\"},{\"type\":\"tool\",\"id\":\"call\",\"name\":\"exec\",\"state\":{\"status\":\"completed\",\"input\":{},\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}],\"tokens\":{\"input\":1,\"output\":2}}",
+            "id": "m1",
+            "seq": 1,
+            "session_id": "session-1",
+            "time_created": 1767225600000,
+            "type": "assistant"
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 4,
+      "type": "tool_call",
+      "data": {
+        "call_id": "call",
+        "tool_name": "exec",
+        "arguments": {}
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "content": [
+              {
+                "text": "reply",
+                "type": "text"
+              },
+              {
+                "text": "reason",
+                "type": "reasoning"
+              },
+              {
+                "id": "call",
+                "name": "exec",
+                "state": {
+                  "content": [
+                    {
+                      "text": "ok",
+                      "type": "text"
+                    }
+                  ],
+                  "input": {},
+                  "status": "completed"
+                },
+                "type": "tool"
+              }
+            ],
+            "model": {
+              "id": "fixture-model"
+            },
+            "tokens": {
+              "input": 1,
+              "output": 2
+            },
+            "type": "assistant"
+          },
+          "id": "m1",
+          "native_row": {
+            "data": "{\"model\":{\"id\":\"fixture-model\"},\"content\":[{\"type\":\"text\",\"text\":\"reply\"},{\"type\":\"reasoning\",\"text\":\"reason\"},{\"type\":\"tool\",\"id\":\"call\",\"name\":\"exec\",\"state\":{\"status\":\"completed\",\"input\":{},\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}],\"tokens\":{\"input\":1,\"output\":2}}",
+            "id": "m1",
+            "seq": 1,
+            "session_id": "session-1",
+            "time_created": 1767225600000,
+            "type": "assistant"
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 5,
+      "type": "tool_result",
+      "data": {
+        "call_id": "call",
+        "tool_name": "exec",
+        "result": {
+          "content": [
+            {
+              "text": "ok",
+              "type": "text"
+            }
+          ],
+          "input": {},
+          "status": "completed"
+        },
+        "is_error": false
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "content": [
+              {
+                "text": "reply",
+                "type": "text"
+              },
+              {
+                "text": "reason",
+                "type": "reasoning"
+              },
+              {
+                "id": "call",
+                "name": "exec",
+                "state": {
+                  "content": [
+                    {
+                      "text": "ok",
+                      "type": "text"
+                    }
+                  ],
+                  "input": {},
+                  "status": "completed"
+                },
+                "type": "tool"
+              }
+            ],
+            "model": {
+              "id": "fixture-model"
+            },
+            "tokens": {
+              "input": 1,
+              "output": 2
+            },
+            "type": "assistant"
+          },
+          "id": "m1",
+          "native_row": {
+            "data": "{\"model\":{\"id\":\"fixture-model\"},\"content\":[{\"type\":\"text\",\"text\":\"reply\"},{\"type\":\"reasoning\",\"text\":\"reason\"},{\"type\":\"tool\",\"id\":\"call\",\"name\":\"exec\",\"state\":{\"status\":\"completed\",\"input\":{},\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}],\"tokens\":{\"input\":1,\"output\":2}}",
+            "id": "m1",
+            "seq": 1,
+            "session_id": "session-1",
+            "time_created": 1767225600000,
+            "type": "assistant"
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 6,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "cost": null,
+          "tokens": {
+            "input": 1,
+            "output": 2
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "content": [
+              {
+                "text": "reply",
+                "type": "text"
+              },
+              {
+                "text": "reason",
+                "type": "reasoning"
+              },
+              {
+                "id": "call",
+                "name": "exec",
+                "state": {
+                  "content": [
+                    {
+                      "text": "ok",
+                      "type": "text"
+                    }
+                  ],
+                  "input": {},
+                  "status": "completed"
+                },
+                "type": "tool"
+              }
+            ],
+            "model": {
+              "id": "fixture-model"
+            },
+            "tokens": {
+              "input": 1,
+              "output": 2
+            },
+            "type": "assistant"
+          },
+          "id": "m1",
+          "native_row": {
+            "data": "{\"model\":{\"id\":\"fixture-model\"},\"content\":[{\"type\":\"text\",\"text\":\"reply\"},{\"type\":\"reasoning\",\"text\":\"reason\"},{\"type\":\"tool\",\"id\":\"call\",\"name\":\"exec\",\"state\":{\"status\":\"completed\",\"input\":{},\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}],\"tokens\":{\"input\":1,\"output\":2}}",
+            "id": "m1",
+            "seq": 1,
+            "session_id": "session-1",
+            "time_created": 1767225600000,
+            "type": "assistant"
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    },
+    {
+      "id": "m2",
+      "timestamp": {
+        "format": "unix_millis",
+        "value": 1767225600000
+      },
+      "sequence": 7,
+      "type": "unknown",
+      "data": {
+        "source_type": "future",
+        "payload": {
+          "format": "json",
+          "value": {
+            "opaque": [
+              1,
+              2
+            ],
+            "type": "future"
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 7
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "data": {
+            "opaque": [
+              1,
+              2
+            ],
+            "type": "future"
+          },
+          "id": "m2",
+          "native_row": {
+            "data": "{\"opaque\":[1,2]}",
+            "id": "m2",
+            "seq": 2,
+            "session_id": "session-1",
+            "time_created": 1767225600000,
+            "type": "future"
+          },
+          "timestamp": 1767225600000
+        }
+      }
+    }
+  ],
+  "metadata": {},
+  "raw": {
+    "format": "json",
+    "value": {
+      "directory": "/fixture/project",
+      "id": "session-1",
+      "parent_id": "parent-1",
+      "time_created": 1767225600000,
+      "time_updated": 1767225601000,
+      "title": "fixture"
+    }
+  },
+  "diagnostics": [
+    {
+      "kind": "partial_parse",
+      "message": "native record retained without full semantic normalization",
+      "position": 7
+    }
+  ]
+}

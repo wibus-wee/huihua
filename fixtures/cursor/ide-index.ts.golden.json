@@ -1,0 +1,70 @@
+{
+  "id": "index-1",
+  "provider": "cursor",
+  "title": "index-only",
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "source": {
+    "path": "<fixtures>/cursor/ide-index.db",
+    "format": "cursor_sqlite",
+    "locator": {
+      "id": "index-1",
+      "storage": "legacy"
+    }
+  },
+  "metadata": {},
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "key": "composer.composerData",
+        "value": {
+          "composerId": "index-1",
+          "name": "index-only",
+          "createdAt": 1767225600000
+        },
+        "native_row": {
+          "key": "composer.composerData",
+          "value": "{\"allComposers\":[{\"composerId\":\"index-1\",\"name\":\"index-only\",\"createdAt\":1767225600000}]}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-index.db",
+        "table": "ItemTable",
+        "key": "composer.composerData",
+        "position": 0
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "composerData",
+        "payload": {
+          "key": "composer.composerData",
+          "value": {
+            "composerId": "index-1",
+            "name": "index-only",
+            "createdAt": 1767225600000
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "legacy composer metadata has no inline conversation; bubbles may live in globalStorage"
+    }
+  ]
+}

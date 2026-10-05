@@ -1,0 +1,417 @@
+{
+  "id": "composer-1",
+  "provider": "cursor",
+  "title": "fixture",
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "source": {
+    "path": "<fixtures>/cursor/ide-current.db",
+    "format": "cursor_sqlite",
+    "locator": {
+      "id": "composer-1",
+      "storage": "modern"
+    }
+  },
+  "metadata": {},
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "key": "composerData:composer-1",
+        "value": {
+          "composerId": "composer-1",
+          "name": "fixture",
+          "createdAt": 1767225600000,
+          "fullConversationHeadersOnly": [
+            {
+              "bubbleId": "b1"
+            },
+            {
+              "bubbleId": "b2"
+            },
+            {
+              "bubbleId": "b3"
+            }
+          ],
+          "extra": {
+            "future": true
+          }
+        },
+        "native_row": {
+          "key": "composerData:composer-1",
+          "value": "{\"composerId\":\"composer-1\",\"name\":\"fixture\",\"createdAt\":1767225600000,\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"},{\"bubbleId\":\"b3\"}],\"extra\":{\"future\":true}}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-current.db",
+        "table": "cursorDiskKV",
+        "key": "composerData:composer-1",
+        "position": 0
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "cursor",
+      "native": {
+        "id": "b1",
+        "value": {
+          "type": 1,
+          "text": "hello"
+        },
+        "native_row": {
+          "key": "bubbleId:composer-1:b1",
+          "value": "{\"type\":1,\"text\":\"hello\"}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-current.db",
+        "position": 1,
+        "table": "cursorDiskKV",
+        "key": "bubbleId:composer-1:b1"
+      }
+    },
+    {
+      "sequence": 2,
+      "provider": "cursor",
+      "native": {
+        "id": "b2",
+        "value": {
+          "type": 2,
+          "text": [
+            {
+              "type": "tool_use",
+              "id": "call",
+              "name": "native-shell",
+              "input": {
+                "cmd": "echo hi"
+              }
+            }
+          ]
+        },
+        "native_row": {
+          "key": "bubbleId:composer-1:b2",
+          "value": "{\"type\":2,\"text\":[{\"type\":\"tool_use\",\"id\":\"call\",\"name\":\"native-shell\",\"input\":{\"cmd\":\"echo hi\"}}]}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-current.db",
+        "position": 2,
+        "table": "cursorDiskKV",
+        "key": "bubbleId:composer-1:b2"
+      }
+    },
+    {
+      "sequence": 3,
+      "provider": "cursor",
+      "native": {
+        "id": "b3",
+        "value": {
+          "type": 55,
+          "future": {
+            "nested": true
+          }
+        },
+        "native_row": {
+          "key": "bubbleId:composer-1:b3",
+          "value": "{\"type\":55,\"future\":{\"nested\":true}}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-current.db",
+        "position": 3,
+        "table": "cursorDiskKV",
+        "key": "bubbleId:composer-1:b3"
+      }
+    },
+    {
+      "sequence": 4,
+      "provider": "cursor",
+      "native": {
+        "id": "broken",
+        "value": {
+          "native_bytes": [
+            255,
+            0
+          ]
+        },
+        "native_row": {
+          "key": "bubbleId:composer-1:broken",
+          "value": {
+            "native_bytes": [
+              255,
+              0
+            ]
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-current.db",
+        "position": 4,
+        "table": "cursorDiskKV",
+        "key": "bubbleId:composer-1:broken"
+      }
+    },
+    {
+      "sequence": 5,
+      "provider": "cursor",
+      "type": "checkpointId",
+      "native": {
+        "type": "checkpointId",
+        "key": "checkpointId:composer-1:check-1",
+        "value": {
+          "files": [
+            {
+              "uri": {
+                "path": "/fixture/a.rs"
+              },
+              "originalModelDiffWrtV0": [
+                {
+                  "modified": [
+                    "new"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "native_row": {
+          "key": "checkpointId:composer-1:check-1",
+          "value": "{\"files\":[{\"uri\":{\"path\":\"/fixture/a.rs\"},\"originalModelDiffWrtV0\":[{\"modified\":[\"new\"]}]}]}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-current.db",
+        "table": "cursorDiskKV",
+        "key": "checkpointId:composer-1:check-1",
+        "position": 5
+      }
+    },
+    {
+      "sequence": 6,
+      "provider": "cursor",
+      "type": "messageRequestContext",
+      "native": {
+        "type": "messageRequestContext",
+        "key": "messageRequestContext:composer-1:b1",
+        "value": {
+          "attachedFiles": {
+            "a.rs": "historical file content"
+          }
+        },
+        "native_row": {
+          "key": "messageRequestContext:composer-1:b1",
+          "value": "{\"attachedFiles\":{\"a.rs\":\"historical file content\"}}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-current.db",
+        "table": "cursorDiskKV",
+        "key": "messageRequestContext:composer-1:b1",
+        "position": 6
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "composerData",
+        "payload": {
+          "key": "composerData:composer-1",
+          "value": {
+            "composerId": "composer-1",
+            "name": "fixture",
+            "createdAt": 1767225600000,
+            "fullConversationHeadersOnly": [
+              {
+                "bubbleId": "b1"
+              },
+              {
+                "bubbleId": "b2"
+              },
+              {
+                "bubbleId": "b3"
+              }
+            ],
+            "extra": {
+              "future": true
+            }
+          },
+          "native_row": {
+            "key": "composerData:composer-1",
+            "value": "{\"composerId\":\"composer-1\",\"name\":\"fixture\",\"createdAt\":1767225600000,\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"},{\"bubbleId\":\"b3\"}],\"extra\":{\"future\":true}}"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "b1",
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "b2",
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call",
+        "toolName": "native-shell",
+        "arguments": {
+          "cmd": "echo hi"
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "id": "b3",
+      "providerMetadata": {
+        "native_position": 3
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "untyped",
+        "payload": {
+          "type": 55,
+          "future": {
+            "nested": true
+          }
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "record": 4,
+      "id": "broken",
+      "providerMetadata": {
+        "native_position": 4
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "untyped",
+        "payload": {
+          "native_bytes": [
+            255,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "sequence": 5,
+      "record": 5,
+      "providerMetadata": {
+        "type": "checkpointId",
+        "native_position": 5
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "checkpointId",
+        "payload": {
+          "type": "checkpointId",
+          "key": "checkpointId:composer-1:check-1",
+          "value": {
+            "files": [
+              {
+                "uri": {
+                  "path": "/fixture/a.rs"
+                },
+                "originalModelDiffWrtV0": [
+                  {
+                    "modified": [
+                      "new"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "native_row": {
+            "key": "checkpointId:composer-1:check-1",
+            "value": "{\"files\":[{\"uri\":{\"path\":\"/fixture/a.rs\"},\"originalModelDiffWrtV0\":[{\"modified\":[\"new\"]}]}]}"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "record": 6,
+      "providerMetadata": {
+        "type": "messageRequestContext",
+        "native_position": 6
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "messageRequestContext",
+        "payload": {
+          "type": "messageRequestContext",
+          "key": "messageRequestContext:composer-1:b1",
+          "value": {
+            "attachedFiles": {
+              "a.rs": "historical file content"
+            }
+          },
+          "native_row": {
+            "key": "messageRequestContext:composer-1:b1",
+            "value": "{\"attachedFiles\":{\"a.rs\":\"historical file content\"}}"
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "bubbles absent from header ordering; appended in stable native key order"
+    },
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record untyped",
+      "position": 3
+    },
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record untyped",
+      "position": 4
+    },
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record checkpointId",
+      "position": 5
+    },
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record messageRequestContext",
+      "position": 6
+    },
+    {
+      "code": "PartialParse",
+      "message": "tool call call has no recorded result"
+    }
+  ]
+}

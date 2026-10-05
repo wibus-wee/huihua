@@ -1,0 +1,112 @@
+{
+  "id": "session-1",
+  "provider": "opencode",
+  "metadata": {
+    "id_origin": "native"
+  },
+  "title": "fixture",
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "updatedAt": {
+    "format": "unix_millis",
+    "value": 1767225601000
+  },
+  "workspace": {
+    "path": "/fixture/project"
+  },
+  "parentSessionId": "parent-1",
+  "source": {
+    "path": "<fixtures>/opencode/partially-migrated.db",
+    "format": "opencode_sqlite",
+    "locator": {
+      "id": "session-1"
+    }
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "opencode",
+      "native": {
+        "id": "session-1",
+        "title": "fixture",
+        "directory": "/fixture/project",
+        "parent_id": "parent-1",
+        "time_created": 1767225600000,
+        "time_updated": 1767225601000
+      },
+      "source": {
+        "path": "<fixtures>/opencode/partially-migrated.db",
+        "table": "session",
+        "position": 0
+      }
+    },
+    {
+      "sequence": 1,
+      "provider": "opencode",
+      "native": {
+        "id": "m1",
+        "timestamp": null,
+        "native_row": {
+          "id": "m1",
+          "session_id": "session-1",
+          "data": "{\"role\":\"user\"}"
+        },
+        "data": {
+          "role": "user"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/partially-migrated.db",
+        "table": "message",
+        "position": 1
+      },
+      "text": "{\"role\":\"user\"}"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "session-1",
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session",
+        "payload": {
+          "id": "session-1",
+          "title": "fixture",
+          "directory": "/fixture/project",
+          "parent_id": "parent-1",
+          "time_created": 1767225600000,
+          "time_updated": 1767225601000
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "m1",
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "message_metadata",
+        "payload": {
+          "role": "user"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "parts unavailable for message m1"
+    }
+  ]
+}

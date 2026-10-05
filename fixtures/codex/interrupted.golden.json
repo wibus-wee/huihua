@@ -1,0 +1,152 @@
+{
+  "schema": "agent-session/v1",
+  "id": "codex-session",
+  "provider": "codex",
+  "title": null,
+  "created_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "updated_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": {
+    "path": "/workspace/example",
+    "repository": "https://example.invalid/repo",
+    "branch": "main",
+    "commit": "abc"
+  },
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": null,
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "session_meta",
+        "payload": {
+          "cwd": "/workspace/example",
+          "git": {
+            "branch": "main",
+            "commit_hash": "abc",
+            "repository_url": "https://example.invalid/repo"
+          },
+          "id": "codex-session",
+          "timestamp": "2026-01-01T00:00:00Z"
+        }
+      },
+      "provider_metadata": {
+        "native_position": 1,
+        "type": "session_meta"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "payload": {
+            "cwd": "/workspace/example",
+            "git": {
+              "branch": "main",
+              "commit_hash": "abc",
+              "repository_url": "https://example.invalid/repo"
+            },
+            "id": "codex-session",
+            "timestamp": "2026-01-01T00:00:00Z"
+          },
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "session_meta"
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hello"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 2,
+        "type": "response_item"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "payload": {
+            "content": [
+              {
+                "text": "Hello",
+                "type": "input_text"
+              }
+            ],
+            "role": "user",
+            "type": "message"
+          },
+          "type": "response_item"
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 2,
+      "type": "tool_call",
+      "data": {
+        "call_id": "call-1",
+        "tool_name": "exec_command",
+        "arguments": {
+          "cmd": "pwd"
+        }
+      },
+      "provider_metadata": {
+        "native_position": 3,
+        "type": "response_item"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "payload": {
+            "arguments": "{\"cmd\":\"pwd\"}",
+            "call_id": "call-1",
+            "name": "exec_command",
+            "type": "function_call"
+          },
+          "type": "response_item"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "updated_at_origin": "last_recorded_event"
+  },
+  "raw": {
+    "format": "json",
+    "value": {
+      "cwd": "/workspace/example",
+      "git": {
+        "branch": "main",
+        "commit_hash": "abc",
+        "repository_url": "https://example.invalid/repo"
+      },
+      "id": "codex-session",
+      "timestamp": "2026-01-01T00:00:00Z"
+    }
+  },
+  "diagnostics": [
+    {
+      "kind": "partial_parse",
+      "message": "tool call call-1 has no recorded result",
+      "position": null
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "schema": "agent-session/v1",
+  "id": "claude-usage",
+  "provider": "claude_code",
+  "title": null,
+  "created_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "updated_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": "usage-row-1",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "sequence": 0,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "input_tokens": null,
+          "iterations": [
+            {
+              "cache_read_input_tokens": null,
+              "model": "advisor-model",
+              "output_tokens": 7,
+              "type": "advisor_message"
+            }
+          ],
+          "output_tokens": 4
+        }
+      },
+      "provider_metadata": {
+        "native_position": 1,
+        "sessionId": "claude-usage",
+        "type": "assistant"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "message": {
+            "id": "repeated-message",
+            "model": "example-model",
+            "role": "assistant",
+            "usage": {
+              "input_tokens": null,
+              "iterations": [
+                {
+                  "cache_read_input_tokens": null,
+                  "model": "advisor-model",
+                  "output_tokens": 7,
+                  "type": "advisor_message"
+                }
+              ],
+              "output_tokens": 4
+            }
+          },
+          "requestId": "request-1",
+          "sessionId": "claude-usage",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "assistant",
+          "uuid": "usage-row-1"
+        }
+      }
+    },
+    {
+      "id": "usage-row-2",
+      "timestamp": null,
+      "sequence": 1,
+      "type": "usage",
+      "data": {
+        "usage": {
+          "input_tokens": null,
+          "iterations": [
+            {
+              "cache_read_input_tokens": null,
+              "model": "advisor-model",
+              "output_tokens": 7,
+              "type": "advisor_message"
+            }
+          ],
+          "output_tokens": 4
+        }
+      },
+      "provider_metadata": {
+        "native_position": 2,
+        "sessionId": "claude-usage",
+        "type": "assistant"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "message": {
+            "id": "repeated-message",
+            "model": "example-model",
+            "role": "assistant",
+            "usage": {
+              "input_tokens": null,
+              "iterations": [
+                {
+                  "cache_read_input_tokens": null,
+                  "model": "advisor-model",
+                  "output_tokens": 7,
+                  "type": "advisor_message"
+                }
+              ],
+              "output_tokens": 4
+            }
+          },
+          "requestId": "request-1",
+          "sessionId": "claude-usage",
+          "type": "assistant",
+          "uuid": "usage-row-2"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "updated_at_origin": "last_recorded_event"
+  },
+  "raw": {
+    "format": "json",
+    "value": {
+      "message": {
+        "id": "repeated-message",
+        "model": "example-model",
+        "role": "assistant",
+        "usage": {
+          "input_tokens": null,
+          "iterations": [
+            {
+              "cache_read_input_tokens": null,
+              "model": "advisor-model",
+              "output_tokens": 7,
+              "type": "advisor_message"
+            }
+          ],
+          "output_tokens": 4
+        }
+      },
+      "requestId": "request-1",
+      "sessionId": "claude-usage",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "type": "assistant",
+      "uuid": "usage-row-1"
+    }
+  },
+  "diagnostics": []
+}

@@ -1,0 +1,154 @@
+{
+  "id": "codex-session",
+  "provider": "codex",
+  "metadata": {
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": {
+    "path": "/workspace/example",
+    "repository": "https://example.invalid/repo",
+    "branch": "main",
+    "commit": "abc"
+  },
+  "source": {
+    "path": "<fixtures>/codex/tool-failure.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "codex",
+      "type": "session_meta",
+      "native": {
+        "type": "session_meta",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "payload": {
+          "id": "codex-session",
+          "cwd": "/workspace/example",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "git": {
+            "branch": "main",
+            "commit_hash": "abc",
+            "repository_url": "https://example.invalid/repo"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/codex/tool-failure.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"session_meta\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"payload\":{\"id\":\"codex-session\",\"cwd\":\"/workspace/example\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"git\":{\"branch\":\"main\",\"commit_hash\":\"abc\",\"repository_url\":\"https://example.invalid/repo\"}}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "codex",
+      "type": "response_item",
+      "native": {
+        "type": "response_item",
+        "payload": {
+          "type": "function_call",
+          "call_id": "call-1",
+          "name": "exec_command",
+          "arguments": "{\"cmd\":\"pwd\"}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/codex/tool-failure.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"call_id\":\"call-1\",\"name\":\"exec_command\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\"}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "codex",
+      "type": "response_item",
+      "native": {
+        "type": "response_item",
+        "payload": {
+          "type": "function_call_output",
+          "call_id": "call-1",
+          "output": {
+            "error": "denied"
+          },
+          "is_error": true
+        }
+      },
+      "source": {
+        "path": "<fixtures>/codex/tool-failure.jsonl",
+        "position": 3
+      },
+      "text": "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"call-1\",\"output\":{\"error\":\"denied\"},\"is_error\":true}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "session_meta",
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session_meta",
+        "payload": {
+          "id": "codex-session",
+          "cwd": "/workspace/example",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "git": {
+            "branch": "main",
+            "commit_hash": "abc",
+            "repository_url": "https://example.invalid/repo"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "type": "response_item",
+        "native_position": 2
+      },
+      "type": "tool_call",
+      "data": {
+        "callId": "call-1",
+        "toolName": "exec_command",
+        "arguments": {
+          "cmd": "pwd"
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "providerMetadata": {
+        "type": "response_item",
+        "native_position": 3
+      },
+      "type": "tool_result",
+      "data": {
+        "callId": "call-1",
+        "result": {
+          "error": "denied"
+        },
+        "isError": true
+      }
+    }
+  ],
+  "diagnostics": []
+}

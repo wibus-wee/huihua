@@ -1,0 +1,101 @@
+{
+  "schema": "agent-session/v1",
+  "id": "source:malformed.jsonl",
+  "provider": "cursor",
+  "title": null,
+  "created_at": null,
+  "updated_at": null,
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 0,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "<user_query>hello</user_query>"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "message": {
+            "content": [
+              {
+                "text": "<user_query>hello</user_query>",
+                "type": "text"
+              }
+            ]
+          },
+          "role": "user"
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 1,
+      "type": "unknown",
+      "data": {
+        "source_type": "malformed_jsonl",
+        "payload": {
+          "format": "text",
+          "value": "{broken\n"
+        }
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "text",
+        "value": "{broken\n"
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 2,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "survives"
+          }
+        ],
+        "model": null
+      },
+      "provider_metadata": {
+        "native_position": 3
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "message": {
+            "content": "survives"
+          },
+          "role": "assistant"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "id_origin": "source_filename"
+  },
+  "raw": null,
+  "diagnostics": [
+    {
+      "kind": "partial_parse",
+      "message": "invalid JSONL record retained",
+      "position": 2
+    }
+  ]
+}

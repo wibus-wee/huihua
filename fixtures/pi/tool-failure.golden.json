@@ -1,0 +1,202 @@
+{
+  "schema": "agent-session/v1",
+  "id": "pi-fixture",
+  "provider": "pi",
+  "title": null,
+  "created_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "updated_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:01Z"
+  },
+  "workspace": {
+    "path": "/fixture/project",
+    "repository": null,
+    "branch": null,
+    "commit": null
+  },
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": "pi-fixture",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "session",
+        "payload": {
+          "cwd": "/fixture/project",
+          "id": "pi-fixture",
+          "parentSession": "/fixture/parent.jsonl",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "session",
+          "version": 3
+        }
+      },
+      "provider_metadata": {
+        "native_position": 1,
+        "type": "session"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "cwd": "/fixture/project",
+          "id": "pi-fixture",
+          "parentSession": "/fixture/parent.jsonl",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "session",
+          "version": 3
+        }
+      }
+    },
+    {
+      "id": "u1",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:01Z"
+      },
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 2,
+        "parentId": null,
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "u1",
+          "message": {
+            "content": [
+              {
+                "text": "hello",
+                "type": "text"
+              }
+            ],
+            "role": "user"
+          },
+          "parentId": null,
+          "timestamp": "2026-01-01T00:00:01Z",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "t1",
+      "timestamp": null,
+      "sequence": 2,
+      "type": "tool_call",
+      "data": {
+        "call_id": "call-1",
+        "tool_name": "read",
+        "arguments": {
+          "path": "a.rs"
+        }
+      },
+      "provider_metadata": {
+        "native_position": 3,
+        "parentId": "a1",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "t1",
+          "message": {
+            "content": [
+              {
+                "arguments": {
+                  "path": "a.rs"
+                },
+                "id": "call-1",
+                "name": "read",
+                "type": "toolCall"
+              }
+            ],
+            "role": "assistant"
+          },
+          "parentId": "a1",
+          "type": "message"
+        }
+      }
+    },
+    {
+      "id": "r1",
+      "timestamp": null,
+      "sequence": 3,
+      "type": "tool_result",
+      "data": {
+        "call_id": "call-1",
+        "tool_name": "read",
+        "result": {
+          "content": [
+            {
+              "text": "denied",
+              "type": "text"
+            }
+          ],
+          "isError": true,
+          "role": "toolResult",
+          "toolCallId": "call-1",
+          "toolName": "read"
+        },
+        "is_error": true
+      },
+      "provider_metadata": {
+        "native_position": 4,
+        "parentId": "t1",
+        "type": "message"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "r1",
+          "message": {
+            "content": [
+              {
+                "text": "denied",
+                "type": "text"
+              }
+            ],
+            "isError": true,
+            "role": "toolResult",
+            "toolCallId": "call-1",
+            "toolName": "read"
+          },
+          "parentId": "t1",
+          "type": "message"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "parentSession": "/fixture/parent.jsonl",
+    "updated_at_origin": "last_recorded_event",
+    "version": 3
+  },
+  "raw": {
+    "format": "json",
+    "value": {
+      "cwd": "/fixture/project",
+      "id": "pi-fixture",
+      "parentSession": "/fixture/parent.jsonl",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "type": "session",
+      "version": 3
+    }
+  },
+  "diagnostics": []
+}

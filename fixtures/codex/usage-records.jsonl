@@ -1,0 +1,4 @@
+{"type":"session_meta","timestamp":"2026-01-01T00:00:00Z","payload":{"id":"codex-usage","timestamp":"2026-01-01T00:00:00Z"}}
+{"type":"token_usage_record","payload":{"response_id":"repeated-request","model":"example-model","usage":{"input_tokens":300,"output_tokens":30,"future_count":"opaque"}}}
+{"type":"token_usage_record","payload":{"response_id":"repeated-request","model":"example-model","usage":{"input_tokens":300,"output_tokens":30,"future_count":"opaque"}}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":300},"total_token_usage":{"input_tokens":900}}}}

@@ -1,0 +1,194 @@
+{
+  "id": "codex-usage",
+  "provider": "codex",
+  "metadata": {
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "source": {
+    "path": "<fixtures>/codex/usage-records.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "codex",
+      "type": "session_meta",
+      "native": {
+        "type": "session_meta",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "payload": {
+          "id": "codex-usage",
+          "timestamp": "2026-01-01T00:00:00Z"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/codex/usage-records.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"session_meta\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"payload\":{\"id\":\"codex-usage\",\"timestamp\":\"2026-01-01T00:00:00Z\"}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "codex",
+      "type": "token_usage_record",
+      "native": {
+        "type": "token_usage_record",
+        "payload": {
+          "response_id": "repeated-request",
+          "model": "example-model",
+          "usage": {
+            "input_tokens": 300,
+            "output_tokens": 30,
+            "future_count": "opaque"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/codex/usage-records.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"token_usage_record\",\"payload\":{\"response_id\":\"repeated-request\",\"model\":\"example-model\",\"usage\":{\"input_tokens\":300,\"output_tokens\":30,\"future_count\":\"opaque\"}}}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "codex",
+      "type": "token_usage_record",
+      "native": {
+        "type": "token_usage_record",
+        "payload": {
+          "response_id": "repeated-request",
+          "model": "example-model",
+          "usage": {
+            "input_tokens": 300,
+            "output_tokens": 30,
+            "future_count": "opaque"
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/codex/usage-records.jsonl",
+        "position": 3
+      },
+      "text": "{\"type\":\"token_usage_record\",\"payload\":{\"response_id\":\"repeated-request\",\"model\":\"example-model\",\"usage\":{\"input_tokens\":300,\"output_tokens\":30,\"future_count\":\"opaque\"}}}\n"
+    },
+    {
+      "sequence": 3,
+      "provider": "codex",
+      "type": "event_msg",
+      "native": {
+        "type": "event_msg",
+        "payload": {
+          "type": "token_count",
+          "info": {
+            "last_token_usage": {
+              "input_tokens": 300
+            },
+            "total_token_usage": {
+              "input_tokens": 900
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/codex/usage-records.jsonl",
+        "position": 4
+      },
+      "text": "{\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":300},\"total_token_usage\":{\"input_tokens\":900}}}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "session_meta",
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session_meta",
+        "payload": {
+          "id": "codex-usage",
+          "timestamp": "2026-01-01T00:00:00Z"
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "type": "token_usage_record",
+        "native_position": 2
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "response_id": "repeated-request",
+          "model": "example-model",
+          "usage": {
+            "input_tokens": 300,
+            "output_tokens": 30,
+            "future_count": "opaque"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "providerMetadata": {
+        "type": "token_usage_record",
+        "native_position": 3
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "response_id": "repeated-request",
+          "model": "example-model",
+          "usage": {
+            "input_tokens": 300,
+            "output_tokens": 30,
+            "future_count": "opaque"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "record": 3,
+      "providerMetadata": {
+        "type": "event_msg",
+        "native_position": 4
+      },
+      "type": "usage",
+      "data": {
+        "usage": {
+          "type": "token_count",
+          "info": {
+            "last_token_usage": {
+              "input_tokens": 300
+            },
+            "total_token_usage": {
+              "input_tokens": 900
+            }
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": []
+}

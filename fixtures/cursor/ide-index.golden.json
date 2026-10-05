@@ -1,0 +1,65 @@
+{
+  "schema": "agent-session/v1",
+  "id": "index-1",
+  "provider": "cursor",
+  "title": "index-only",
+  "created_at": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "updated_at": null,
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "composerData",
+        "payload": {
+          "key": "composer.composerData",
+          "value": {
+            "composerId": "index-1",
+            "createdAt": 1767225600000,
+            "name": "index-only"
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 0
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "key": "composer.composerData",
+          "value": {
+            "composerId": "index-1",
+            "createdAt": 1767225600000,
+            "name": "index-only"
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {},
+  "raw": {
+    "format": "json",
+    "value": {
+      "key": "composer.composerData",
+      "value": {
+        "composerId": "index-1",
+        "createdAt": 1767225600000,
+        "name": "index-only"
+      }
+    }
+  },
+  "diagnostics": [
+    {
+      "kind": "partial_parse",
+      "message": "legacy composer metadata has no inline conversation; bubbles may live in globalStorage",
+      "position": null
+    }
+  ]
+}

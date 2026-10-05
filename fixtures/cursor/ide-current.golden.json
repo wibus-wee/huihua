@@ -1,0 +1,409 @@
+{
+  "schema": "agent-session/v1",
+  "id": "composer-1",
+  "provider": "cursor",
+  "title": "fixture",
+  "created_at": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "updated_at": null,
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "composerData",
+        "payload": {
+          "key": "composerData:composer-1",
+          "native_row": {
+            "key": "composerData:composer-1",
+            "value": "{\"composerId\":\"composer-1\",\"name\":\"fixture\",\"createdAt\":1767225600000,\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"},{\"bubbleId\":\"b3\"}],\"extra\":{\"future\":true}}"
+          },
+          "value": {
+            "composerId": "composer-1",
+            "createdAt": 1767225600000,
+            "extra": {
+              "future": true
+            },
+            "fullConversationHeadersOnly": [
+              {
+                "bubbleId": "b1"
+              },
+              {
+                "bubbleId": "b2"
+              },
+              {
+                "bubbleId": "b3"
+              }
+            ],
+            "name": "fixture"
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 0
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "key": "composerData:composer-1",
+          "native_row": {
+            "key": "composerData:composer-1",
+            "value": "{\"composerId\":\"composer-1\",\"name\":\"fixture\",\"createdAt\":1767225600000,\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"},{\"bubbleId\":\"b3\"}],\"extra\":{\"future\":true}}"
+          },
+          "value": {
+            "composerId": "composer-1",
+            "createdAt": 1767225600000,
+            "extra": {
+              "future": true
+            },
+            "fullConversationHeadersOnly": [
+              {
+                "bubbleId": "b1"
+              },
+              {
+                "bubbleId": "b2"
+              },
+              {
+                "bubbleId": "b3"
+              }
+            ],
+            "name": "fixture"
+          }
+        }
+      }
+    },
+    {
+      "id": "b1",
+      "timestamp": null,
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "b1",
+          "native_row": {
+            "key": "bubbleId:composer-1:b1",
+            "value": "{\"type\":1,\"text\":\"hello\"}"
+          },
+          "timestamp": null,
+          "value": {
+            "text": "hello",
+            "type": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "b2",
+      "timestamp": null,
+      "sequence": 2,
+      "type": "tool_call",
+      "data": {
+        "call_id": "call",
+        "tool_name": "native-shell",
+        "arguments": {
+          "cmd": "echo hi"
+        }
+      },
+      "provider_metadata": {
+        "native_position": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "b2",
+          "native_row": {
+            "key": "bubbleId:composer-1:b2",
+            "value": "{\"type\":2,\"text\":[{\"type\":\"tool_use\",\"id\":\"call\",\"name\":\"native-shell\",\"input\":{\"cmd\":\"echo hi\"}}]}"
+          },
+          "timestamp": null,
+          "value": {
+            "text": [
+              {
+                "id": "call",
+                "input": {
+                  "cmd": "echo hi"
+                },
+                "name": "native-shell",
+                "type": "tool_use"
+              }
+            ],
+            "type": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "b3",
+      "timestamp": null,
+      "sequence": 3,
+      "type": "unknown",
+      "data": {
+        "source_type": "untyped",
+        "payload": {
+          "format": "json",
+          "value": {
+            "future": {
+              "nested": true
+            },
+            "type": 55
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 3
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "b3",
+          "native_row": {
+            "key": "bubbleId:composer-1:b3",
+            "value": "{\"type\":55,\"future\":{\"nested\":true}}"
+          },
+          "timestamp": null,
+          "value": {
+            "future": {
+              "nested": true
+            },
+            "type": 55
+          }
+        }
+      }
+    },
+    {
+      "id": "broken",
+      "timestamp": null,
+      "sequence": 4,
+      "type": "unknown",
+      "data": {
+        "source_type": "untyped",
+        "payload": {
+          "format": "json",
+          "value": {
+            "native_bytes": [
+              255,
+              0
+            ]
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 4
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "id": "broken",
+          "native_row": {
+            "key": "bubbleId:composer-1:broken",
+            "value": {
+              "native_bytes": [
+                255,
+                0
+              ]
+            }
+          },
+          "timestamp": null,
+          "value": {
+            "native_bytes": [
+              255,
+              0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 5,
+      "type": "unknown",
+      "data": {
+        "source_type": "checkpointId",
+        "payload": {
+          "format": "json",
+          "value": {
+            "key": "checkpointId:composer-1:check-1",
+            "native_row": {
+              "key": "checkpointId:composer-1:check-1",
+              "value": "{\"files\":[{\"uri\":{\"path\":\"/fixture/a.rs\"},\"originalModelDiffWrtV0\":[{\"modified\":[\"new\"]}]}]}"
+            },
+            "type": "checkpointId",
+            "value": {
+              "files": [
+                {
+                  "originalModelDiffWrtV0": [
+                    {
+                      "modified": [
+                        "new"
+                      ]
+                    }
+                  ],
+                  "uri": {
+                    "path": "/fixture/a.rs"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 5,
+        "type": "checkpointId"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "key": "checkpointId:composer-1:check-1",
+          "native_row": {
+            "key": "checkpointId:composer-1:check-1",
+            "value": "{\"files\":[{\"uri\":{\"path\":\"/fixture/a.rs\"},\"originalModelDiffWrtV0\":[{\"modified\":[\"new\"]}]}]}"
+          },
+          "type": "checkpointId",
+          "value": {
+            "files": [
+              {
+                "originalModelDiffWrtV0": [
+                  {
+                    "modified": [
+                      "new"
+                    ]
+                  }
+                ],
+                "uri": {
+                  "path": "/fixture/a.rs"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 6,
+      "type": "unknown",
+      "data": {
+        "source_type": "messageRequestContext",
+        "payload": {
+          "format": "json",
+          "value": {
+            "key": "messageRequestContext:composer-1:b1",
+            "native_row": {
+              "key": "messageRequestContext:composer-1:b1",
+              "value": "{\"attachedFiles\":{\"a.rs\":\"historical file content\"}}"
+            },
+            "type": "messageRequestContext",
+            "value": {
+              "attachedFiles": {
+                "a.rs": "historical file content"
+              }
+            }
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 6,
+        "type": "messageRequestContext"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "key": "messageRequestContext:composer-1:b1",
+          "native_row": {
+            "key": "messageRequestContext:composer-1:b1",
+            "value": "{\"attachedFiles\":{\"a.rs\":\"historical file content\"}}"
+          },
+          "type": "messageRequestContext",
+          "value": {
+            "attachedFiles": {
+              "a.rs": "historical file content"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {},
+  "raw": {
+    "format": "json",
+    "value": {
+      "key": "composerData:composer-1",
+      "native_row": {
+        "key": "composerData:composer-1",
+        "value": "{\"composerId\":\"composer-1\",\"name\":\"fixture\",\"createdAt\":1767225600000,\"fullConversationHeadersOnly\":[{\"bubbleId\":\"b1\"},{\"bubbleId\":\"b2\"},{\"bubbleId\":\"b3\"}],\"extra\":{\"future\":true}}"
+      },
+      "value": {
+        "composerId": "composer-1",
+        "createdAt": 1767225600000,
+        "extra": {
+          "future": true
+        },
+        "fullConversationHeadersOnly": [
+          {
+            "bubbleId": "b1"
+          },
+          {
+            "bubbleId": "b2"
+          },
+          {
+            "bubbleId": "b3"
+          }
+        ],
+        "name": "fixture"
+      }
+    }
+  },
+  "diagnostics": [
+    {
+      "kind": "partial_parse",
+      "message": "bubbles absent from header ordering; appended in stable native key order",
+      "position": null
+    },
+    {
+      "kind": "partial_parse",
+      "message": "native record retained without full semantic normalization",
+      "position": 3
+    },
+    {
+      "kind": "partial_parse",
+      "message": "native record retained without full semantic normalization",
+      "position": 4
+    },
+    {
+      "kind": "partial_parse",
+      "message": "native record retained without full semantic normalization",
+      "position": 5
+    },
+    {
+      "kind": "partial_parse",
+      "message": "native record retained without full semantic normalization",
+      "position": 6
+    },
+    {
+      "kind": "partial_parse",
+      "message": "tool call call has no recorded result",
+      "position": null
+    }
+  ]
+}

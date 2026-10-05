@@ -1,0 +1,148 @@
+{
+  "id": "file-session",
+  "provider": "opencode",
+  "metadata": {
+    "id_origin": "native"
+  },
+  "title": "files",
+  "createdAt": {
+    "format": "unix_millis",
+    "value": 1767225600000
+  },
+  "workspace": {
+    "path": "/fixture/project"
+  },
+  "source": {
+    "path": "<fixtures>/opencode/legacy-files/storage/session/project/file-session.json",
+    "format": "opencode_files"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "opencode",
+      "native": {
+        "id": "file-session",
+        "directory": "/fixture/project",
+        "title": "files",
+        "time": {
+          "created": 1767225600000
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/legacy-files/storage/session/project/file-session.json",
+        "position": 0
+      },
+      "text": "{\n  \"id\": \"file-session\",\n  \"directory\": \"/fixture/project\",\n  \"title\": \"files\",\n  \"time\": {\n    \"created\": 1767225600000\n  }\n}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "opencode",
+      "native": {
+        "id": "file-message",
+        "timestamp": null,
+        "native_row": {
+          "id": "file-message",
+          "sessionID": "file-session",
+          "role": "user"
+        },
+        "data": {
+          "id": "file-message",
+          "sessionID": "file-session",
+          "role": "user"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/legacy-files/storage/message/file-session/file-message.json",
+        "table": "message",
+        "position": 1
+      },
+      "text": "{\n  \"id\": \"file-message\",\n  \"sessionID\": \"file-session\",\n  \"role\": \"user\"\n}\n"
+    },
+    {
+      "sequence": 2,
+      "provider": "opencode",
+      "native": {
+        "id": "p1",
+        "timestamp": null,
+        "native_row": {
+          "id": "p1",
+          "messageID": "file-message",
+          "sessionID": "file-session",
+          "type": "text",
+          "text": "hello"
+        },
+        "data": {
+          "id": "p1",
+          "messageID": "file-message",
+          "sessionID": "file-session",
+          "type": "text",
+          "text": "hello"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/opencode/legacy-files/storage/part/file-message/p1.json",
+        "table": "part",
+        "position": 2
+      },
+      "text": "{\n  \"id\": \"p1\",\n  \"messageID\": \"file-message\",\n  \"sessionID\": \"file-session\",\n  \"type\": \"text\",\n  \"text\": \"hello\"\n}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "file-session",
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "session",
+        "payload": {
+          "id": "file-session",
+          "directory": "/fixture/project",
+          "title": "files",
+          "time": {
+            "created": 1767225600000
+          }
+        }
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "id": "file-message",
+      "providerMetadata": {
+        "native_position": 1
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "message_metadata",
+        "payload": {
+          "id": "file-message",
+          "sessionID": "file-session",
+          "role": "user"
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "record": 2,
+      "id": "p1",
+      "providerMetadata": {
+        "native_position": 2
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hello"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

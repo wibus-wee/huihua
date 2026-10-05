@@ -1,0 +1,121 @@
+{
+  "id": "claude-session",
+  "provider": "claude",
+  "metadata": {
+    "id_origin": "native",
+    "updated_at_origin": "last_recorded_event"
+  },
+  "workspace": {
+    "path": "/workspace/example"
+  },
+  "createdAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "source": {
+    "path": "<fixtures>/claude/unknown.jsonl",
+    "format": "jsonl"
+  },
+  "updatedAt": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "claude",
+      "type": "user",
+      "native": {
+        "type": "user",
+        "uuid": "u1",
+        "sessionId": "claude-session",
+        "cwd": "/workspace/example",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "message": {
+          "role": "user",
+          "content": "Hello"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/claude/unknown.jsonl",
+        "position": 1
+      },
+      "text": "{\"type\":\"user\",\"uuid\":\"u1\",\"sessionId\":\"claude-session\",\"cwd\":\"/workspace/example\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"message\":{\"role\":\"user\",\"content\":\"Hello\"}}\n"
+    },
+    {
+      "sequence": 1,
+      "provider": "claude",
+      "type": "file-history-snapshot",
+      "native": {
+        "type": "file-history-snapshot",
+        "snapshot": {
+          "files": {
+            "a.rs": {
+              "version": 2
+            }
+          }
+        }
+      },
+      "source": {
+        "path": "<fixtures>/claude/unknown.jsonl",
+        "position": 2
+      },
+      "text": "{\"type\":\"file-history-snapshot\",\"snapshot\":{\"files\":{\"a.rs\":{\"version\":2}}}}\n"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "id": "u1",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "providerMetadata": {
+        "type": "user",
+        "sessionId": "claude-session",
+        "native_position": 1
+      },
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hello"
+          }
+        ]
+      }
+    },
+    {
+      "sequence": 1,
+      "record": 1,
+      "providerMetadata": {
+        "type": "file-history-snapshot",
+        "native_position": 2
+      },
+      "type": "unknown",
+      "data": {
+        "sourceType": "file-history-snapshot",
+        "payload": {
+          "type": "file-history-snapshot",
+          "snapshot": {
+            "files": {
+              "a.rs": {
+                "version": 2
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "unrecognized native record file-history-snapshot",
+      "position": 2
+    }
+  ]
+}

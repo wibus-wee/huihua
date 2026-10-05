@@ -1,0 +1,2 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<user_query>hello</user_query>"}]}}
+{"role":"user","message":{"content":[{"type":"tool_result","tool_use_id":"c1","content":"denied","is_error":true}]}}

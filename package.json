@@ -1,0 +1,76 @@
+{
+  "name": "huihua",
+  "type": "module",
+  "version": "0.2.0",
+  "packageManager": "pnpm@12.4.2",
+  "description": "Read-only local session evidence for Coding Agents, in pure TypeScript",
+  "license": "UNLICENSED",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./observe": {
+      "types": "./dist/observe/index.d.ts",
+      "import": "./dist/observe/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    },
+    "./providers/claude": {
+      "types": "./dist/providers/claude/index.d.ts",
+      "import": "./dist/providers/claude/index.js"
+    },
+    "./providers/codex": {
+      "types": "./dist/providers/codex/index.d.ts",
+      "import": "./dist/providers/codex/index.js"
+    },
+    "./providers/cursor": {
+      "types": "./dist/providers/cursor/index.d.ts",
+      "import": "./dist/providers/cursor/index.js"
+    },
+    "./providers/opencode": {
+      "types": "./dist/providers/opencode/index.d.ts",
+      "import": "./dist/providers/opencode/index.js"
+    },
+    "./providers/pi": {
+      "types": "./dist/providers/pi/index.d.ts",
+      "import": "./dist/providers/pi/index.js"
+    }
+  },
+  "files": [
+    "README.md",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "check": "node tools/check.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
+    "test": "node --test tests/*.test.ts",
+    "build": "tsdown",
+    "goldens": "node tools/goldens.ts",
+    "fixtures": "node tools/fixtures.ts",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix --max-warnings=0",
+    "knip": "knip",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {
+    "fzstd": "0.1.1",
+    "xxhashjs": "0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/xxhashjs": "^0.2.4",
+    "eslint": "^10.12.0",
+    "eslint-config-hyoban": "^7.0.3",
+    "knip": "^6.39.0",
+    "tsdown": "^0.23.0",
+    "typescript": "^5.9.3",
+    "yaml": "^2.9.1"
+  }
+}

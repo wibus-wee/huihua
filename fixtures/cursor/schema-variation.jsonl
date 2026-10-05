@@ -1,0 +1,2 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<user_query>hello</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"new-block","payload":{"a":1}}]}}

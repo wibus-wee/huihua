@@ -1,0 +1,118 @@
+{
+  "schema": "agent-session/v1",
+  "id": "claude-session",
+  "provider": "claude_code",
+  "title": null,
+  "created_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "updated_at": {
+    "format": "rfc3339",
+    "value": "2026-01-01T00:00:00Z"
+  },
+  "workspace": {
+    "path": "/workspace/example",
+    "repository": null,
+    "branch": null,
+    "commit": null
+  },
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": "u1",
+      "timestamp": {
+        "format": "rfc3339",
+        "value": "2026-01-01T00:00:00Z"
+      },
+      "sequence": 0,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hello"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1,
+        "sessionId": "claude-session",
+        "type": "user"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "cwd": "/workspace/example",
+          "message": {
+            "content": "Hello",
+            "role": "user"
+          },
+          "sessionId": "claude-session",
+          "timestamp": "2026-01-01T00:00:00Z",
+          "type": "user",
+          "uuid": "u1"
+        }
+      }
+    },
+    {
+      "id": "a1",
+      "timestamp": null,
+      "sequence": 1,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "Hi"
+          }
+        ],
+        "model": "example-model"
+      },
+      "provider_metadata": {
+        "native_position": 2,
+        "parentUuid": "u1",
+        "sessionId": "claude-session",
+        "type": "assistant"
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "message": {
+            "content": [
+              {
+                "text": "Hi",
+                "type": "text"
+              }
+            ],
+            "id": "message-1",
+            "model": "example-model",
+            "role": "assistant"
+          },
+          "parentUuid": "u1",
+          "sessionId": "claude-session",
+          "type": "assistant",
+          "uuid": "a1"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "updated_at_origin": "last_recorded_event"
+  },
+  "raw": {
+    "format": "json",
+    "value": {
+      "cwd": "/workspace/example",
+      "message": {
+        "content": "Hello",
+        "role": "user"
+      },
+      "sessionId": "claude-session",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "type": "user",
+      "uuid": "u1"
+    }
+  },
+  "diagnostics": []
+}

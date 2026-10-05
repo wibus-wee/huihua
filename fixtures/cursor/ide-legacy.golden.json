@@ -1,0 +1,174 @@
+{
+  "schema": "agent-session/v1",
+  "id": "legacy-1",
+  "provider": "cursor",
+  "title": "legacy",
+  "created_at": null,
+  "updated_at": null,
+  "workspace": null,
+  "parent_session_id": null,
+  "events": [
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 0,
+      "type": "system",
+      "data": {
+        "source_type": "composerData",
+        "payload": {
+          "key": "composer.composerData",
+          "value": {
+            "composerId": "legacy-1",
+            "conversation": [
+              {
+                "text": "hi",
+                "type": 1
+              },
+              {
+                "richText": {
+                  "root": {
+                    "children": [
+                      {
+                        "text": "hello"
+                      }
+                    ]
+                  }
+                },
+                "type": 2
+              }
+            ],
+            "name": "legacy"
+          }
+        }
+      },
+      "provider_metadata": {
+        "native_position": 0
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "key": "composer.composerData",
+          "value": {
+            "composerId": "legacy-1",
+            "conversation": [
+              {
+                "text": "hi",
+                "type": 1
+              },
+              {
+                "richText": {
+                  "root": {
+                    "children": [
+                      {
+                        "text": "hello"
+                      }
+                    ]
+                  }
+                },
+                "type": 2
+              }
+            ],
+            "name": "legacy"
+          }
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 1,
+      "type": "user_message",
+      "data": {
+        "content": [
+          {
+            "type": "text",
+            "data": "hi"
+          }
+        ]
+      },
+      "provider_metadata": {
+        "native_position": 1,
+        "type": 1
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "text": "hi",
+          "type": 1
+        }
+      }
+    },
+    {
+      "id": null,
+      "timestamp": null,
+      "sequence": 2,
+      "type": "assistant_message",
+      "data": {
+        "content": [
+          {
+            "type": "structured",
+            "data": {
+              "root": {
+                "children": [
+                  {
+                    "text": "hello"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "model": null
+      },
+      "provider_metadata": {
+        "native_position": 2,
+        "type": 2
+      },
+      "raw": {
+        "format": "json",
+        "value": {
+          "richText": {
+            "root": {
+              "children": [
+                {
+                  "text": "hello"
+                }
+              ]
+            }
+          },
+          "type": 2
+        }
+      }
+    }
+  ],
+  "metadata": {},
+  "raw": {
+    "format": "json",
+    "value": {
+      "key": "composer.composerData",
+      "value": {
+        "composerId": "legacy-1",
+        "conversation": [
+          {
+            "text": "hi",
+            "type": 1
+          },
+          {
+            "richText": {
+              "root": {
+                "children": [
+                  {
+                    "text": "hello"
+                  }
+                ]
+              }
+            },
+            "type": 2
+          }
+        ],
+        "name": "legacy"
+      }
+    }
+  },
+  "diagnostics": []
+}

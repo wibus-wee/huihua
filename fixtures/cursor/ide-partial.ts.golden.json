@@ -1,0 +1,76 @@
+{
+  "id": "partial",
+  "provider": "cursor",
+  "title": "partial",
+  "source": {
+    "path": "<fixtures>/cursor/ide-partial.db",
+    "format": "cursor_sqlite",
+    "locator": {
+      "id": "partial",
+      "storage": "modern"
+    }
+  },
+  "metadata": {},
+  "schema": "agent-session/v1",
+  "records": [
+    {
+      "sequence": 0,
+      "provider": "cursor",
+      "native": {
+        "key": "composerData:partial",
+        "value": {
+          "name": "partial",
+          "fullConversationHeadersOnly": [
+            {
+              "bubbleId": "missing"
+            }
+          ]
+        },
+        "native_row": {
+          "key": "composerData:partial",
+          "value": "{\"name\":\"partial\",\"fullConversationHeadersOnly\":[{\"bubbleId\":\"missing\"}]}"
+        }
+      },
+      "source": {
+        "path": "<fixtures>/cursor/ide-partial.db",
+        "table": "cursorDiskKV",
+        "key": "composerData:partial",
+        "position": 0
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "record": 0,
+      "providerMetadata": {
+        "native_position": 0
+      },
+      "type": "system",
+      "data": {
+        "sourceType": "composerData",
+        "payload": {
+          "key": "composerData:partial",
+          "value": {
+            "name": "partial",
+            "fullConversationHeadersOnly": [
+              {
+                "bubbleId": "missing"
+              }
+            ]
+          },
+          "native_row": {
+            "key": "composerData:partial",
+            "value": "{\"name\":\"partial\",\"fullConversationHeadersOnly\":[{\"bubbleId\":\"missing\"}]}"
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "PartialParse",
+      "message": "missing bubble missing"
+    }
+  ]
+}

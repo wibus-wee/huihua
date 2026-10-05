@@ -1,0 +1,2 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<user_query>hello</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","id":"c1","name":"shell","input":{}}]}}
