@@ -330,6 +330,7 @@ export const cursorProvider = {
   id: 'cursor',
   detect: cli.detect,
   parse: cli.parse,
+  stream: cli.stream,
   open: openCursor,
   async scan(options: ScanOptions = {}) {
     const refs: SessionRef[] = []

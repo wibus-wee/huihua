@@ -114,6 +114,12 @@ safe integer range; use it when exact native numeric lexemes matter.
 
 ## Parse supplied data without discovery
 
+| Entry point               | Input                           | Output                                             |
+| ------------------------- | ------------------------------- | -------------------------------------------------- |
+| `parse(provider, input)`  | Explicit file or acquired JSONL | Complete Session snapshot                          |
+| `stream(provider, input)` | Acquired JSONL                  | One consumption of incremental SessionFrame values |
+| `open(ref)`               | Explicit file/store reference   | Replayable handle with frames and snapshots        |
+
 ```ts
 import { sessions } from 'huihua'
 
@@ -155,6 +161,27 @@ const fromOpenCode = await sessions.parse('opencode', {
 OpenCode's historical session metadata files use format: 'opencode_files' and retain their message/part directory layout.
 OpenCode does not consume arbitrary JSONL exports; unsupported acquired input fails explicitly.
 parse() returns a full snapshot; a supplied byte stream is consumed once, incrementally, while the returned Session accumulates in memory.
+Use stream() to consume acquired JSONL without collecting that snapshot:
+
+```ts
+// bytes is a caller-supplied AsyncIterable<Uint8Array> from an already acquired object.
+for await (const frame of sessions.stream('codex', {
+  jsonl: bytes,
+  source: 'stored-object:rollout',
+})) {
+  if (frame.type === 'event') {
+    // Await your batch writes here; the parser follows consumer backpressure.
+  }
+}
+```
+
+stream() also accepts text or Uint8Array and yields the same record/event/diagnostic/metadata frames as file-backed open().
+Each returned sequence permits one consumer; concurrent consumption or replay throws TypeError.
+To replay, call stream() again with text/bytes or a fresh byte iterable.
+Early return closes the producer's iterator; cancellation is checked between frames and chunks.
+Producers waiting on their own I/O must also handle the supplied AbortSignal.
+Prefixes remain provisional until successful completion, and early return does not validate an unread suffix.
+The [direct acquisition contract](docs/architecture.md#direct-acquisition) defines lifecycle and capability boundaries.
 For incremental event consumption from a known file, construct a SessionRef and call open(); refs need not originate from scan().
 
 ## Stream large transcripts
@@ -294,7 +321,7 @@ const provider = registry.require('codex')
 ```
 
 Third-party adapters use `defineProvider({ id, detect, scan, read })`, optionally implementing
-`open` for streaming.
+`open` for file streaming, `parse` for acquired snapshots and `stream` for acquired frames.
 The registry knows no builtin identities; duplicate registration fails.
 `registry.require(id)` resolves a registered provider handle or throws ProviderNotFound;
 capability support is member presence on that handle, such as `provider.open`.

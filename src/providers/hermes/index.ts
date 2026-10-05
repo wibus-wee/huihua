@@ -86,4 +86,5 @@ export const hermesProvider = {
     return (await hermesProvider.open(ref, options)).snapshot()
   },
   parse: jsonl.parse,
+  stream: jsonl.stream,
 }

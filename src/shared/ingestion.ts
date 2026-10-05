@@ -351,6 +351,7 @@ export interface JsonlAdapter {
 export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
   open: (ref: SessionRef, options?: ReadOptions) => Promise<OpenSession>
   parse: (input: JsonlInput, options?: ReadOptions) => Promise<Session>
+  stream: (input: JsonlInput, options?: ReadOptions) => AsyncIterable<SessionFrame>
 } {
   const open = async (
     ref: SessionRef,
@@ -394,15 +395,16 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
       : ref.id
     let createdKnown = ref.createdAt !== undefined
     let workspace = ref.workspace
-    for await (const line of sources()) {
+    for await (const line of companions && adapter.metadataFiles ? sources() : lines) {
+      const linePath = 'path' in line ? line.path : ref.source.path
       ingest.record(
         line.native,
-        { path: line.path, ...optional('position', 'position' in line ? line.position : undefined) },
+        { path: linePath, ...optional('position', 'position' in line ? line.position : undefined) },
         { ...optional('text', line.text), ...optional('bytes', line.bytes) },
       )
       if (line.malformed) {
         ingest.unknown(
-          line.path === ref.source.path ? 'malformed_jsonl' : 'malformed_json',
+          linePath === ref.source.path ? 'malformed_jsonl' : 'malformed_json',
           line.native,
           'corrupted JSONL record',
         )
@@ -450,10 +452,63 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
           })
         }
       }
-      yield* ingest.drain()
+      for (const frame of ingest.drain()) {
+        options.signal?.throwIfAborted()
+        yield frame
+        // A consumer can abort while paused at yield; do not request another input chunk.
+        options.signal?.throwIfAborted()
+      }
     }
+    options.signal?.throwIfAborted()
     parser.finish?.(ingest)
-    yield* ingest.finish()
+    for (const frame of ingest.finish()) {
+      options.signal?.throwIfAborted()
+      yield frame
+      options.signal?.throwIfAborted()
+    }
+    options.signal?.throwIfAborted()
+  }
+  function acquire(input: JsonlInput, options: ReadOptions): { ref: SessionRef, frames: AsyncIterable<SessionFrame> } {
+    const path = input.source ?? 'memory:jsonl'
+    const ref: SessionRef = {
+      id: input.id ?? `source:${path}`,
+      provider: adapter.id,
+      source: { path, format: 'jsonl' },
+      metadata: { id_origin: input.id === undefined ? 'source_locator' : 'caller' },
+    }
+    async function* bytes(): AsyncGenerator<Uint8Array> {
+      if (typeof input.jsonl === 'string') {
+        // Bound UTF-8 encoding allocations; do not split a surrogate pair between chunks.
+        for (let start = 0; start < input.jsonl.length;) {
+          options.signal?.throwIfAborted()
+          let end = Math.min(start + 16384, input.jsonl.length)
+          const last = input.jsonl.charCodeAt(end - 1)
+          if (end < input.jsonl.length && last >= 0xD800 && last <= 0xDBFF)
+            end--
+          const text = input.jsonl.slice(start, end)
+          const encoded = Buffer.from(text)
+          if (encoded.toString() !== text) {
+            throw new SessionError('CorruptedSession', 'JSONL text contains unpaired UTF-16 surrogates; provide original bytes to preserve evidence')
+          }
+          yield encoded
+          start = end
+        }
+      }
+      else if (input.jsonl instanceof Uint8Array) {
+        yield input.jsonl
+      }
+    }
+    let consumed = false
+    const frames: AsyncIterable<SessionFrame> = {
+      [Symbol.asyncIterator]() {
+        if (consumed)
+          throw new TypeError('acquired JSONL stream already consumed; create a new stream with fresh input')
+        consumed = true
+        const chunks = typeof input.jsonl === 'string' || input.jsonl instanceof Uint8Array ? bytes() : input.jsonl
+        return ingestLines(ref, jsonLinesFrom(chunks, options), options)
+      },
+    }
+    return { ref, frames }
   }
   return {
     id: adapter.id,
@@ -492,39 +547,11 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
     },
     open,
     async parse(input: JsonlInput, options: ReadOptions = {}) {
-      const path = input.source ?? 'memory:jsonl'
-      const ref: SessionRef = {
-        id: input.id ?? `source:${path}`,
-        provider: adapter.id,
-        source: { path, format: 'jsonl' },
-        metadata: { id_origin: input.id === undefined ? 'source_locator' : 'caller' },
-      }
-      async function* bytes(): AsyncGenerator<Uint8Array> {
-        if (typeof input.jsonl === 'string') {
-          // Bound UTF-8 encoding allocations; do not split a surrogate pair between chunks.
-          for (let start = 0; start < input.jsonl.length;) {
-            options.signal?.throwIfAborted()
-            let end = Math.min(start + 16384, input.jsonl.length)
-            const last = input.jsonl.charCodeAt(end - 1)
-            if (end < input.jsonl.length && last >= 0xD800 && last <= 0xDBFF)
-              end--
-            const text = input.jsonl.slice(start, end)
-            const encoded = Buffer.from(text)
-            if (encoded.toString() !== text) {
-              throw new SessionError('CorruptedSession', 'JSONL text contains unpaired UTF-16 surrogates; provide original bytes to preserve evidence')
-            }
-            yield encoded
-            start = end
-          }
-        }
-        else if (input.jsonl instanceof Uint8Array) {
-          yield input.jsonl
-        }
-        else {
-          yield* input.jsonl
-        }
-      }
-      return openFrom(ref, () => ingestLines(ref, jsonLinesFrom(bytes(), options)), 'incremental').snapshot()
+      const { ref, frames } = acquire(input, options)
+      return openFrom(ref, () => frames, 'incremental').snapshot()
+    },
+    stream(input: JsonlInput, options: ReadOptions = {}) {
+      return acquire(input, options).frames
     },
     async read(ref, options) {
       return (await open(ref, options)).snapshot()

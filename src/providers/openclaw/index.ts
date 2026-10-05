@@ -113,4 +113,5 @@ export const openclawProvider = {
     return (await openclawProvider.open(ref, options)).snapshot()
   },
   parse: jsonl.parse,
+  stream: jsonl.stream,
 }

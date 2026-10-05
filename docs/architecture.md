@@ -123,7 +123,9 @@ There is no provider identity switch, scan fallback, directory discovery or head
 SQLite inputs need selectors because a database is not a single transcript; historical filesystem sessions still read their associated message/part layout.
 
 JsonlInput supplies uncompressed UTF-8 text, bytes or an asynchronous byte iterable and an optional provenance label.
-The optional provider.parse capability consumes this acquired input; adapters without it fail UnsupportedSchema.
+The optional provider.parse capability returns an acquired snapshot; provider.stream returns acquired SessionFrame values.
+The registry dispatches each capability independently through the [public SPI](../src/contracts/provider.ts), with no provider identity switch or snapshot fallback for stream.
+Adapters without the requested capability fail UnsupportedSchema; registry.stream reports capability/lookup and pre-aborted signal errors synchronously, before returning an iterable.
 All JSONL adapters share one bounded line framer and native-to-event pipeline for file and memory ingestion.
 Incomplete JSON, invalid UTF-8, unknown records, limits and tool diagnostics retain the same behavior.
 Caller-owned chunks are copied before requesting another chunk, allowing producers to reuse buffers.
@@ -136,8 +138,34 @@ A source label is not a workspace fact or file path to read.
 Changing acquisition can change provenance and fallback identities, but does not change event mapping.
 The serialized schema remains agent-session/v1.
 parse returns a snapshot; byte iterables are consumed once, and events/raw evidence accumulate in the result.
-Cancellation is checked between records and chunks; an external producer waiting on its own I/O must also handle the caller's signal.
+stream returns a lazy sequence of record/event/diagnostic/metadata frames without collecting a Session.
+The shared JSONL adapter owns acquired-input identity, encoding and single-consumer enforcement; both capabilities use its acquisition helper and ingestLines mapping, while openFrom owns snapshot collection.
+ingestLines owns cancellation at frame yields and EOF, so acquisition does not forward every frame through another async generator.
+Acquired byte iterables go directly to the existing framer; only text and byte arrays need encoding/chunk adaptation.
+The companion-file prelude uses a source wrapper only for file adapters with metadataFiles; ordinary JSONL lines retain their native position and use the reference's provenance path directly.
+No input iterator is opened or advanced until the consumer requests a frame.
+Frame delivery follows consumer backpressure without prefetching another source chunk; one input chunk or native record may contain multiple frames.
+Parser state and outstanding tool diagnostics can still grow, so incremental output does not promise a fixed memory ceiling.
+
+Each acquired sequence accepts one consumer, including for text and byte-array inputs.
+Obtaining its iterator claims the sequence; a second iterator request throws TypeError while active, after completion, after early return or after failure.
+To replay, call stream again with text/bytes or a fresh iterable.
+Reusing an exhausted producer across separate calls cannot reconstruct its input.
+This lifecycle differs from file-backed OpenSession, whose methods open a fresh source for each replay.
+Early return, consumer failure and parser errors close the acquired producer through iterator return.
+Producer failures propagate unchanged; producers own cleanup when their next() fails.
+Cancellation is checked between acquired frames and chunks, including before successful completion; an external producer waiting on its own I/O must also handle the caller's signal.
+Previously emitted prefixes remain provisional until successful EOF; early return intentionally skips unread suffix validation and end-of-input diagnostics.
 read/open still accept caller-constructed SessionRef values without discovery, including custom providers that implement only the minimal SPI.
+
+An additive stream capability preserves existing parse, read, open, third-party SPI and agent-session/v1 semantics.
+Overloading OpenSession for acquired iterables would weaken its replay contract; returning a snapshot-backed stream would retain the full-session accumulation this capability avoids.
+A separate parser, downstream internal imports or temporary files would duplicate mapping or mix acquisition with filesystem access.
+The existing framer, ingestion pipeline and Node APIs suffice; no dependency or provider-format change is required.
+Network acquisition, uploads and batch persistence remain caller responsibilities; this capability does not certify a separate Worker runtime.
+[Acquisition tests](../tests/parse.test.ts) enforce frame equivalence using the existing fixture manifest, backpressure, evidence, lifecycle and capability dispatch.
+The [installed-package checks](../tools/package.ts) enforce runtime access and emitted declaration types for both the registry and provider subpaths.
+The [stream performance experiment](performance.md) compares each removed forwarding layer with the retained lifecycle protections and records reproducible benchmark commands and raw measurements.
 
 ## Provider coverage and format ownership
 

@@ -1,12 +1,13 @@
 import { SessionError } from './contracts/diagnostic.ts'
 import type {
   DetectOptions,
+  JsonlInput,
   ReadOptions,
   ScanOptions,
   SessionInput,
   SessionProvider,
 } from './contracts/provider.ts'
-import type { OpenSession, SessionRef } from './contracts/session.ts'
+import type { OpenSession, SessionFrame, SessionRef } from './contracts/session.ts'
 /** Consumer-owned provider composition; no builtin identities or parsers belong here. */
 export class SessionRegistry {
   readonly #providers = new Map<string, SessionProvider>()
@@ -84,6 +85,16 @@ export class SessionRegistry {
       throw new SessionError('UnsupportedSchema', `${providerId} does not support acquired JSONL input`)
     }
     return provider.parse(input, options)
+  }
+
+  /** Each result accepts one consumer. To replay, call again with fresh input; no snapshot fallback is used. */
+  stream(providerId: string, input: JsonlInput, options?: ReadOptions): AsyncIterable<SessionFrame> {
+    const provider = this.require(providerId)
+    options?.signal?.throwIfAborted()
+    if (!provider.stream) {
+      throw new SessionError('UnsupportedSchema', `${providerId} does not support acquired JSONL streaming`)
+    }
+    return provider.stream(input, options)
   }
 
   async open(ref: SessionRef, options?: ReadOptions): Promise<OpenSession> {

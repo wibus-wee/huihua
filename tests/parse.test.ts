@@ -1,11 +1,44 @@
 import assert from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { it } from 'node:test'
 
+import type { SessionFrame, SessionRef } from '../src/index.ts'
 import { createSessionRegistry, defineProvider, SessionError, sessions } from '../src/index.ts'
 import { assertSessionContract } from '../src/testing/index.ts'
+import { cases, fixtureRoot } from './oracle.ts'
+
+async function framesOf(source: AsyncIterable<SessionFrame>): Promise<SessionFrame[]> {
+  const frames: SessionFrame[] = []
+  for await (const frame of source) frames.push(frame)
+  return frames
+}
+
+void it('acquired streaming emits a consumed prefix before EOF', { timeout: 2000 }, async () => {
+  let finishInput!: () => void
+  const gate = new Promise<void>((resolve) => {
+    finishInput = resolve
+  })
+  let atEOF = false
+  async function* bytes() {
+    yield Buffer.from('{"type":"event_msg","payload":{"type":"user_message","message":"prefix"}}\n')
+    await gate
+    atEOF = true
+  }
+  try {
+    for await (const frame of sessions.stream('codex', { jsonl: bytes(), source: 'stored-object:synthetic' })) {
+      if (frame.type === 'event') {
+        assert.equal(frame.event.type, 'user_message')
+        assert.equal(atEOF, false)
+        finishInput()
+      }
+    }
+    assert.equal(atEOF, true)
+  }
+  finally { finishInput() }
+})
 
 for (const provider of ['codex', 'claude', 'pi', 'cursor']) {
   void it(`${provider}: direct file, text, bytes and byte stream share the existing parser`, async () => {
@@ -159,4 +192,196 @@ void it('missing files and unsupported acquired formats remain explicit errors',
   await assert.rejects(async () => sessions.parse('codex', { path: 'missing-session.jsonl' }), e => e instanceof SessionError && e.code === 'SessionNotFound')
   await assert.rejects(async () => sessions.parse('opencode', { jsonl: '{}' }), e => e instanceof SessionError && e.code === 'UnsupportedSchema')
   await assert.rejects(async () => sessions.parse('missing-provider', { jsonl: '{}' }), e => e instanceof SessionError && e.code === 'ProviderNotFound')
+})
+
+for (const fixture of [
+  ...(await cases()).filter(fixture => fixture.path.endsWith('.jsonl')),
+  { provider: 'morph', path: 'morph/store/journal/events.000000000000000001.jsonl' },
+]) {
+  const provider = fixture.provider === 'claude_code' ? 'claude' : fixture.provider
+  void it(`${provider}: ${fixture.path} acquired frames match file frames exactly`, async (t) => {
+    // Isolate the transcript: acquired bytes do not include adjacent native metadata files.
+    const root = await mkdtemp(join(tmpdir(), 'huihua-acquired-'))
+    t.after(async () => rm(root, { recursive: true, force: true }))
+    const path = join(root, 'input.jsonl')
+    const data = await readFile(resolve(fixtureRoot, fixture.path))
+    await writeFile(path, data)
+    const ref: SessionRef = { id: `source:${path}`, provider, source: { path, format: 'jsonl' }, metadata: { id_origin: 'source_locator' } }
+    const expected = await framesOf((await sessions.open(ref)).stream())
+    async function* bytes() {
+      for (const byte of data) yield new Uint8Array([byte])
+    }
+    for (const jsonl of [data.toString(), data, bytes()]) {
+      assert.deepEqual(await framesOf(sessions.stream(provider, { jsonl, source: path })), expected)
+    }
+  })
+}
+
+void it('Hermes acquired snapshot frames preserve all native messages and evidence', async () => {
+  const jsonl = JSON.stringify(JSON.parse(await readFile(resolve(fixtureRoot, 'hermes/session.json'), 'utf8')))
+  const input = { jsonl, source: 'stored-object:hermes' }
+  const snapshot = await sessions.parse('hermes', input)
+  const frames = await framesOf(sessions.stream('hermes', input))
+  assert.deepEqual(frames.flatMap(frame => frame.type === 'record' ? [frame.record] : []), snapshot.records)
+  assert.deepEqual(frames.flatMap(frame => frame.type === 'event' ? [frame.event] : []), snapshot.events)
+  assert.deepEqual(frames.flatMap(frame => frame.type === 'diagnostic' ? [frame.diagnostic] : []), snapshot.diagnostics)
+  assert.ok(frames.some(frame => frame.type === 'metadata' && frame.patch.id === snapshot.id))
+})
+
+void it('acquired streaming is lazy, applies backpressure and closes on early return', async () => {
+  let requested = 0
+  let closed = false
+  async function* bytes() {
+    try {
+      requested++
+      yield Buffer.from('{"type":"event_msg","payload":{"type":"user_message","message":"first"}}\n')
+      requested++
+      yield Buffer.from('oversized unread suffix')
+    }
+    finally { closed = true }
+  }
+  const frames = sessions.stream('codex', { jsonl: bytes() }, { maxRecordBytes: 100 })
+  assert.equal(requested, 0)
+  const iterator = frames[Symbol.asyncIterator]()
+  assert.equal(requested, 0)
+  const first = await iterator.next()
+  assert.ok(!first.done)
+  assert.equal(first.value.type, 'record')
+  assert.equal(requested, 1)
+  await Promise.resolve()
+  assert.equal(requested, 1)
+  for await (const frame of { [Symbol.asyncIterator]: () => iterator }) {
+    if (frame.type === 'event')
+      break
+  }
+  assert.equal(requested, 1)
+  assert.equal(closed, true)
+})
+
+void it('acquired streams reject concurrent consumers and replay after completion, return or error', async () => {
+  for (const jsonl of ['', '{}\n', 'oversized']) {
+    const frames = sessions.stream('codex', { jsonl }, { maxRecordBytes: 4 })
+    const iterator = frames[Symbol.asyncIterator]()
+    assert.throws(() => frames[Symbol.asyncIterator](), /already consumed/)
+    if (jsonl === 'oversized') {
+      await assert.rejects(async () => iterator.next(), /exceeds/)
+    }
+    else {
+      await iterator.next()
+      await iterator.return?.()
+    }
+    assert.throws(() => frames[Symbol.asyncIterator](), /already consumed/)
+  }
+  const input = { jsonl: '{}\n' }
+  assert.deepEqual(await framesOf(sessions.stream('codex', input)), await framesOf(sessions.stream('codex', input)))
+})
+
+void it('acquired streaming propagates cancellation between frames and closes the producer', async () => {
+  const controller = new AbortController()
+  const reason = new Error('stop acquired stream')
+  let closed = false
+  let requested = 0
+  async function* bytes() {
+    try {
+      requested++
+      yield Buffer.from('{}\n{}\n')
+      requested++
+      yield Buffer.from('{}\n')
+    }
+    finally { closed = true }
+  }
+  const frames = sessions.stream('codex', { jsonl: bytes() }, { signal: controller.signal })
+  const iterator = frames[Symbol.asyncIterator]()
+  const first = await iterator.next()
+  assert.ok(!first.done)
+  assert.equal(first.value.type, 'record')
+  controller.abort(reason)
+  await assert.rejects(async () => iterator.next(), error => error === reason)
+  assert.equal(requested, 1)
+  assert.equal(closed, true)
+
+  assert.throws(() => sessions.stream('codex', { jsonl: bytes() }, { signal: controller.signal }), error => error === reason)
+  assert.equal(requested, 1)
+  const late = new AbortController()
+  const unopened = sessions.stream('codex', { jsonl: bytes() }, { signal: late.signal })
+  late.abort(reason)
+  await assert.rejects(async () => framesOf(unopened), error => error === reason)
+  assert.equal(requested, 1)
+})
+
+void it('cancellation after the last frame of a chunk does not request another chunk', async () => {
+  const controller = new AbortController()
+  const reason = new Error('stop before next chunk')
+  let requested = 0
+  let closed = false
+  async function* bytes() {
+    try {
+      requested++
+      yield Buffer.from('{"type":"event_msg","payload":{"type":"user_message","message":"prefix"}}\n')
+      requested++
+      yield Buffer.from('{}\n')
+    }
+    finally { closed = true }
+  }
+  await assert.rejects(async () => {
+    for await (const frame of sessions.stream('codex', { jsonl: bytes() }, { signal: controller.signal })) {
+      if (frame.type === 'event')
+        controller.abort(reason)
+    }
+  }, error => error === reason)
+  assert.equal(requested, 1)
+  assert.equal(closed, true)
+})
+
+void it('acquired streaming leaves a prefix provisional and closes on limits or producer failure', async () => {
+  for (const failure of ['limit', 'producer']) {
+    let closed = false
+    const reason = new Error('producer failed')
+    async function* bytes() {
+      try {
+        yield Buffer.from('{}\n')
+        if (failure === 'producer')
+          throw reason
+        yield Buffer.from('oversized suffix')
+      }
+      finally { closed = true }
+    }
+    const frames: SessionFrame[] = []
+    await assert.rejects(async () => {
+      for await (const frame of sessions.stream('codex', { jsonl: bytes() }, { maxRecordBytes: 4 })) frames.push(frame)
+    }, error => failure === 'producer' ? error === reason : error instanceof SessionError && error.code === 'CorruptedSession')
+    assert.equal(frames.filter(frame => frame.type === 'record').length, 1)
+    assert.equal(closed, true)
+  }
+})
+
+void it('acquired streaming retains reused buffers, invalid UTF-8 and exact numeric text', async () => {
+  const text = '{"type":"future","large":9007199254740993}'
+  async function* bytes() {
+    const buffer = Buffer.from(text)
+    yield buffer
+    buffer.fill(32)
+    yield Buffer.from('\n')
+    yield Buffer.from([255, 10])
+  }
+  const frames = await framesOf(sessions.stream('codex', { jsonl: bytes(), source: 'stored-object:bytes' }))
+  const records = frames.flatMap(frame => frame.type === 'record' ? [frame.record] : [])
+  assert.equal(records[0]?.text, `${text}\n`)
+  assert.deepEqual(records[1]?.bytes, [255, 10])
+  assert.ok(records.every(record => record.source.path === 'stored-object:bytes'))
+  assert.equal(frames.filter(frame => frame.type === 'diagnostic').length, 2)
+})
+
+void it('acquired streaming dispatches through the public SPI without discovery or snapshot fallback', async () => {
+  const provider = sessions.require('codex')
+  const unexpected = async () => {
+    throw new Error('must not acquire a file or snapshot')
+  }
+  const registry = createSessionRegistry([defineProvider({ ...provider, detect: unexpected, scan: unexpected, read: unexpected, open: unexpected, parse: unexpected })])
+  const input = { jsonl: '{}\n', source: '/nonexistent/provenance-label/wire.jsonl' }
+  assert.deepEqual(await framesOf(registry.stream('codex', input)), await framesOf(sessions.stream('codex', input)))
+  const snapshotOnly = createSessionRegistry([defineProvider({ id: 'snapshot-only', detect: unexpected, scan: unexpected, read: unexpected, parse: unexpected })])
+  assert.throws(() => snapshotOnly.stream('snapshot-only', input), error => error instanceof SessionError && error.code === 'UnsupportedSchema')
+  assert.throws(() => sessions.stream('opencode', input), error => error instanceof SessionError && error.code === 'UnsupportedSchema')
+  assert.throws(() => sessions.stream('missing', input), error => error instanceof SessionError && error.code === 'ProviderNotFound')
 })
