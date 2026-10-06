@@ -2,12 +2,16 @@ import { readdir, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
 import { SessionError } from '../contracts/diagnostic.ts'
+import type { ScanEvent, ScanOptions } from '../contracts/provider.ts'
+import { positiveLimit, scanFailure } from '../contracts/provider.ts'
 
-export function ioError(error: unknown, path: string): never {
+export { positiveLimit }
+
+export function ioErrorOf(error: unknown, path: string): SessionError {
   if (error instanceof SessionError)
-    throw error
-  const code = (error as NodeJS.ErrnoException).code
-  throw new SessionError(
+    return error
+  const code = (error as NodeJS.ErrnoException | undefined)?.code
+  return new SessionError(
     code === 'EACCES' || code === 'EPERM'
       ? 'PermissionDenied'
       : code === 'ENOENT'
@@ -16,6 +20,9 @@ export function ioError(error: unknown, path: string): never {
     `${path}: ${error instanceof Error ? error.message : String(error)}`,
     { cause: error },
   )
+}
+export function ioError(error: unknown, path: string): never {
+  throw ioErrorOf(error, path)
 }
 export async function exists(path: string): Promise<boolean> {
   try {
@@ -28,23 +35,38 @@ export async function exists(path: string): Promise<boolean> {
     ioError(error, path)
   }
 }
-/** Never follow store symlinks recursively; an explicitly supplied symlink root is allowed. */
+/**
+ * Never recurse through symlinks; explicit symlink roots are allowed.
+ * Supplying scan options and a provider reports traversal failures; read-side traversal throws.
+ */
+export function files(roots: readonly string[], accepts: (path: string) => boolean, signal?: AbortSignal): AsyncGenerator<string>
+export function files(roots: readonly string[], accepts: (path: string) => boolean, options: ScanOptions, provider: string): AsyncGenerator<string | Extract<ScanEvent, { type: 'failure' }>>
 export async function* files(
   roots: readonly string[],
   accepts: (path: string) => boolean,
-  signal?: AbortSignal,
-): AsyncGenerator<string> {
+  input?: AbortSignal | ScanOptions,
+  provider?: string,
+): AsyncGenerator<string | Extract<ScanEvent, { type: 'failure' }>> {
+  const options: ScanOptions = input && 'throwIfAborted' in input ? { signal: input } : input ?? {}
+  const signal = options.signal
+  signal?.throwIfAborted()
+  if (provider !== undefined)
+    positiveLimit(options.headerBytes, 65536)
   const seen = new Set<string>()
-  async function* visit(path: string): AsyncGenerator<string> {
+  async function* visit(path: string): AsyncGenerator<string | Extract<ScanEvent, { type: 'failure' }>> {
     signal?.throwIfAborted()
-    if (!(await exists(path)))
-      return
     let info
     try {
       info = await stat(path)
     }
     catch (error) {
-      ioError(error, path)
+      signal?.throwIfAborted()
+      if ((error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT')
+        return
+      if (provider === undefined)
+        ioError(error, path)
+      yield { type: 'failure', failure: scanFailure(provider, ioErrorOf(error, path), { path }) }
+      return
     }
     if (info.isFile()) {
       if (accepts(path) && !seen.has(path)) {
@@ -60,7 +82,11 @@ export async function* files(
       entries = await readdir(path, { withFileTypes: true })
     }
     catch (error) {
-      ioError(error, path)
+      signal?.throwIfAborted()
+      if (provider === undefined)
+        ioError(error, path)
+      yield { type: 'failure', failure: scanFailure(provider, ioErrorOf(error, path), { path }) }
+      return
     }
     for (const entry of entries.sort((a, b) =>
       a.name.localeCompare(b.name, 'en'))) {
@@ -69,13 +95,4 @@ export async function* files(
     }
   }
   for (const root of roots) yield* visit(resolve(root))
-}
-export function positiveLimit(
-  value: number | undefined,
-  fallback: number,
-): number {
-  const limit = value ?? fallback
-  if (!Number.isSafeInteger(limit) || limit <= 0)
-    throw new RangeError('resource limits must be positive safe integers')
-  return limit
 }

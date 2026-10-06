@@ -35,6 +35,65 @@ function hasCode(code: string) {
   return (error: unknown) =>
     error instanceof SessionError && error.code === code
 }
+void it('scan preserves database rows yielded before an invalid session identity', async (t) => {
+  const path = join(await directory(t), 'partial.db')
+  const db = new DatabaseSync(path)
+  db.exec('CREATE TABLE session(id); INSERT INTO session VALUES (\'retained\'), (42), (\'unread\');')
+  db.close()
+  const before = await readFile(path)
+  const result = await sessions.scan({ providers: ['opencode'], roots: { opencode: [path] } })
+  assert.deepEqual(result.refs.map(ref => ref.id), ['retained'])
+  assert.equal(result.failures.length, 1)
+  assert.equal(result.failures[0]!.code, 'UnsupportedSchema')
+  assert.equal(result.failures[0]!.scope, 'source')
+  assert.deepEqual(result.failures[0]!.source, { path, format: 'opencode_sqlite' })
+  assert.deepEqual(await readFile(path), before)
+})
+void it('shared SQLite scans preserve rows before a bad identity and continue other stores', async (t) => {
+  const path = join(await directory(t), 'partial.db')
+  const db = new DatabaseSync(path)
+  db.exec('CREATE TABLE sessions(id); CREATE TABLE messages(id, session_id, role, content); INSERT INTO sessions VALUES (\'retained\'), (42);')
+  db.close()
+  const result = await sessions.scan({ providers: ['hermes'], roots: { hermes: [path, resolve('fixtures/hermes/sessions.db')] } })
+  assert.ok(result.refs.some(ref => ref.id === 'retained'))
+  assert.ok(result.refs.some(ref => ref.source.path === resolve('fixtures/hermes/sessions.db')))
+  assert.equal(result.failures.length, 1)
+  assert.equal(result.failures[0]!.source?.path, path)
+  assert.equal(result.failures[0]!.code, 'UnsupportedSchema')
+})
+void it('scanStream closes database readers on early return and cancellation', async (t) => {
+  const close = t.mock.method(SqliteReader.prototype, 'close')
+  const options = { providers: ['opencode'], roots: { opencode: [resolve('fixtures/opencode/simple.db')] } }
+  const early = sessions.scanStream(options)
+  assert.equal((await early.next()).value?.type, 'ref')
+  assert.equal(close.mock.callCount(), 0)
+  await early.return(undefined)
+  assert.equal(close.mock.callCount(), 1)
+  const controller = new AbortController()
+  const cancelled = sessions.scanStream({ ...options, signal: controller.signal })
+  assert.equal((await cancelled.next()).value?.type, 'ref')
+  const reason = new Error('stop database scan')
+  controller.abort(reason)
+  await assert.rejects(cancelled.next(), error => error === reason)
+  assert.equal(close.mock.callCount(), 2)
+})
+void it('Cursor scan retains its prefix when changed-store validation fails on close', async (t) => {
+  const path = join(await directory(t), 'state.vscdb')
+  const db = new DatabaseSync(path)
+  t.after(() => db.close())
+  db.exec('CREATE TABLE cursorDiskKV(key TEXT, value TEXT); INSERT INTO cursorDiskKV VALUES (\'composerData:retained\', \'{}\');')
+  const events = []
+  for await (const event of sessions.scanStream({ providers: ['cursor'], roots: { cursor: [path, resolve('fixtures/cursor/simple.jsonl')] } })) {
+    events.push(event)
+    if (event.type === 'ref' && event.ref.source.path === path)
+      db.exec('UPDATE cursorDiskKV SET value = \'{"name":"changed"}\'')
+  }
+  assert.equal(events.filter(event => event.type === 'ref').length, 2)
+  const failures = events.flatMap(event => event.type === 'failure' ? [event.failure] : [])
+  assert.equal(failures.length, 1)
+  assert.equal(failures[0]!.code, 'PartialParse')
+  assert.deepEqual(failures[0]!.source, { path, format: 'cursor_sqlite' })
+})
 function oracleRows(db: DatabaseSync, table: string) {
   const quote = (name: string) => `"${name.replaceAll('"', '""')}"`
   const columns = db.prepare(`PRAGMA table_info(${quote(table)})`).all().map(row => String(row.name))
@@ -112,7 +171,7 @@ void it('committed WAL overlays are visible, uncommitted transactions are exclud
       ),
     ),
   )
-  const refs = await sessions.scan({
+  const { refs } = await sessions.scan({
     providers: ['cursor'],
     roots: { cursor: [path] },
   })
@@ -208,7 +267,7 @@ void it('empty databases are empty and invalid headers are reported', async (t) 
       providers: ['cursor', 'opencode'],
       roots: { cursor: [path], opencode: [path] },
     }),
-    [],
+    { refs: [], failures: [] },
   )
   await writeFile(path, Buffer.alloc(100))
   await assert.rejects(

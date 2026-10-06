@@ -3,7 +3,8 @@ import { basename, dirname, join } from 'node:path'
 import process from 'node:process'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
-import type { ScanOptions } from '../../contracts/provider.ts'
+import type { ScanEvent, ScanOptions } from '../../contracts/provider.ts'
+import { scanFailure } from '../../contracts/provider.ts'
 import { contentBlocks, jsonlProvider, messageEvents } from '../../shared/ingestion.ts'
 import { files } from '../../shared/paths.ts'
 import { array, object, optional, string, timestamp } from '../../shared/value.ts'
@@ -103,9 +104,13 @@ const provider = jsonlProvider({
 
 export const deepseekProvider = {
   ...provider,
-  async scan(options: ScanOptions = {}) {
+  async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
     const selected = new Map<string, { path: string, ambiguous: boolean }>()
-    for await (const path of files(roots(options), accepts, options.signal)) {
+    for await (const path of files(roots(options), accepts, options, 'deepseek')) {
+      if (typeof path !== 'string') {
+        yield path
+        continue
+      }
       const key = dirname(path)
       const prior = selected.get(key)
       if (!prior || generation(path) > generation(prior.path))
@@ -113,17 +118,19 @@ export const deepseekProvider = {
       else if (generation(path) === generation(prior.path))
         prior.ambiguous = true
     }
-    const paths: string[] = []
     for (const [directory, candidate] of selected) {
-      if (candidate.ambiguous)
-        throw new SessionError('UnsupportedSchema', `ambiguous DeepSeek session generation in ${directory}`)
-      paths.push(candidate.path)
+      if (candidate.ambiguous) {
+        yield { type: 'failure', failure: scanFailure('deepseek', new SessionError('UnsupportedSchema', `ambiguous DeepSeek session generation in ${directory}`), { path: directory }) }
+        continue
+      }
+      for await (const event of provider.scan({ ...options, roots: { ...options.roots, deepseek: [candidate.path] } })) {
+        if (event.type === 'ref' && event.ref.metadata.version !== generation(event.ref.source.path)) {
+          yield { type: 'failure', failure: scanFailure('deepseek', new SessionError('UnsupportedSchema', 'DeepSeek generation filename does not match its native header'), { path: event.ref.source.path, format: event.ref.source.format }) }
+        }
+        else {
+          yield event
+        }
+      }
     }
-    const refs = await provider.scan({ ...options, roots: { ...options.roots, deepseek: paths } })
-    for (const ref of refs) {
-      if (ref.metadata.version !== generation(ref.source.path))
-        throw new SessionError('UnsupportedSchema', 'DeepSeek generation filename does not match its native header')
-    }
-    return refs
   },
 }

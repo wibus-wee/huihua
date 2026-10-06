@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import process from 'node:process'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
-import type { ReadOptions, ScanOptions } from '../../contracts/provider.ts'
+import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
 import type { Session, SessionRef } from '../../contracts/session.ts'
 import {
   contentBlocks,
@@ -13,6 +13,7 @@ import {
 } from '../../shared/ingestion.ts'
 import { readJson } from '../../shared/json-file.ts'
 import { exists, files, positiveLimit } from '../../shared/paths.ts'
+import { scanSource } from '../../shared/scan.ts'
 import type { Row } from '../../shared/sqlite.ts'
 import { binarySafe, decodeValue, SqliteReader } from '../../shared/sqlite.ts'
 import {
@@ -585,79 +586,60 @@ export const opencodeProvider = {
     }
     return { provider: 'opencode', roots: found, available: found.length > 0 }
   },
-  async scan(options: ScanOptions = {}): Promise<SessionRef[]> {
-    const refs: SessionRef[] = []
+  async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
     const explicitFiles = new Set(roots(options).map(p => resolve(p)))
-    for await (const path of files(
-      roots(options),
-      p => /\.(?:db|sqlite|json)$/.test(p),
-      options.signal,
-    )) {
-      if (path.endsWith('.json')) {
-        const directories = dirname(path).split(sep)
-        if (
-          !explicitFiles.has(path)
-          && (!directories.some(p => p === 'session' || p === 'info')
-            || directories.some(p => p === 'message' || p === 'part'))
-        ) {
-          continue
-        }
-        const native = await readJson(
-          path,
-          positiveLimit(options.headerBytes, 65536),
-          true,
-          options.signal,
-        )
-        refs.push({
-          id: `source:${path}`,
-          provider: 'opencode',
-          metadata: { id_origin: 'source_locator' },
-          ...metadata(native.native),
-          source: { path, format: 'opencode_files' },
-        })
+    for await (const path of files(roots(options), p => /\.(?:db|sqlite|json)$/.test(p), options, 'opencode')) {
+      if (typeof path !== 'string') {
+        yield path
+        continue
       }
-      else {
-        const db = await SqliteReader.open(path, {
-          ...optional('signal', options.signal),
-        })
-        try {
-          for (const table of ['session', 'session_v2']) {
-            if (!db.tables.has(table))
-              continue
-            if (!db.columns(table).includes('id')) {
-              throw new SessionError(
-                'UnsupportedSchema',
-                `${table} table lacks id`,
-              )
-            }
-            for await (const row of db.rows(table)) {
-              const id = string(row.id)
-              if (id === undefined) {
-                throw new SessionError(
-                  'UnsupportedSchema',
-                  `${table} session id is not text`,
-                )
+      const json = path.endsWith('.json')
+      const directories = dirname(path).split(sep)
+      if (json && !explicitFiles.has(path)
+        && (!directories.some(p => p === 'session' || p === 'info')
+          || directories.some(p => p === 'message' || p === 'part'))) {
+        continue
+      }
+      const source = { path, format: json ? 'opencode_files' : 'opencode_sqlite' }
+      yield* scanSource('opencode', source, options, async function* () {
+        if (json) {
+          const native = await readJson(path, positiveLimit(options.headerBytes, 65536), true, options.signal)
+          yield { type: 'ref', ref: {
+            id: `source:${path}`,
+            provider: 'opencode',
+            metadata: { id_origin: 'source_locator' },
+            ...metadata(native.native),
+            source,
+          } }
+        }
+        else {
+          const db = await SqliteReader.open(path, { ...optional('signal', options.signal) })
+          try {
+            for (const table of ['session', 'session_v2']) {
+              if (!db.tables.has(table))
+                continue
+              if (!db.columns(table).includes('id'))
+                throw new SessionError('UnsupportedSchema', `${table} table lacks id`)
+              for await (const row of db.rows(table)) {
+                const id = string(row.id)
+                if (id === undefined)
+                  throw new SessionError('UnsupportedSchema', `${table} session id is not text`)
+                yield { type: 'ref', ref: {
+                  id,
+                  provider: 'opencode',
+                  metadata: {},
+                  ...metadata(row),
+                  source: { ...source, locator: { id, ...(table === 'session' ? {} : { table }) } },
+                } }
               }
-              refs.push({
-                id,
-                provider: 'opencode',
-                metadata: {},
-                ...metadata(row),
-                source: {
-                  path,
-                  format: 'opencode_sqlite',
-                  locator: { id, ...(table === 'session' ? {} : { table }) },
-                },
-              })
             }
           }
+          finally {
+            await db.close()
+          }
         }
-        finally {
-          await db.close()
-        }
-      }
+      })
     }
-    return refs
   },
   async read(ref: SessionRef, options?: ReadOptions) {
     return (await openSession(ref, options)).snapshot()

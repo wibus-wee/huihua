@@ -12,6 +12,7 @@ import type {
 import type {
   JsonlInput,
   ReadOptions,
+  ScanEvent,
   ScanOptions,
   SessionProvider,
 } from '../contracts/provider.ts'
@@ -27,6 +28,7 @@ import { readJson } from './json-file.ts'
 import type { NativeLine } from './jsonl.ts'
 import { header, jsonLines, jsonLinesFrom } from './jsonl.ts'
 import { exists, files, positiveLimit } from './paths.ts'
+import { scanSource } from './scan.ts'
 import { array, object, optional, string, timestamp } from './value.ts'
 
 export class Ingestion {
@@ -520,30 +522,39 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
       }
       return { provider: adapter.id, roots, available: roots.length > 0 }
     },
-    async scan(options = {}) {
-      const refs: SessionRef[] = []
-      for await (const path of files(
-        adapter.roots(options),
-        adapter.accepts ?? (p => p.endsWith('.jsonl')),
-        options.signal,
-      )) {
-        const compressed = /\.jsonl\.zstd?$/.test(path)
-        const records = await header(path, compressed, options.headerBytes, options.signal)
-        const metadata: unknown[] = []
-        for (const companion of adapter.metadataFiles?.(path) ?? []) {
-          if (await exists(companion))
-            metadata.push((await readJson(companion, positiveLimit(options.headerBytes, 65536), true, options.signal)).native)
+    async* scan(options = {}): AsyncGenerator<ScanEvent> {
+      for await (const path of files(adapter.roots(options), adapter.accepts ?? (p => p.endsWith('.jsonl')), options, adapter.id)) {
+        if (typeof path !== 'string') {
+          yield path
+          continue
         }
-        const facts = adapter.metadata([...metadata, ...records], path)
-        refs.push({
-          id: `source:${path}`,
-          provider: adapter.id,
-          metadata: { id_origin: 'source_locator' },
-          ...facts,
-          source: { path, format: compressed ? 'jsonl_zstd' : 'jsonl' },
+        const compressed = /\.jsonl\.zstd?$/.test(path)
+        const source = { path, format: compressed ? 'jsonl_zstd' : 'jsonl' }
+        yield* scanSource(adapter.id, source, options, async function* () {
+          const records = await header(path, compressed, options.headerBytes, options.signal)
+          const metadata: unknown[] = []
+          for (const companion of adapter.metadataFiles?.(path) ?? []) {
+            let failed = false
+            for await (const event of scanSource(adapter.id, { path: companion }, options, async function* () {
+              if (await exists(companion))
+                metadata.push((await readJson(companion, positiveLimit(options.headerBytes, 65536), true, options.signal)).native)
+            })) {
+              failed = true
+              yield event
+            }
+            if (failed)
+              return
+          }
+          const facts = adapter.metadata([...metadata, ...records], path)
+          yield { type: 'ref', ref: {
+            id: `source:${path}`,
+            provider: adapter.id,
+            metadata: { id_origin: 'source_locator' },
+            ...facts,
+            source,
+          } }
         })
       }
-      return refs
     },
     open,
     async parse(input: JsonlInput, options: ReadOptions = {}) {

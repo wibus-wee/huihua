@@ -2,7 +2,7 @@ import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
-import type { ReadOptions, ScanOptions } from '../../contracts/provider.ts'
+import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
 import type { SessionRef } from '../../contracts/session.ts'
 import {
   Ingestion,
@@ -11,6 +11,7 @@ import {
   openFrom,
 } from '../../shared/ingestion.ts'
 import { files } from '../../shared/paths.ts'
+import { scanSource } from '../../shared/scan.ts'
 import type { Row } from '../../shared/sqlite.ts'
 import { binarySafe, decodeValue, SqliteReader } from '../../shared/sqlite.ts'
 import {
@@ -90,56 +91,51 @@ function bubble(ingest: Ingestion, value: unknown): void {
     ingest.unknown('unknown', value)
   }
 }
-async function scanDatabase(
+async function* scanDatabase(
   path: string,
   options: ScanOptions,
-): Promise<SessionRef[]> {
+): AsyncGenerator<ScanEvent> {
   const db = await SqliteReader.open(path, {
     ...optional('signal', options.signal),
   })
+  function ref(id: string, value: unknown, storage: string): SessionRef {
+    const v = object(value)
+    return {
+      id,
+      provider: 'cursor',
+      ...optional('title', string(v.name)),
+      ...optional('createdAt', timestamp(v.createdAt)),
+      source: { path, format: 'cursor_sqlite', locator: { id, storage } },
+      metadata: {},
+    }
+  }
   try {
-    const composers: { id: string, value: unknown, storage: string }[] = []
+    let found = false
     for await (const row of db.rows('cursorDiskKV')) {
       if (typeof row.key === 'string' && row.key.startsWith('composerData:')) {
-        composers.push({
-          id: row.key.slice(13),
-          value: payload(row),
-          storage: 'modern',
-        })
+        found = true
+        yield { type: 'ref', ref: ref(row.key.slice(13), payload(row), 'modern') }
       }
     }
-    if (!composers.length) {
+    if (!found) {
       for await (const row of db.rows('ItemTable')) {
         if (row.key === 'composer.composerData') {
           for (const value of array(object(payload(row)).allComposers)) {
             const id = string(object(value).composerId)
-            if (id !== undefined)
-              composers.push({ id, value, storage: 'legacy' })
+            if (id !== undefined) {
+              found = true
+              yield { type: 'ref', ref: ref(id, value, 'legacy') }
+            }
           }
         }
       }
     }
-    if (
-      !composers.length
-      && basename(path) === 'store.db'
-      && !db.tables.has('ItemTable')
-    ) {
+    if (!found && basename(path) === 'store.db' && !db.tables.has('ItemTable')) {
       throw new SessionError(
         'UnsupportedSchema',
         'Cursor CLI store.db protobuf is unsupported; use agent-transcripts JSONL',
       )
     }
-    return composers.map(({ id, value, storage }) => {
-      const v = object(value)
-      return {
-        id,
-        provider: 'cursor',
-        ...optional('title', string(v.name)),
-        ...optional('createdAt', timestamp(v.createdAt)),
-        source: { path, format: 'cursor_sqlite', locator: { id, storage } },
-        metadata: {},
-      }
-    })
   }
   finally {
     await db.close()
@@ -335,32 +331,26 @@ export const cursorProvider = {
   parse: cli.parse,
   stream: cli.stream,
   open: openCursor,
-  async scan(options: ScanOptions = {}) {
-    const refs: SessionRef[] = []
-    for await (const path of files(
-      roots(options),
-      p => /\.(?:jsonl|db|vscdb)$/.test(p),
-      options.signal,
-    )) {
+  async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
+    for await (const path of files(roots(options), p => /\.(?:jsonl|db|vscdb)$/.test(p), options, 'cursor')) {
+      if (typeof path !== 'string') {
+        yield path
+        continue
+      }
       if (path.endsWith('.jsonl')) {
-        refs.push(
-          ...(await cli.scan({ ...options, roots: { cursor: [path] } })).map(
-            ref =>
-              ref.id.startsWith('source:')
-                ? {
-                    ...ref,
-                    id: `source:${basename(path)}`,
-                    metadata: { id_origin: 'source_filename' },
-                  }
-                : ref,
-          ),
-        )
+        for await (const event of cli.scan({ ...options, roots: { cursor: [path] } })) {
+          if (event.type === 'ref' && event.ref.id.startsWith('source:')) {
+            yield { type: 'ref', ref: { ...event.ref, id: `source:${basename(path)}`, metadata: { id_origin: 'source_filename' } } }
+          }
+          else {
+            yield event
+          }
+        }
       }
       else {
-        refs.push(...(await scanDatabase(path, options)))
+        yield* scanSource('cursor', { path, format: 'cursor_sqlite' }, options, () => scanDatabase(path, options))
       }
     }
-    return refs
   },
   async read(ref: SessionRef, options?: ReadOptions) {
     return (await openCursor(ref, options)).snapshot()

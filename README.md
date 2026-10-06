@@ -70,7 +70,7 @@ import {
   toolResultsOf,
 } from 'huihua/observe'
 
-const refs = await sessions.scan({ providers: ['codex'] })
+const { refs } = await sessions.scan({ providers: ['codex'] })
 if (refs[0]) {
   const session = await sessions.read(refs[0])
   const conversation = conversationOf(session)
@@ -111,6 +111,32 @@ Keep the full SessionRef: an ID alone can be ambiguous across stores. `diagnosti
 parses and unsupported records.
 Raw `text` preserves JSON numeric spellings outside JavaScript's
 safe integer range; use it when exact native numeric lexemes matter.
+
+## Scan local sources
+
+```ts
+const { refs, failures } = await sessions.scan()
+for (const failure of failures)
+  console.warn(failure.provider, failure.source?.path, failure.message)
+```
+
+Scanning preserves refs when another source or provider fails, including refs found before a database scan fails midway.
+Missing stores produce no refs or failures.
+Invalid requests and caller cancellation still throw.
+A discovered ref does not guarantee a later read will succeed.
+
+```ts
+for await (const event of sessions.scanStream()) {
+  if (event.type === 'ref')
+    console.log(event.ref)
+  else
+    console.warn(event.failure)
+}
+```
+
+scanStream emits discoveries and failures as they become available; scan collects the same events and sorts its refs.
+Both deduplicate by provider and complete source, preserving equal IDs from different stores.
+See the [scanning contract](docs/architecture.md#scanning-and-failure-reports) for failure scope, cancellation and third-party SPI migration.
 
 ## Parse supplied data without discovery
 
@@ -210,7 +236,7 @@ Details and resource limits live in
 ## Providers and custom roots
 
 ```ts
-const refs = await sessions.scan({
+const { refs } = await sessions.scan({
   providers: ['codex'],
   roots: { codex: ['/backups/codex/sessions'] },
 })
@@ -316,12 +342,12 @@ import { createSessionRegistry, defineProvider } from 'huihua'
 import { codexProvider } from 'huihua/providers/codex'
 
 const registry = createSessionRegistry([codexProvider])
-const refs = await registry.scan()
+const { refs } = await registry.scan()
 const provider = registry.require('codex')
 ```
 
-Third-party adapters use `defineProvider({ id, detect, scan, read })`, optionally implementing
-`open` for file streaming, `parse` for acquired snapshots and `stream` for acquired frames.
+Third-party adapters use `defineProvider({ id, detect, scan, read })`; scan returns `AsyncIterable<ScanEvent>` with ref and failure events.
+Optionally implement `open` for file streaming, `parse` for acquired snapshots and `stream` for acquired frames.
 The registry knows no builtin identities; duplicate registration fails.
 `registry.require(id)` resolves a registered provider handle or throws ProviderNotFound;
 capability support is member presence on that handle, such as `provider.open`.

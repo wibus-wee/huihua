@@ -3,10 +3,14 @@ import type {
   DetectOptions,
   JsonlInput,
   ReadOptions,
+  ScanEvent,
+  ScanFailure,
   ScanOptions,
+  ScanResult,
   SessionInput,
   SessionProvider,
 } from './contracts/provider.ts'
+import { positiveLimit, scanFailure } from './contracts/provider.ts'
 import type { OpenSession, SessionFrame, SessionRef } from './contracts/session.ts'
 /** Consumer-owned provider composition; no builtin identities or parsers belong here. */
 export class SessionRegistry {
@@ -37,27 +41,57 @@ export class SessionRegistry {
     return results
   }
 
-  async scan(options: ScanOptions = {}): Promise<SessionRef[]> {
+  async* scanStream(options: ScanOptions = {}): AsyncGenerator<ScanEvent, void> {
+    options.signal?.throwIfAborted()
+    positiveLimit(options.headerBytes, 65536)
     const selected
       = options.providers === undefined
         ? this.providers()
         : Array.from(new Set(options.providers), id => this.require(id))
+    const seen = new Set<string>()
+    for (const provider of selected) {
+      options.signal?.throwIfAborted()
+      let yielding = false
+      try {
+        for await (const event of provider.scan(options)) {
+          options.signal?.throwIfAborted()
+          if (event.type === 'ref') {
+            const key = JSON.stringify([event.ref.provider, event.ref.source])
+            if (seen.has(key))
+              continue
+            seen.add(key)
+          }
+          yielding = true
+          yield event
+          yielding = false
+        }
+        options.signal?.throwIfAborted()
+      }
+      catch (error) {
+        options.signal?.throwIfAborted()
+        // Consumer throw()/return() and their cleanup errors must not become provider failures.
+        if (yielding)
+          throw error
+        yield { type: 'failure', failure: scanFailure(provider.id, error) }
+      }
+    }
+  }
+
+  async scan(options: ScanOptions = {}): Promise<ScanResult> {
     const refs: SessionRef[] = []
-    for (const provider of selected)
-      refs.push(...(await provider.scan(options)))
+    const failures: ScanFailure[] = []
+    for await (const event of this.scanStream(options)) {
+      if (event.type === 'ref')
+        refs.push(event.ref)
+      else
+        failures.push(event.failure)
+    }
     refs.sort((a, b) =>
       `${a.provider}\0${a.source.path}\0${a.id}`.localeCompare(
         `${b.provider}\0${b.source.path}\0${b.id}`,
         'en',
       ))
-    const seen = new Set<string>()
-    return refs.filter((ref) => {
-      const key = JSON.stringify([ref.provider, ref.source])
-      if (seen.has(key))
-        return false
-      seen.add(key)
-      return true
-    })
+    return { refs, failures }
   }
 
   async read(ref: SessionRef, options?: ReadOptions) {

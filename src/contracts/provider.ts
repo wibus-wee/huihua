@@ -1,3 +1,5 @@
+import type { ErrorCode } from './diagnostic.ts'
+import { SessionError } from './diagnostic.ts'
 import type { OpenSession, Session, SessionFrame, SessionRef } from './session.ts'
 import type { SessionSource } from './source.ts'
 
@@ -10,6 +12,38 @@ export interface DetectOptions {
 export interface ScanOptions extends DetectOptions {
   readonly providers?: readonly string[]
   readonly headerBytes?: number
+}
+export interface ScanFailure {
+  readonly provider: string
+  readonly scope: 'source' | 'provider'
+  readonly source?: { readonly path: string, readonly format?: SessionSource['format'] }
+  readonly code: ErrorCode | 'Unknown'
+  readonly message: string
+  readonly cause?: unknown
+}
+export type ScanEvent
+  = | { readonly type: 'ref', readonly ref: SessionRef }
+    | { readonly type: 'failure', readonly failure: ScanFailure }
+export interface ScanResult {
+  readonly refs: readonly SessionRef[]
+  readonly failures: readonly ScanFailure[]
+}
+/** Internal normalization shared by registry orchestration and source boundaries. */
+export function scanFailure(provider: string, error: unknown, source?: ScanFailure['source']): ScanFailure {
+  return {
+    provider,
+    scope: source === undefined ? 'provider' : 'source',
+    ...(source === undefined ? {} : { source }),
+    code: error instanceof SessionError ? error.code : 'Unknown',
+    message: error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown scan error',
+    cause: error,
+  }
+}
+export function positiveLimit(value: number | undefined, fallback: number): number {
+  const limit = value ?? fallback
+  if (!Number.isSafeInteger(limit) || limit <= 0)
+    throw new RangeError('resource limits must be positive safe integers')
+  return limit
 }
 export interface ReadOptions {
   readonly signal?: AbortSignal
@@ -38,7 +72,7 @@ export interface ProviderDetection {
 export interface SessionProvider {
   readonly id: string
   detect: (options?: DetectOptions) => Promise<ProviderDetection>
-  scan: (options?: ScanOptions) => Promise<SessionRef[]>
+  scan: (options?: ScanOptions) => AsyncIterable<ScanEvent>
   read: (ref: SessionRef, options?: ReadOptions) => Promise<Session>
   open?: (ref: SessionRef, options?: ReadOptions) => Promise<OpenSession>
   /** Optional acquired-data capability. File inputs use the existing read SPI. */

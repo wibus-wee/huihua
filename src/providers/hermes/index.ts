@@ -2,7 +2,7 @@ import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import process from 'node:process'
 
-import type { ScanOptions } from '../../contracts/provider.ts'
+import type { ScanEvent, ScanOptions } from '../../contracts/provider.ts'
 import type { Session } from '../../contracts/session.ts'
 import type { Ingestion } from '../../shared/ingestion.ts'
 import { chatMessageEvents, jsonlProvider } from '../../shared/ingestion.ts'
@@ -76,8 +76,10 @@ const sqlite = sqliteStoreProvider({
 export const hermesProvider = {
   id: 'hermes',
   detect: async (options?: ScanOptions) => sqlite.detect(options),
-  async scan(options: ScanOptions = {}) {
-    return [...await sqlite.scan(options), ...await json.scan(options), ...await jsonl.scan(options)]
+  async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
+    yield* sqlite.scan(options)
+    yield* json.scan(options)
+    yield* jsonl.scan(options)
   },
   async open(ref: Parameters<typeof sqlite.open>[0], options?: Parameters<typeof sqlite.open>[1]) {
     return ref.source.format === 'hermes_sqlite' ? sqlite.open(ref, options) : ref.source.format === 'hermes_json' ? json.open(ref, options) : jsonl.open(ref, options)
