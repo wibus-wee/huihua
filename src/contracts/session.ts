@@ -4,7 +4,7 @@ import type { RawRecord, SessionSource } from './source.ts'
 
 export const SESSION_SCHEMA = 'agent-session/v1' as const
 export type Provider
-  = 'claude' | 'codex' | 'cursor' | 'opencode' | 'pi' | 'oar' | 'acp' | 'kimi' | 'grok' | 'antigravity' | 'morph' | (string & {})
+  = 'claude' | 'codex' | 'cursor' | 'opencode' | 'pi' | 'oar' | 'acp' | 'kimi' | 'grok' | 'antigravity' | 'morph' | 'copilot' | 'hermes' | 'openclaw' | 'qwen' | 'devin' | 'fx' | 'cline' | 'deepseek' | 'droid' | (string & {})
 export interface WorkspaceRef {
   readonly path?: string
   readonly repository?: string
