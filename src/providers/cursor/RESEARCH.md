@@ -14,5 +14,15 @@ Default roots cover macOS/Linux/Windows IDE User directories and CLI projects; e
 
 ## Implementation decisions
 
+Public Cursor docs do not specify role-less CLI turn failure records.
+[Agent Sessions' parser](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/CursorSessionParser.swift)
+and its [focused regression](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessionsTests/CursorSessionParserTests.swift)
+observe `type: "turn_ended"`, `status: "error"` and a nonempty string `error` without a role.
+Huihua maps that shape, including an empty role, to an error event with the native record as details.
+Other turn endings and unknown roles remain Unknown; role/message content keeps its existing mapping.
+[The synthetic reproduction](../../../fixtures/cursor/turn-error.jsonl) follows the upstream regression shape;
+it is compatibility evidence, not a certified Cursor release sample.
+The shared ingestion pipeline retains original JSONL text, complete native records and event associations.
+
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
