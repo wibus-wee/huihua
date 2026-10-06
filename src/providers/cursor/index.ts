@@ -46,8 +46,11 @@ const cli = jsonlProvider({
     const v = object(native)
     const role = string(v.role)
     const message = object(v.message)
+    const error = string(v.error)
     if ((role === 'user' || role === 'assistant') && 'content' in message)
       messageEvents(ingest, role, message.content)
+    else if ((role === undefined || role === '') && v.type === 'turn_ended' && v.status === 'error' && error !== undefined && error !== '')
+      ingest.emit('error', { message: error, details: native })
     else ingest.unknown(string(v.type) ?? 'untyped', native)
   },
 })
