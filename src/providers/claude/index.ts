@@ -47,6 +47,7 @@ const desktopPath = pathMatcher('**/local_*/.claude/projects/**/*.jsonl')
 const insideRoot = pathMatcher('**')
 const claude = jsonlProvider({
   id: 'claude',
+  usageContext: true,
   roots: resolveClaudeRoots,
   accepts(path, candidate) {
     if (!path.endsWith('.jsonl'))
@@ -61,32 +62,39 @@ const claude = jsonlProvider({
   identify({ header, explicitFile }) {
     return explicitFile || header.some(record => typeof object(record).sessionId === 'string') ? {} : false
   },
-  metadata(records) {
+  metadata(records, _path, _context, keys) {
     const facts: Partial<Session> = {}
     let metadata: Record<string, unknown> = {}
+    const wantsWorkspace = keys === undefined || keys.includes('workspace')
+    const wantsCreated = keys === undefined || keys.includes('createdAt')
+    const wantsParent = keys === undefined || keys.includes('parentSessionId')
+    const wantsMetadata = keys === undefined || keys.includes('metadata')
+    const wantsTitle = keys === undefined || keys.includes('title')
     for (const record of records) {
       const v = object(record)
-      const workspace = {
-        ...optional('path', string(v.cwd)),
-        ...optional('branch', string(v.gitBranch)),
-      }
-      if (Object.keys(workspace).length) {
+      const workspace = wantsWorkspace
+        ? {
+            ...optional('path', string(v.cwd)),
+            ...optional('branch', string(v.gitBranch)),
+          }
+        : undefined
+      if (workspace !== undefined && Object.keys(workspace).length) {
         Object.assign(facts, {
           workspace: { ...facts.workspace, ...workspace },
         })
       }
-      if (facts.createdAt === undefined && timestamp(v.timestamp))
+      if (wantsCreated && facts.createdAt === undefined && timestamp(v.timestamp))
         Object.assign(facts, { createdAt: timestamp(v.timestamp) })
       Object.assign(facts, {
         ...optional('id', string(v.sessionId)),
-        ...optional('parentSessionId', string(v.parentSessionId)),
+        ...optional('parentSessionId', wantsParent ? string(v.parentSessionId) : undefined),
       })
-      if (typeof v.sessionId === 'string')
+      if (wantsMetadata && typeof v.sessionId === 'string')
         metadata = { ...metadata, id_origin: 'native' }
-      if (v.type === 'custom-title')
+      if (wantsTitle && v.type === 'custom-title')
         Object.assign(facts, optional('title', string(v.customTitle)))
     }
-    return { ...facts, metadata }
+    return { ...facts, ...optional('metadata', wantsMetadata ? metadata : undefined) }
   },
   parse(ingest, native) {
     const v = object(native)
@@ -95,8 +103,15 @@ const claude = jsonlProvider({
       const m = object(v.message)
       if ('content' in m)
         messageEvents(ingest, type, m.content, string(m.model))
-      if (type === 'assistant' && 'usage' in m)
-        ingest.emit('usage', { usage: m.usage })
+      if (type === 'assistant' && 'usage' in m) {
+        ingest.emit('usage', { usage: m.usage }, undefined, ingest.usageContext
+          ? () => ({ native_usage_context: {
+              ...optional('model', string(m.model)),
+              ...optional('message_id', string(m.id)),
+              ...optional('request_id', string(v.requestId)),
+            } })
+          : undefined)
+      }
     }
     else if (['system', 'summary', 'custom-title'].includes(type)) {
       ingest.emit('system', { sourceType: type, payload: native })

@@ -90,8 +90,11 @@ they already meet the requirement. docs/design.md owns the runtime dependency de
 explains the narrow SQLite reader exception.
 
 pnpm-lock.yaml is the only dependency lockfile.
-The registry is fixed in pnpm-workspace.yaml, which configures this single package without adding
-a monorepo.
+The registry is fixed in pnpm-workspace.yaml.
+Its packages workspace contains the independent
+private Usage CLI, which depends on Huihua through workspace:* and imports only public exports.
+Root builds also build that CLI; check validates its emitted-contract types and consumer architecture.
+docs/architecture.md owns the workspace decision and executable policy checks its boundary.
 All locked sources need registry integrity metadata; git/local sources fail validation.
 Installed dependency licenses and install scripts are checked through pnpm's inventory and package
 manifests; unknown licenses and unreviewed install scripts fail validation.

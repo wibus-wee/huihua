@@ -1,5 +1,23 @@
 # Codex compatibility research
 
+The optional `consumeUsage` delivery reuses the existing parser and adds
+same-record payload.model as `native_usage_context.model`, without delivering
+RawRecord frames.
+Response identity stays in the native token_usage_record
+payload.
+It retains cumulative token_count records for consumer diagnostics;
+it does not derive snapshot deltas or borrow a turn_context model.
+Default
+streams and their complete evidence are unchanged.
+JSON, identity, unknown
+record and tool diagnostics remain active.
+
+`consumeUsageFacts` uses the same mapping and lazy context extraction, with an
+optional caller-owned timestamp predicate before fact construction.
+Filtered token_count rows still undergo source validation; selected cumulative
+payloads remain native observations and are not converted to request deltas.
+Default event metadata and complete native records remain unchanged.
+
 Reviewed 2026-10-05.
 Primary source: openai/codex
 [`80cce09`](https://github.com/openai/codex/tree/80cce09d059780528e59353ab3d87e4c97d1e944/codex-rs).
@@ -22,6 +40,12 @@ No claim of compatibility with every future Codex version.
 Compressed rollouts use the same JSONL semantics after bounded streaming decompression.
 
 ## Implementation decisions
+
+The existing metadata mapper accepts selected patch keys from shared ingestion.
+Session-meta identity extraction always runs, including conflicting later headers;
+workspace/git/time/parent fields are constructed only when selected.
+Discovery and default full reads retain all original fields, and no usage field,
+model, timestamp or branch is inferred by this allocation change.
 
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.

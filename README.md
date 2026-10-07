@@ -110,6 +110,32 @@ Selectors retain order, duplicates and original event objects; they do not merge
 An empty result means no matching normalized events were found, not that the source format lacks the capability.
 The [architecture contract](docs/architecture.md#projections-and-review-boundaries) defines selection and evidence semantics.
 
+## Local usage report
+
+The separate `@huihua/usage` workspace CLI reads discovered stores through the public streaming API:
+
+```sh
+pnpm build
+pnpm --filter @huihua/usage start -- --provider claude --since 2026-01-01 --until 2026-01-31 --timezone America/Los_Angeles --json
+```
+
+Its provider matrix, native field evidence, partial/unavailable status and reporting limits are documented in [the usage report guide](docs/usage-report.md).
+It reports daily input/output/cache token totals and model breakdowns; JSON also includes per-session totals.
+Missing fields are null, ambiguous totals are partial, and unsafe cumulative counters are excluded with diagnostics.
+It does not estimate bills or remove native records.
+File-backed JSONL handles expose an optional `open.select({ events: ['usage'], records: true, metadataKeys: ['parentSessionId'] })` capability.
+This uses the same provider parser while avoiding unwanted event delivery and message content conversion; diagnostics, original sequence numbers and usage semantics survive.
+For Claude and Codex, the CLI prefers optional `open.consumeUsage(consumer)`: the provider supplies same-record model/identity context with Usage events, without constructing or delivering complete RawRecord evidence.
+It reuses the existing provider parser and preserves all diagnostics; native JSON is still decoded and validated.
+For an explicit single-day query (`--since` equals `--until`), Claude/Codex instead use optional `consumeUsageFacts` with the report's timestamp predicate, before allocating usage context and canonical event frames.
+The same native mapping and aggregation produce identical reports; complete evidence APIs retain their full path.
+Batch UTF-8 decoding and multi-file concurrency were measured but remain off by default; see the four-experiment results in the guide.
+Use `--workers 2` or `--workers 4` to parse multiple JSONL sessions on separate CPU threads, at increased memory cost; the default is serial.
+Workers reuse public provider contracts and the same aggregation rules, including cross-session duplicate diagnostics; single-file and buffered sources remain serial.
+Other sources use optional `consume(selection, consumer)`, then `select` or the full stream, with records for attribution.
+Callbacks may return a Promise for backpressure; consumption completes after validated EOF and propagates callback errors and cancellation.
+Explicit provider filters load only those public provider modules through `huihua/registry`; an unfiltered run uses the complete builtin registry.
+
 Keep the full SessionRef: an ID alone can be ambiguous across stores. `diagnostics` explains partial
 parses and unsupported records.
 Raw `text` preserves JSON numeric spellings outside JavaScript's
@@ -227,6 +253,10 @@ const snapshot = await opened.snapshot() // A fresh read, collected into a compl
 ```
 
 `opened.events()` and `opened.records()` filter the same stream.
+File-backed JSONL handles also support optional `opened.consume(selection, consumer)` with the same canonical frames and parser.
+It completes after validated EOF; synchronous callbacks avoid per-frame iterator steps, and returned Promises provide backpressure.
+Callback errors and AbortSignal cancellation stop delivery and close the source.
+Handles without this optional capability retain the stream/select APIs.
 JSONL reads are incremental and
 close on early return or AbortSignal cancellation. `read`/`snapshot` collects the full result;
 SQL ordering can buffer a selected session's rows.
@@ -348,8 +378,8 @@ These are fixture-backed boundaries, not a promise to decode every private futur
 ## Compose your own registry
 
 ```ts
-import { createSessionRegistry, defineProvider } from 'huihua'
 import { codexProvider } from 'huihua/providers/codex'
+import { createSessionRegistry } from 'huihua/registry'
 
 const registry = createSessionRegistry([codexProvider])
 const { refs } = await registry.scan()
@@ -363,7 +393,8 @@ The registry knows no builtin identities; duplicate registration fails.
 capability support is member presence on that handle, such as `provider.open`.
 The public
 [SPI](src/contracts/provider.ts) is thin.
-Supported exports are the root, `/observe`,
+The independent `/registry` entrypoint exposes the same registry as the root without loading builtin providers.
+Supported exports are the root, `/registry`, `/observe`,
 `/testing` and `/providers/{claude,codex,cursor,opencode,pi,oar,acp,kimi,grok,antigravity,morph,copilot,hermes,openclaw,qwen,devin,fx,cline,deepseek,droid}`.
 Internal paths are not package exports.
 

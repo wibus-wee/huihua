@@ -3,7 +3,6 @@ import { createReadStream } from 'node:fs'
 
 import { SessionError } from '../contracts/diagnostic.ts'
 import type { ReadOptions } from '../contracts/provider.ts'
-import { zstdChunks } from './binary.ts'
 import { ioError, positiveLimit } from './paths.ts'
 import { parseNative } from './value.ts'
 
@@ -21,19 +20,21 @@ async function* chunks(
   compressed: boolean,
   signal?: AbortSignal,
 ): AsyncGenerator<Buffer> {
+  const decode = compressed ? (await import('./binary.ts')).zstdChunks : undefined
+  signal?.throwIfAborted()
   const input = createReadStream(path, {
     highWaterMark: 262144,
     ...(signal === undefined ? {} : { signal }),
   })
   try {
-    if (!compressed) {
+    if (decode === undefined) {
       for await (const chunk of input) {
         signal?.throwIfAborted()
         yield chunk as Buffer
       }
       return
     }
-    yield* zstdChunks(input as AsyncIterable<Buffer>)
+    yield* decode(input as AsyncIterable<Buffer>)
   }
   catch (error) {
     if (signal?.aborted)
@@ -44,7 +45,7 @@ async function* chunks(
     input.destroy()
   }
 }
-function line(bytes: Buffer, position: number): NativeLine | undefined {
+function line(bytes: Buffer, position: number, decoded?: string): NativeLine | undefined {
   let first = 0
   while (first < bytes.length) {
     const byte = bytes[first]!
@@ -56,7 +57,7 @@ function line(bytes: Buffer, position: number): NativeLine | undefined {
     return
   let text: string
   try {
-    text = decoder.decode(bytes)
+    text = decoded ?? decoder.decode(bytes)
   }
   catch {
     return {
@@ -73,12 +74,12 @@ function line(bytes: Buffer, position: number): NativeLine | undefined {
     return { position, native: text, text, malformed: true }
   }
 }
-export async function* jsonLines(
+export function jsonLines(
   path: string,
   compressed: boolean,
   options: ReadOptions = {},
 ): AsyncGenerator<NativeLine> {
-  yield* jsonLinesFrom(chunks(path, compressed, options.signal), options)
+  return jsonLinesFrom(chunks(path, compressed, options.signal), options)
 }
 /** Shared bounded framing for files and caller-owned byte streams. */
 export async function* jsonLinesFrom(
@@ -94,8 +95,23 @@ export async function* jsonLinesFrom(
     options.signal?.throwIfAborted()
     const chunk = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
     let start = 0
+    let batch: string | undefined
+    let textOffset = 0
+    let batchEnd = 0
+    let attempted = false
     while (start < chunk.length) {
       options.signal?.throwIfAborted()
+      // Only already acquired complete lines; a bad batch falls back to exact per-row byte evidence.
+      if (options.batchDecode === true && !attempted && pending.length === 0 && chunk.length <= 262144) {
+        attempted = true
+        batchEnd = chunk.lastIndexOf(10) + 1
+        if (batchEnd > start) {
+          try {
+            batch = decoder.decode(chunk.subarray(start, batchEnd))
+          }
+          catch { /* The original line decoder owns malformed byte evidence. */ }
+        }
+      }
       const newline = chunk.indexOf(10, start)
       const end = newline < 0 ? chunk.length : newline + 1
       const part = chunk.subarray(start, end)
@@ -112,7 +128,17 @@ export async function* jsonLinesFrom(
         pending.push(Buffer.from(part))
       if (newline >= 0) {
         const recordBytes = completeInChunk ? part : Buffer.concat(pending, size)
-        const record = line(recordBytes, position++)
+        let decoded: string | undefined
+        if (batch !== undefined && end <= batchEnd) {
+          const firstDecodedLine = textOffset === 0
+          const textEnd = batch.indexOf('\n', textOffset) + 1
+          decoded = batch.slice(textOffset, textEnd)
+          textOffset = textEnd
+          // TextDecoder drops a leading BOM on each physical row in the existing reader.
+          if (!firstDecodedLine && decoded.charCodeAt(0) === 0xFEFF)
+            decoded = decoded.slice(1)
+        }
+        const record = line(recordBytes, position++, decoded)
         if (record)
           yield record
         pending = []

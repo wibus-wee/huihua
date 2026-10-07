@@ -1,0 +1,21 @@
+{
+  "name": "@huihua/usage",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "huihua-usage": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "start": "node dist/cli.js",
+    "bench": "node --experimental-strip-types tools/bench.ts",
+    "check": "node dist/cli.js --help"
+  },
+  "dependencies": {
+    "huihua": "workspace:*"
+  }
+}

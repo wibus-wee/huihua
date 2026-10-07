@@ -18,10 +18,15 @@ import type {
   SessionProvider,
 } from '../contracts/provider.ts'
 import type {
+  FrameConsumer,
+  FrameSelection,
   OpenSession,
   Session,
   SessionFrame,
   SessionRef,
+  UsageFactConsumer,
+  UsageFactItem,
+  UsageFactOptions,
 } from '../contracts/session.ts'
 import { SESSION_SCHEMA } from '../contracts/session.ts'
 import type { RawRecord } from '../contracts/source.ts'
@@ -35,12 +40,26 @@ import { array, object, optional, string, timestamp } from './value.ts'
 export class Ingestion {
   #record = 0
   #event = 0
-  #current: RawRecord | undefined
+  #current: Pick<RawRecord, 'sequence' | 'provider' | 'native' | 'source'> | undefined
   #frames: SessionFrame[] = []
+  #usageFacts: UsageFactItem[] | undefined
+  readonly #factOptions: UsageFactOptions | undefined
   readonly #pending = new Map<string, string>()
   readonly #provider: string
-  constructor(provider: string) {
+  readonly #selectedEvents: ReadonlySet<EventType> | undefined
+  readonly #records: boolean
+  readonly #metadata: boolean
+  readonly #metadataKeys: FrameSelection['metadataKeys']
+  readonly usageContext: boolean
+  constructor(provider: string, selection: FrameSelection = {}, usageContext = false, factOptions?: UsageFactOptions) {
     this.#provider = provider
+    this.#selectedEvents = selection.events === undefined ? undefined : new Set(selection.events)
+    this.#records = selection.records !== false
+    this.#metadata = selection.metadata !== false
+    this.#metadataKeys = selection.metadataKeys
+    this.usageContext = usageContext
+    this.#factOptions = factOptions
+    this.#usageFacts = factOptions === undefined ? undefined : []
   }
 
   record(
@@ -48,18 +67,23 @@ export class Ingestion {
     source: RawRecord['source'],
     evidence: { text?: string, bytes?: readonly number[] } = {},
   ): RawRecord {
-    const raw = object(native)
-    this.#current = {
+    const record: RawRecord = {
       sequence: this.#record++,
       provider: this.#provider,
-      ...optional('type', string(raw.type)),
       native,
       source,
-      ...optional('text', evidence.text),
-      ...optional('bytes', evidence.bytes),
+      ...(this.#records
+        ? {
+            ...optional('type', string(object(native).type)),
+            ...optional('text', evidence.text),
+            ...optional('bytes', evidence.bytes),
+          }
+        : {}),
     }
-    this.#frames.push({ type: 'record', record: this.#current })
-    return this.#current
+    this.#current = record
+    if (this.#records)
+      this.#frames.push({ type: 'record', record })
+    return record
   }
 
   /** Repeated graph edges refer to existing evidence instead of copying its native row. */
@@ -73,12 +97,32 @@ export class Ingestion {
     type: K,
     data: EventDataMap[K],
     envelope: unknown = this.#current?.native,
-    evidence: Readonly<Record<string, unknown>> = {},
+    evidence: Readonly<Record<string, unknown>> | (() => Readonly<Record<string, unknown>>) = {},
   ): void {
-    const raw = object(envelope)
     const record = this.#current
     if (!record)
       throw new Error('event without native record')
+    const sequence = this.#event++
+    const selected = this.#selectedEvents === undefined || this.#selectedEvents.has(type)
+    if (!selected && type !== 'tool_call' && type !== 'tool_result')
+      return
+    const raw = object(envelope)
+    const time = type === 'usage' && this.#usageFacts !== undefined ? timestamp(raw.timestamp) : undefined
+    if (type === 'usage' && this.#factOptions?.acceptTimestamp && !this.#factOptions.acceptTimestamp(time))
+      return
+    const details = typeof evidence === 'function' ? evidence() : evidence
+    if (type === 'tool_call' || type === 'tool_result') {
+      const tool = data as EventDataMap['tool_call'] | EventDataMap['tool_result']
+      if (tool.callId !== undefined) {
+        const key = details.tool_scope === undefined ? tool.callId : JSON.stringify([details.tool_scope, tool.callId])
+        if (type === 'tool_call')
+          this.#pending.set(key, tool.callId)
+        else
+          this.#pending.delete(key)
+      }
+    }
+    if (!selected)
+      return
     const metadata: Record<string, unknown> = {}
     for (const key of [
       'type',
@@ -94,23 +138,38 @@ export class Ingestion {
     }
     if (record.source.position !== undefined)
       metadata.native_position = record.source.position
+    if (type === 'usage' && this.#usageFacts !== undefined) {
+      Object.assign(metadata, details)
+      this.#usageFacts.push({
+        type: 'usage',
+        record: record.sequence,
+        ...optional('id', string(raw.id) ?? string(raw.uuid)),
+        ...optional('timestamp', time),
+        providerMetadata: metadata,
+        data: data as EventDataMap['usage'],
+      })
+      return
+    }
     const event = {
-      sequence: this.#event++,
+      sequence,
       record: record.sequence,
       ...optional('id', string(raw.id) ?? string(raw.uuid)),
       ...optional('timestamp', timestamp(raw.timestamp)),
-      providerMetadata: { ...metadata, ...evidence },
+      providerMetadata: { ...metadata, ...details },
       type,
       data,
     } as SessionEvent
     this.#frames.push({ type: 'event', event })
-    if ((event.type === 'tool_call' || event.type === 'tool_result') && event.data.callId !== undefined) {
-      const key = evidence.tool_scope === undefined ? event.data.callId : JSON.stringify([evidence.tool_scope, event.data.callId])
-      if (event.type === 'tool_call')
-        this.#pending.set(key, event.data.callId)
-      else
-        this.#pending.delete(key)
-    }
+  }
+
+  /** Message content can be omitted before conversion; tools and unknown diagnostics still use emit. */
+  skipMessage(type: 'user_message' | 'assistant_message'): boolean {
+    if (this.#selectedEvents === undefined || this.#selectedEvents.has(type))
+      return false
+    if (!this.#current)
+      throw new Error('event without native record')
+    this.#event++
+    return true
   }
 
   body(body: EventBody, envelope?: unknown): void {
@@ -129,20 +188,42 @@ export class Ingestion {
   }
 
   diagnostic(code: ErrorCode, message: string, position?: number): void {
-    this.#frames.push({
+    const frame: Extract<SessionFrame, { type: 'diagnostic' }> = {
       type: 'diagnostic',
       diagnostic: { code, message, ...optional('position', position) },
-    })
+    }
+    if (this.#usageFacts !== undefined)
+      this.#usageFacts.push(frame)
+    else
+      this.#frames.push(frame)
   }
 
   patch(patch: Extract<SessionFrame, { type: 'metadata' }>['patch']): void {
-    this.#frames.push({ type: 'metadata', patch })
+    if (!this.#metadata)
+      return
+    if (this.#metadataKeys === undefined) {
+      this.#frames.push({ type: 'metadata', patch })
+      return
+    }
+    let selected: Record<string, unknown> | undefined
+    for (const key of this.#metadataKeys) {
+      if (Object.hasOwn(patch, key))
+        (selected ??= {})[key] = patch[key]
+    }
+    if (selected !== undefined)
+      (this.#usageFacts ?? this.#frames).push({ type: 'metadata', patch: selected })
   }
 
   drain(): SessionFrame[] {
     const frames = this.#frames
     this.#frames = []
     return frames
+  }
+
+  drainUsage(): UsageFactItem[] {
+    const facts = this.#usageFacts ?? []
+    this.#usageFacts = []
+    return facts
   }
 
   eventCount(): number {
@@ -243,13 +324,16 @@ export function messageEvents(
       }, envelope, evidence)
     }
     else if (role === 'user') {
-      ingest.emit('user_message', { content: contentBlocks(item) }, envelope, evidence)
+      if (!ingest.skipMessage('user_message'))
+        ingest.emit('user_message', { content: contentBlocks(item) }, envelope, evidence)
     }
     else if (role === 'assistant') {
-      ingest.emit('assistant_message', {
-        content: contentBlocks(item),
-        ...optional('model', model),
-      }, envelope, evidence)
+      if (!ingest.skipMessage('assistant_message')) {
+        ingest.emit('assistant_message', {
+          content: contentBlocks(item),
+          ...optional('model', model),
+        }, envelope, evidence)
+      }
     }
     else {
       ingest.unknown('message', { role, content: item }, undefined, envelope, evidence)
@@ -296,11 +380,19 @@ export function openFrom(
   ref: SessionRef,
   stream: () => AsyncIterable<SessionFrame>,
   readMode: OpenSession['readMode'],
+  select?: OpenSession['select'],
+  consume?: OpenSession['consume'],
+  consumeUsage?: OpenSession['consumeUsage'],
+  consumeUsageFacts?: OpenSession['consumeUsageFacts'],
 ): OpenSession {
   return {
     ref,
     readMode,
     stream,
+    ...(select === undefined ? {} : { select }),
+    ...(consume === undefined ? {} : { consume }),
+    ...(consumeUsage === undefined ? {} : { consumeUsage }),
+    ...(consumeUsageFacts === undefined ? {} : { consumeUsageFacts }),
     async* events() {
       for await (const frame of stream()) {
         if (frame.type === 'event')
@@ -357,8 +449,10 @@ interface JsonlCandidate {
 }
 export interface JsonlAdapter {
   id: string
+  /** Provider mapping supplies all same-record facts needed by an evidence-free usage consumer. */
+  usageContext?: true
   roots: (options: ScanOptions) => readonly string[] | Promise<readonly string[]>
-  metadata: (records: readonly unknown[], path: string, context: { readonly fileBacked: boolean }) => Partial<Session>
+  metadata: (records: readonly unknown[], path: string, context: { readonly fileBacked: boolean }, keys?: FrameSelection['metadataKeys']) => Partial<Session>
   parse: (ingest: Ingestion, native: unknown) => void
   parser?: () => { parse: JsonlAdapter['parse'], finish?: (ingest: Ingestion) => void }
   metadataFiles?: (path: string) => readonly string[]
@@ -391,14 +485,29 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         `unsupported ${adapter.id} source format ${ref.source.format}`,
       )
     }
-    return openFrom(ref, () => ingestLines(ref, jsonLines(
+    const frames = (selection?: FrameSelection) => ingestLines(ref, jsonLines(
       ref.source.path,
       ref.source.format === 'jsonl_zstd',
       options,
-    ), options, true), 'incremental')
+    ), options, true, selection)
+    const consume = async (selection: FrameSelection, consumer: FrameConsumer, usageContext = false) => {
+      if (typeof consumer !== 'function')
+        throw new TypeError('frame consumer must be a function')
+      // Callback mode delivers inside ingestLines and never yields: next() reaches validated EOF.
+      await ingestLines(ref, jsonLines(ref.source.path, ref.source.format === 'jsonl_zstd', options), options, true, selection, consumer, usageContext).next()
+    }
+    return openFrom(ref, frames, 'incremental', frames, consume, adapter.usageContext === true
+      ? async consumer => consume({ events: ['usage'], records: false, metadataKeys: ['parentSessionId'] }, consumer, true)
+      : undefined, adapter.usageContext === true
+      ? async (consumer, factOptions = {}) => {
+        if (typeof consumer !== 'function')
+          throw new TypeError('usage consumer must be a function')
+        await ingestLines(ref, jsonLines(ref.source.path, ref.source.format === 'jsonl_zstd', options), options, true, { events: ['usage'], records: false, metadataKeys: ['parentSessionId'] }, undefined, true, { consumer, options: factOptions }).next()
+      }
+      : undefined)
   }
-  async function* ingestLines(ref: SessionRef, lines: AsyncIterable<NativeLine>, options: ReadOptions = {}, companions = false): AsyncGenerator<SessionFrame> {
-    const ingest = new Ingestion(adapter.id)
+  async function* ingestLines(ref: SessionRef, lines: AsyncIterable<NativeLine>, options: ReadOptions = {}, companions = false, selection?: FrameSelection, consumer?: FrameConsumer, usageContext = false, facts?: { consumer: UsageFactConsumer, options: UsageFactOptions }): AsyncGenerator<SessionFrame> {
+    const ingest = new Ingestion(adapter.id, selection, usageContext, facts?.options)
     const parser = adapter.parser?.() ?? { parse: adapter.parse }
     async function* sources(): AsyncGenerator<Omit<NativeLine, 'position'> & { path: string, position?: number }> {
       if (companions) {
@@ -417,12 +526,15 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
       : ref.id
     let createdKnown = ref.createdAt !== undefined
     let workspace = ref.workspace
+    const metadataKeys = selection?.metadata === false ? [] : selection?.metadataKeys
+    const wantsUpdatedAt = metadataKeys === undefined || metadataKeys.includes('updatedAt')
+    const wantsMetadata = metadataKeys === undefined || metadataKeys.includes('metadata')
     for await (const line of companions && adapter.metadataFiles ? sources() : lines) {
       const linePath = 'path' in line ? line.path : ref.source.path
       ingest.record(
         line.native,
         { path: linePath, ...optional('position', 'position' in line ? line.position : undefined) },
-        { ...optional('text', line.text), ...optional('bytes', line.bytes) },
+        line,
       )
       if (line.malformed) {
         ingest.unknown(
@@ -432,7 +544,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         )
       }
       else {
-        let facts = adapter.metadata([line.native], ref.source.path, { fileBacked: companions })
+        let facts = adapter.metadata([line.native], ref.source.path, { fileBacked: companions }, metadataKeys)
         if (
           facts.id !== undefined
           && selectedId !== undefined
@@ -466,26 +578,61 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
             line.native,
           )
         }
-        const time = adapter.time ? adapter.time(line.native) : timestamp(object(line.native).timestamp)
+        const time = wantsUpdatedAt || wantsMetadata ? adapter.time ? adapter.time(line.native) : timestamp(object(line.native).timestamp) : undefined
         if (time) {
           ingest.patch({
-            updatedAt: time,
-            metadata: { updated_at_origin: 'last_recorded_event' },
+            ...optional('updatedAt', wantsUpdatedAt ? time : undefined),
+            ...optional('metadata', wantsMetadata ? { updated_at_origin: 'last_recorded_event' } : undefined),
           })
         }
       }
-      for (const frame of ingest.drain()) {
-        options.signal?.throwIfAborted()
-        yield frame
-        // A consumer can abort while paused at yield; do not request another input chunk.
-        options.signal?.throwIfAborted()
+      if (facts !== undefined) {
+        for (const fact of ingest.drainUsage()) {
+          options.signal?.throwIfAborted()
+          const pending = facts.consumer(fact)
+          if (pending !== undefined)
+            await pending
+          options.signal?.throwIfAborted()
+        }
+      }
+      else {
+        for (const frame of ingest.drain()) {
+          options.signal?.throwIfAborted()
+          if (consumer === undefined) {
+            yield frame
+          }
+          else {
+            const pending = consumer(frame)
+            if (pending !== undefined)
+              await pending
+          }
+          // A consumer can abort while paused at yield; do not request another input chunk.
+          options.signal?.throwIfAborted()
+        }
       }
     }
     options.signal?.throwIfAborted()
     parser.finish?.(ingest)
-    for (const frame of ingest.finish()) {
+    const tail = ingest.finish()
+    if (facts !== undefined) {
+      for (const fact of ingest.drainUsage()) {
+        options.signal?.throwIfAborted()
+        const pending = facts.consumer(fact)
+        if (pending !== undefined)
+          await pending
+        options.signal?.throwIfAborted()
+      }
+    }
+    for (const frame of tail) {
       options.signal?.throwIfAborted()
-      yield frame
+      if (consumer === undefined) {
+        yield frame
+      }
+      else {
+        const pending = consumer(frame)
+        if (pending !== undefined)
+          await pending
+      }
       options.signal?.throwIfAborted()
     }
     options.signal?.throwIfAborted()

@@ -48,6 +48,102 @@ async function sourceFiles(root = 'src'): Promise<string[]> {
   return output
 }
 export async function policy(): Promise<void> {
+  const workspacePackages = parseAllDocuments(await readFile('pnpm-workspace.yaml', 'utf8'))[0]!.toJS() as { packages: string[] }
+  assert.deepEqual(workspacePackages.packages, ['packages/*'], 'the standalone usage CLI is the only workspace package')
+  const usagePackage = JSON.parse(await readFile('packages/usage/package.json', 'utf8')) as {
+    name: string
+    dependencies: Record<string, string>
+    scripts: Record<string, string>
+    bin: Record<string, string>
+  }
+  assert.equal(usagePackage.name, '@huihua/usage')
+  assert.deepEqual(usagePackage.dependencies, { huihua: 'workspace:*' }, 'usage CLI must consume only Huihua public package API')
+  assert.deepEqual(usagePackage.bin, { 'huihua-usage': './dist/cli.js' })
+  assert.equal(usagePackage.scripts.build, 'tsdown')
+  assert.equal(usagePackage.scripts.start, 'node dist/cli.js')
+  assert.equal(usagePackage.scripts.check, 'node dist/cli.js --help')
+  const usageBuildSource = await readFile('packages/usage/tsdown.config.ts', 'utf8')
+  assert.match(usageBuildSource, /onlyImport: \['huihua', \/\^huihua\\\//, 'the CLI must externalize Huihua public contracts and providers')
+  const builtCli = (await Promise.all((await readdir('packages/usage/dist')).filter(path => path.endsWith('.js')).map(async path => readFile(`packages/usage/dist/${path}`, 'utf8')))).join('\n')
+  assert.match(builtCli, /from "huihua\/registry"/)
+  assert.doesNotMatch(builtCli, /class Ingestion|function jsonLinesFrom|function jsonlProvider/, 'provider readers must not be bundled into the consumer')
+  assert.equal(usagePackage.scripts.bench, 'node --experimental-strip-types tools/bench.ts')
+  const usageBenchmarkSource = await readFile('packages/usage/tools/bench.ts', 'utf8')
+  assert.match(usageBenchmarkSource, /from 'huihua'/)
+  assert.doesNotMatch(usageBenchmarkSource, /from ['"].*src\/(?:providers|shared|registry)/, 'bench workers must read sessions through public contracts')
+  const usageCliSource = await readFile('packages/usage/src/cli.ts', 'utf8')
+  const usageReportSource = await readFile('packages/usage/src/report.ts', 'utf8')
+  assert.match(usageCliSource, /from 'huihua'/)
+  assert.match(usageCliSource, /from 'huihua\/registry'/, 'selected-provider startup must use the public independent registry')
+  const packageExports = (JSON.parse(await readFile('package.json', 'utf8')) as { exports: Record<string, unknown> }).exports
+  assert.deepEqual(packageExports['./registry'], { types: './dist/registry.d.ts', import: './dist/registry.js' })
+  assert.match(await readFile('tsdown.config.ts', 'utf8'), /'registry': 'src\/registry\.ts'/, 'the independent entry must build the existing registry, not a parallel implementation')
+  const providerPaths = Object.keys(packageExports).filter(path => path.startsWith('./providers/')).map(path => `huihua/${path.slice(2)}`).sort()
+  const cliProviderPaths = Array.from(usageCliSource.matchAll(/import\('(huihua\/providers\/[^']+)'\)/g), match => match[1]!).sort()
+  assert.deepEqual(cliProviderPaths, providerPaths, 'CLI loader inventory must match public provider exports')
+  assert.match(usageCliSource, /builder\.end\(ref\)/, 'completed sources must release native records before reading the next session')
+  assert.match(usageCliSource, /metadataKeys: \['parentSessionId'\]/, 'usage selection must retain late parent lineage')
+  assert.match(usageCliSource, /await open\.consume\(selection, frame => builder\.add\(ref, frame\)\)/, 'callback consumption must use the public frame consumer')
+  assert.match(usageCliSource, /await open\.consumeUsage\(frame => builder\.add\(ref, frame\)\)/, 'evidence-free usage must use the optional public capability')
+  assert.match(usageCliSource, /await open\.consumeUsageFacts\(item => builder\.addFact\(ref, item\)/, 'direct facts must use the public provider capability and the same report builder')
+  assert.match(usageCliSource, /Promise\.allSettled/, 'concurrent reads must await all started siblings before failing')
+  assert.match(usageCliSource, /open\.readMode === 'buffered'/, 'buffered providers must not enter the incremental read pool')
+  assert.match(usageCliSource, /args\.since !== undefined && args\.since === args\.until/, 'automatic date pushdown is restricted to the measured single-day query')
+  assert.match(usageCliSource, /execution\.concurrency \?\? 1/, 'unproven concurrency must remain opt-in')
+  assert.match(usageCliSource, /batchDecode: execution\.batchDecode === true/, 'unproven batch decoding must remain opt-in')
+  assert.match(usageCliSource, /execution\.workers \?\? args\.workers/, 'private experiments must preserve the explicit user worker option')
+  const usageOptionsSource = await readFile('packages/usage/src/options.ts', 'utf8')
+  assert.match(usageOptionsSource, /workers: 1/, 'CPU worker memory costs require serial defaults')
+  assert.match(usageOptionsSource, /\['1', '2', '4'\]\.includes\(value\)/, 'worker counts must stay bounded')
+  assert.match(usageCliSource, /new Worker\(new URL\('\.\/worker\.js', import\.meta\.url\)/, 'worker entry must be emitted by the same consumer build')
+  assert.match(usageCliSource, /sibling\.postMessage\('abort'\)/, 'worker failure must cancel siblings')
+  assert.match(usageCliSource, /if \(failures\.length !== 0\)/, 'usage must reject incomplete scan coverage before printing totals')
+  assert.match(usageCliSource, /worker\.terminate\(\)/, 'all worker lifetimes must finish before returning')
+  assert.match(usageBuildSource, /worker: 'src\/worker\.ts'/)
+  const usageWorkerSource = await readFile('packages/usage/src/worker.ts', 'utf8')
+  assert.match(usageWorkerSource, /from 'huihua'/)
+  assert.doesNotMatch(usageWorkerSource, /src\/providers|src\/shared|JSON\.parse|readFile|createReadStream/)
+  assert.match(usageWorkerSource, /parentPort\.postMessage\(builder\.partition\(\)\)/, 'workers must transport compact accumulator state, not records/events')
+  assert.match(usageReportSource, /schema: 'usage-partition\/v1'/)
+  assert.match(usageReportSource, /partition\.identities/, 'cross-worker identities must reach the original report builder')
+  assert.match(usageReportSource, /event\.providerMetadata\.native_usage_context/, 'recordless usage must use provider-owned same-record facts')
+  assert.match(usageReportSource, /from 'huihua'/)
+  assert.doesNotMatch(`${usageCliSource}\n${usageReportSource}`, /src\/providers|src\/shared|src\/registry/)
+  assert.match(usageReportSource, /schema: 'huihua-usage\/v2'/, 'the CLI owns a versioned daily/model report, independent of agent-session/v1')
+  assert.match(usageReportSource, /readonly daily:/)
+  assert.match(usageReportSource, /readonly modelBreakdowns:/)
+  assert.doesNotMatch(usageReportSource, /JSON\.parse|readFile|createReadStream|fetch\s*\(/, 'report projection must consume public frames, not decode stores or fetch pricing')
+  const sessionContract = ts.createSourceFile('session.ts', await readFile('src/contracts/session.ts', 'utf8'), ts.ScriptTarget.Latest, true)
+  const opened = sessionContract.statements.find(node => ts.isInterfaceDeclaration(node) && node.name.text === 'OpenSession')
+  assert.ok(opened && ts.isInterfaceDeclaration(opened))
+  const selective = opened.members.find(node => ts.isPropertySignature(node) && node.name.getText(sessionContract) === 'select')
+  assert.ok(selective && ts.isPropertySignature(selective) && selective.questionToken, 'optimized frame selection must remain an optional public capability for third-party adapters')
+  const consume = opened.members.find(node => ts.isPropertySignature(node) && node.name.getText(sessionContract) === 'consume')
+  assert.ok(consume && ts.isPropertySignature(consume) && consume.questionToken, 'callback consumption must remain optional for third-party providers')
+  const consumeUsage = opened.members.find(node => ts.isPropertySignature(node) && node.name.getText(sessionContract) === 'consumeUsage')
+  assert.ok(consumeUsage && ts.isPropertySignature(consumeUsage) && consumeUsage.questionToken, 'usage delivery must remain an optional provider capability')
+  const consumeUsageFacts = opened.members.find(node => ts.isPropertySignature(node) && node.name.getText(sessionContract) === 'consumeUsageFacts')
+  assert.ok(consumeUsageFacts && ts.isPropertySignature(consumeUsageFacts) && consumeUsageFacts.questionToken, 'direct facts must remain optional for existing adapters')
+  const ingestion = await readFile('src/shared/ingestion.ts', 'utf8')
+  assert.match(ingestion, /adapter\.usageContext === true/, 'only format owners may advertise sufficient native usage context')
+  assert.match(ingestion, /Pick<RawRecord, 'sequence' \| 'provider' \| 'native' \| 'source'>/, 'the internal cursor must not retain native text/byte evidence when records are omitted')
+  assert.match(ingestion, /this\.#factOptions\?\.acceptTimestamp/, 'date pushdown must belong to synchronous consumer policy inside the existing mapper')
+  assert.match(ingestion, /adapter\.metadata\(\[line\.native\], ref\.source\.path, \{ fileBacked: companions \}, metadataKeys\)/, 'demand must reach the same provider mapper, not another parser')
+  assert.match(ingestion, /wantsUpdatedAt \|\| wantsMetadata/, 'unselected update-time metadata must not be constructed')
+  const jsonl = await readFile('src/shared/jsonl.ts', 'utf8')
+  assert.match(jsonl, /chunk\.length <= 262144/, 'batch UTF-8 must remain bounded to the current chunk')
+  assert.match(jsonl, /line\(recordBytes, position\+\+, decoded\)/, 'batched decoding must reuse the native per-record parser/evidence path')
+  for (const path of await sourceFiles('src/providers')) {
+    const source = await readFile(path, 'utf8')
+    if (/usageContext: true/.test(source)) {
+      assert.ok(['/claude/index.ts', '/codex/index.ts'].some(suffix => path.endsWith(suffix)), 'new usage context capabilities need provider-specific evidence and equivalence tests')
+      assert.match(source, /native_usage_context/)
+    }
+  }
+  const selection = sessionContract.statements.find(node => ts.isInterfaceDeclaration(node) && node.name.text === 'FrameSelection')
+  assert.ok(selection && ts.isInterfaceDeclaration(selection))
+  const metadataKeys = selection.members.find(node => ts.isPropertySignature(node) && node.name.getText(sessionContract) === 'metadataKeys')
+  assert.ok(metadataKeys && ts.isPropertySignature(metadataKeys) && metadataKeys.questionToken, 'metadata delivery keys must remain optional')
   const releaseDocuments = parseAllDocuments(await readFile('.github/workflows/release.yml', 'utf8'))
   assert.equal(releaseDocuments.length, 1)
   assert.equal(releaseDocuments[0]!.errors.length, 0)
@@ -83,8 +179,8 @@ export async function policy(): Promise<void> {
   interface Lock {
     lockfileVersion: string
     importers: Record<string, {
-      dependencies?: Record<string, { specifier: string }>
-      devDependencies?: Record<string, { specifier: string }>
+      dependencies?: Record<string, { specifier: string, version?: string }>
+      devDependencies?: Record<string, { specifier: string, version?: string }>
     }>
     packages: Record<string, { resolution: { integrity?: string, tarball?: string } }>
   }
@@ -93,6 +189,7 @@ export async function policy(): Promise<void> {
   if (documents.length === 0)
     throw new Error('missing pnpm lockfile graph')
   let projectGraphFound = false
+  let usageImporterFound = false
   for (const document of documents) {
     if (document.errors.length)
       throw new Error(`invalid pnpm lockfile: ${document.errors[0]!.message}`)
@@ -123,9 +220,18 @@ export async function policy(): Promise<void> {
         }
       }
     }
+    const usageImporter = lock.importers['packages/usage']
+    if (usageImporter?.dependencies?.huihua?.specifier === 'workspace:*'
+      && usageImporter.dependencies.huihua.version === 'link:../..') {
+      if (usageImporterFound)
+        throw new Error('duplicate usage CLI workspace importer')
+      usageImporterFound = true
+    }
   }
   if (!projectGraphFound)
     throw new Error('missing pnpm project graph')
+  if (!usageImporterFound)
+    throw new Error('missing pinned pnpm importer for the usage CLI workspace package')
   const config = parseAllDocuments(await readFile('pnpm-workspace.yaml', 'utf8'))[0]!.toJS() as {
     registry: string
     allowBuilds: Record<string, boolean>
