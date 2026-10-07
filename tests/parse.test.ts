@@ -16,6 +16,70 @@ async function framesOf(source: AsyncIterable<SessionFrame>): Promise<SessionFra
   return frames
 }
 
+void it('batch UTF-8 decoding preserves per-row BOM, numeric lexemes, invalid bytes and reused/split chunks', async () => {
+  const row = '{"type":"future","text":"中文😀\\n","large":9007199254740993}\r\n'
+  for (const invalid of [false, true]) {
+    const data = Buffer.concat([
+      Buffer.from(` \t\r\n\uFEFF${row}\uFEFF${row} \uFEFF${row}`),
+      ...(invalid ? [Buffer.from([0xC0, 0xAF, 10]), Buffer.from([0xED, 0xA0, 0x80, 10])] : []),
+      Buffer.from(`${JSON.stringify({ type: 'system', text: '界'.repeat(90_000) })}\n${row}`),
+      ...(invalid ? [Buffer.from([0xF0, 0x9F, 0x98])] : []),
+    ])
+    const expected = await framesOf(sessions.stream('claude', { jsonl: data, source: 'memory:batch-boundaries' }))
+    for (const size of [1, 17, 65536, 262144, 262145]) {
+      async function* chunks() {
+        const scratch = Buffer.alloc(size)
+        for (let start = 0; start < data.length; start += size) {
+          const count = Math.min(size, data.length - start)
+          data.copy(scratch, 0, start, start + count)
+          yield scratch.subarray(0, count)
+        }
+      }
+      assert.deepEqual(await framesOf(sessions.stream('claude', { jsonl: chunks(), source: 'memory:batch-boundaries' }, { batchDecode: true })), expected)
+    }
+  }
+})
+
+void it('batch decoding consumes exactly one BOM on the first physical row', async () => {
+  const data = Buffer.from('\uFEFF\uFEFF{"type":"future"}\n\uFEFF{"type":"future"}\n')
+  const expected = await framesOf(sessions.stream('claude', { jsonl: data }))
+  assert.deepEqual(await framesOf(sessions.stream('claude', { jsonl: data }, { batchDecode: true })), expected)
+})
+
+void it('batch decoding retains provisional prefixes, byte limits and early producer cleanup', async () => {
+  const first = Buffer.from('{"type":"event_msg","payload":{"type":"user_message","message":"prefix"}}\n')
+  const data = Buffer.concat([first, Buffer.from(`${JSON.stringify({ type: 'future', text: 'x'.repeat(1024) })}\n`)])
+  for (const batchDecode of [false, true]) {
+    let closed = false
+    let requests = 0
+    async function* chunks() {
+      try {
+        requests++
+        yield data
+        requests++
+        throw new Error('must not request another chunk')
+      }
+      finally { closed = true }
+    }
+    const prefix: SessionFrame[] = []
+    await assert.rejects(async () => {
+      for await (const frame of sessions.stream('codex', { jsonl: chunks() }, { batchDecode, maxRecordBytes: 128 }))
+        prefix.push(frame)
+    }, /record 2 exceeds 128 bytes/)
+    assert.ok(prefix.some(frame => frame.type === 'event' && frame.event.type === 'user_message'))
+    assert.equal(closed, true)
+    assert.equal(requests, 1)
+    closed = false
+    for await (const frame of sessions.stream('codex', { jsonl: chunks() }, { batchDecode, maxRecordBytes: 128 })) {
+      assert.equal(frame.type, 'record')
+      if (frame.type === 'record')
+        break
+    }
+    assert.equal(closed, true)
+    assert.equal(requests, 2)
+  }
+})
+
 void it('acquired streaming emits a consumed prefix before EOF', { timeout: 2000 }, async () => {
   let finishInput!: () => void
   const gate = new Promise<void>((resolve) => {
@@ -99,6 +163,35 @@ void it('caller-owned buffers can be reused; invalid UTF-8 remains bytes', async
   assert.equal(session.records.length, 2)
   assert.deepEqual(session.records[0]?.native, { type: 'future' })
   assert.deepEqual(session.records[1]?.bytes, [255, 10])
+})
+
+void it('file and acquired framing retain strict UTF-8, BOM behavior, native evidence and positions', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-framer-evidence-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'encoding.jsonl')
+  const text = '{"type":"future","text":"中文😀","large":9007199254740993}\r\n'
+  const invalid = [
+    [0xC0, 0xAF, 10], // Overlong encoding.
+    [0x80, 10], // Lone continuation.
+    [0xED, 0xA0, 0x80, 10], // UTF-8 surrogate.
+    [0xF4, 0x90, 0x80, 0x80, 10], // Above the Unicode ceiling.
+    [0xF0, 0x9F, 0x98], // Truncated final code point, with no newline.
+  ]
+  const data = Buffer.concat([Buffer.from(` \t\r\n\uFEFF${text}`), ...invalid.map(value => Buffer.from(value))])
+  await writeFile(path, data)
+  async function* bytes() {
+    for (const byte of data) yield Uint8Array.of(byte)
+  }
+  const file = await sessions.parse('claude', { path })
+  const acquired = await sessions.parse('claude', { jsonl: bytes(), source: path })
+  assert.deepEqual(acquired.records, file.records)
+  assert.deepEqual(acquired.events, file.events)
+  assert.deepEqual(acquired.diagnostics, file.diagnostics)
+  assert.equal(file.records[0]?.text, text, 'retain the existing decoder rule that strips only a leading BOM')
+  assert.deepEqual(file.records.map(record => record.source.position), [2, 3, 4, 5, 6, 7])
+  assert.deepEqual(file.records.slice(1).map(record => record.bytes), invalid)
+  assert.ok(file.records[0]?.text?.includes('9007199254740993'))
+  assert.equal(file.diagnostics.filter(diagnostic => diagnostic.message === 'corrupted JSONL record').length, invalid.length)
 })
 
 void it('string encoding retains a surrogate pair at the chunk boundary', async () => {

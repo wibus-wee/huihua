@@ -2,7 +2,13 @@
 
 Use Node 22.18+ and the pnpm version pinned in package.json.
 From a checkout, pnpm install installs the development toolchain.
-pnpm build uses tsdown to emit ESM JavaScript and declarations; tsc only checks types.
+pnpm build uses tsdown to emit the Huihua library's ESM JavaScript and declarations; tsc only checks types.
+The derivative Usage package has its own build command, which builds Huihua first:
+
+```sh
+pnpm --filter @huihua/usage build
+```
+
 Consumers of the tarball receive JavaScript and generated declarations;
 there is no install-time compilation, native addon, Rust, WASM or downloaded binary.
 
@@ -90,8 +96,12 @@ they already meet the requirement. docs/design.md owns the runtime dependency de
 explains the narrow SQLite reader exception.
 
 pnpm-lock.yaml is the only dependency lockfile.
-The registry is fixed in pnpm-workspace.yaml, which configures this single package without adding
-a monorepo.
+The registry is fixed in pnpm-workspace.yaml.
+Its packages workspace contains the derivative
+private Usage CLI, which depends on Huihua through workspace:* and imports only public exports.
+Building the Usage package first builds its Huihua dependency; root builds and releases remain scoped to the library.
+The repository check builds and validates both packages.
+docs/architecture.md owns the workspace decision and executable policy checks its boundary.
 All locked sources need registry integrity metadata; git/local sources fail validation.
 Installed dependency licenses and install scripts are checked through pnpm's inventory and package
 manifests; unknown licenses and unreviewed install scripts fail validation.

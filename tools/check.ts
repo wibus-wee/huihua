@@ -6,10 +6,12 @@ import { policy } from './policy.ts'
 function run(command: string, args: string[]): void {
   execFileSync(command, args, { stdio: 'inherit' })
 }
+// Type-aware lint and typechecking of the workspace CLI use emitted public declarations.
+run('pnpm', ['--filter', '@huihua/usage', 'run', 'build'])
 run('pnpm', ['run', 'lint'])
 run('pnpm', ['run', 'typecheck'])
+run('pnpm', ['--filter', '@huihua/usage', 'run', 'check'])
 run('pnpm', ['run', 'knip'])
 await policy()
 run('pnpm', ['test'])
-run('pnpm', ['run', 'build'])
 await packageCheck()

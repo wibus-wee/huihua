@@ -12,6 +12,7 @@ import { object, optional, string, timestamp } from '../../shared/value.ts'
 
 export const codexProvider = jsonlProvider({
   id: 'codex',
+  usageContext: true,
   roots(options) {
     const root
       = options.homeDir === undefined ? process.env.CODEX_HOME : undefined
@@ -26,8 +27,12 @@ export const codexProvider = jsonlProvider({
     )
   },
   accepts: path => path.endsWith('.jsonl') || path.endsWith('.jsonl.zst'),
-  metadata(records) {
+  metadata(records, _path, _context, keys) {
     const facts: Partial<Session> = {}
+    const wantsWorkspace = keys === undefined || keys.includes('workspace')
+    const wantsCreated = keys === undefined || keys.includes('createdAt')
+    const wantsParent = keys === undefined || keys.includes('parentSessionId')
+    const wantsMetadata = keys === undefined || keys.includes('metadata')
     for (const record of records) {
       const v = object(record)
       if (v.type !== 'session_meta')
@@ -38,26 +43,30 @@ export const codexProvider = jsonlProvider({
         ...optional('id', string(p.id)),
         ...optional(
           'createdAt',
-          timestamp(v.timestamp) ?? timestamp(p.timestamp),
+          wantsCreated ? timestamp(v.timestamp) ?? timestamp(p.timestamp) : undefined,
         ),
         ...optional(
           'parentSessionId',
-          string(p.parent_thread_id) ?? string(p.forked_from_id),
+          wantsParent ? string(p.parent_thread_id) ?? string(p.forked_from_id) : undefined,
         ),
-        metadata: {
-          ...optional(
-            'id_origin',
-            string(p.id) === undefined ? undefined : 'native',
-          ),
-        },
+        ...optional('metadata', wantsMetadata
+          ? {
+              ...optional(
+                'id_origin',
+                string(p.id) === undefined ? undefined : 'native',
+              ),
+            }
+          : undefined),
       })
-      const workspace = {
-        ...optional('path', string(p.cwd)),
-        ...optional('repository', string(git.repository_url)),
-        ...optional('branch', string(git.branch)),
-        ...optional('commit', string(git.commit_hash)),
-      }
-      if (Object.keys(workspace).length)
+      const workspace = wantsWorkspace
+        ? {
+            ...optional('path', string(p.cwd)),
+            ...optional('repository', string(git.repository_url)),
+            ...optional('branch', string(git.branch)),
+            ...optional('commit', string(git.commit_hash)),
+          }
+        : undefined
+      if (workspace !== undefined && Object.keys(workspace).length)
         Object.assign(facts, { workspace })
     }
     return facts
@@ -79,7 +88,9 @@ export const codexProvider = jsonlProvider({
       return
     }
     if (type === 'token_usage_record' && 'usage' in p) {
-      ingest.emit('usage', { usage: p })
+      ingest.emit('usage', { usage: p }, undefined, ingest.usageContext
+        ? () => ({ native_usage_context: { ...optional('model', string(p.model)) } })
+        : undefined)
       return
     }
     if (type === 'response_item') {
@@ -153,7 +164,9 @@ export const codexProvider = jsonlProvider({
         ingest.emit('reasoning', { ...optional('text', string(p.text)) })
       }
       else if (subtype === 'token_count') {
-        ingest.emit('usage', { usage: p })
+        ingest.emit('usage', { usage: p }, undefined, ingest.usageContext
+          ? () => ({ native_usage_context: { ...optional('model', string(p.model)) } })
+          : undefined)
       }
       else if (subtype === 'error') {
         ingest.emit('error', {

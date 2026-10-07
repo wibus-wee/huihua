@@ -110,6 +110,12 @@ Selectors retain order, duplicates and original event objects; they do not merge
 An empty result means no matching normalized events were found, not that the source format lacks the capability.
 The [architecture contract](docs/architecture.md#projections-and-review-boundaries) defines selection and evidence semantics.
 
+## Example Packages
+
+| Name                                           | Description                                                                                                                                                           |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@huihua/usage`](packages/usage/package.json) | A derivative package that uses Huihua to report daily token usage and model breakdowns from local coding-agent sessions. See the [Usage guide](docs/usage-report.md). |
+
 Keep the full SessionRef: an ID alone can be ambiguous across stores. `diagnostics` explains partial
 parses and unsupported records.
 Raw `text` preserves JSON numeric spellings outside JavaScript's
@@ -227,6 +233,10 @@ const snapshot = await opened.snapshot() // A fresh read, collected into a compl
 ```
 
 `opened.events()` and `opened.records()` filter the same stream.
+File-backed JSONL handles also support optional `opened.consume(selection, consumer)` with the same canonical frames and parser.
+It completes after validated EOF; synchronous callbacks avoid per-frame iterator steps, and returned Promises provide backpressure.
+Callback errors and AbortSignal cancellation stop delivery and close the source.
+Handles without this optional capability retain the stream/select APIs.
 JSONL reads are incremental and
 close on early return or AbortSignal cancellation. `read`/`snapshot` collects the full result;
 SQL ordering can buffer a selected session's rows.
@@ -348,8 +358,8 @@ These are fixture-backed boundaries, not a promise to decode every private futur
 ## Compose your own registry
 
 ```ts
-import { createSessionRegistry, defineProvider } from 'huihua'
 import { codexProvider } from 'huihua/providers/codex'
+import { createSessionRegistry } from 'huihua/registry'
 
 const registry = createSessionRegistry([codexProvider])
 const { refs } = await registry.scan()
@@ -363,7 +373,8 @@ The registry knows no builtin identities; duplicate registration fails.
 capability support is member presence on that handle, such as `provider.open`.
 The public
 [SPI](src/contracts/provider.ts) is thin.
-Supported exports are the root, `/observe`,
+The independent `/registry` entrypoint exposes the same registry as the root without loading builtin providers.
+Supported exports are the root, `/registry`, `/observe`,
 `/testing` and `/providers/{claude,codex,cursor,opencode,pi,oar,acp,kimi,grok,antigravity,morph,copilot,hermes,openclaw,qwen,devin,fx,cline,deepseek,droid}`.
 Internal paths are not package exports.
 

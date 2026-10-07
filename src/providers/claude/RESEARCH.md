@@ -37,3 +37,26 @@ A failed home sibling listing produces a source failure while independently conf
 
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
+
+`consumeUsage` reuses this mapping without delivering native records.
+Its opt-in
+`native_usage_context` copies only message.model, message.id and outer requestId
+from the same record.
+It does not infer a session model or distinct billable work.
+Normal streams retain complete evidence and unchanged event metadata.
+UTF-8/JSON,
+identity, unknown-record and tool diagnostics still run; native JSON decoding is
+not bypassed.
+Fixture and daily-report equivalence cover repeated IDs, missing
+fields, advisor iterations, malformed input and interrupted tools.
+
+`consumeUsageFacts` shares this mapper and native context; it omits the canonical
+event/frame envelope and optionally applies a caller's timestamp predicate.
+Context extraction is lazy after that predicate; framing, JSON, identity,
+unknown-record and tool/EOF checks still run for rejected rows.
+No usage, date, model, identity or branch fact is inferred.
+
+The same metadata function accepts the existing selected patch keys internally.
+It always extracts native sessionId for identity validation, and only constructs
+requested workspace/title/time/parent/metadata fields; discovery and full reads
+omit that selector and retain their complete original facts.

@@ -48,6 +48,8 @@ export function positiveLimit(value: number | undefined, fallback: number): numb
 export interface ReadOptions {
   readonly signal?: AbortSignal
   readonly maxRecordBytes?: number
+  /** JSONL only: decode complete lines from at most 256 KiB of the current chunk together. Native records and limits are unchanged. */
+  readonly batchDecode?: boolean
 }
 /** One explicitly selected local source; no discovery or format guessing is performed. */
 export interface FileInput {
