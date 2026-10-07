@@ -156,7 +156,8 @@ export async function header(
       break
     const end = newline < 0 ? data.length : newline + 1
     const record = line(data.subarray(start, end), position)
-    if (record && !record.malformed)
+    // Keep malformed physical heads so identification cannot certify a later record instead.
+    if (record)
       records.push(record.native)
     start = end
   }

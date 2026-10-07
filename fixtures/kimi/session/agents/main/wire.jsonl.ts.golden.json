@@ -3,7 +3,10 @@
   "provider": "kimi",
   "metadata": {
     "id_origin": "native",
+    "nativeSessionId": "kimi-session",
     "protocol_version": "1.5",
+    "agentId": "main",
+    "agentRole": "main",
     "updated_at_origin": "last_recorded_event"
   },
   "title": "Kimi fixture",

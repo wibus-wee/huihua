@@ -80,5 +80,9 @@
   {
     "provider": "deepseek",
     "path": "deepseek/compressed/session.v4.jsonl.zstd"
+  },
+  {
+    "provider": "cursor",
+    "path": "cursor/persisted/acp-sessions/11111111-1111-1111-1111-111111111111/store.db"
   }
 ]

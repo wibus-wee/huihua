@@ -62,6 +62,38 @@ Explicit roots replace defaults;
 explicit homeDir isolates discovery from process environment.
 Relative XDG roots are ignored.
 
+### Candidate identification
+
+[shared/ingestion.ts](../src/shared/ingestion.ts) owns the internal JsonlAdapter seam.
+Roots may resolve asynchronously. accepts(path, candidate) is a cheap path filter;
+identify({ path, roots, explicitFile, header, companions }) runs after bounded header and companion reads.
+Returning false omits the candidate without a failure; returning identity fields certifies and overrides
+provisional id/metadata.
+Source and provider ownership remain fixed by the adapter.
+Malformed physical header records remain in the prefix so Qwen cannot certify a later valid row as the head.
+No identification hook runs during read, open, parse or stream; supplied evidence remains readable.
+metadata receives a fileBacked context so a supplied provenance label cannot establish native directory facts.
+Adapters without identify retain their existing discovery behavior.
+
+Provider modules own certification policy.
+Qwen directory candidates require exactly
+<projects>/<project>/chats/<id>.jsonl or chats/archive/<id>.jsonl, a native ID filename and a matching first record.
+An existing but empty QWEN_HOME/projects remains authoritative; a missing or non-directory child falls back.
+Claude combines environment roots, conventional/XDG projects, `.claude*` sibling projects and Desktop/Cowork
+`local_*/.claude/projects` trees; Desktop journals and unrelated JSONL are excluded.
+Cursor has separate CLI transcript, IDE state.vscdb, chat store and ACP store families.
+Directory candidates undergo path and bounded content checks; exact caller-supplied file roots remain
+an explicit acquisition surface, including standalone historical OpenCode metadata.
+OpenCode directory discovery requires matching filename/native identity and session metadata facts;
+ses_ filenames are the current legacy shape, while older full directory/time metadata remains compatible.
+
+This replaces overloading accepts with content checks.
+A second discovery/parser framework was rejected:
+the existing walker, source failure boundaries, bounded framer and provider mapping already own those concerns.
+The seam is internal, adds no package export or public SPI requirement, and does not change agent-session/v1.
+[Discovery regressions](../tests/behavior.test.ts) enforce layout, identity, bounds, environment isolation,
+explicit file authority, companion failures and preservation of independent sources.
+
 [contracts/provider.ts](../src/contracts/provider.ts) owns ScanResult, ScanEvent, ScanFailure and
 the provider scan SPI.
 Provider scan returns `AsyncIterable<ScanEvent>`, emitting ref or failure
@@ -248,23 +280,25 @@ The composition root registers providers; each provider also has an independent 
 The public schema remains agent-session/v1 and existing provider mappings remain compatible.
 New provider IDs and source formats are additive; consumers should continue accepting custom provider IDs and unknown events.
 
-| Provider    | Source and discovery                                                                             | Mapping boundary                                                                                     |
-| ----------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| oar         | Explicit voyage/3 or RawEvent JSONL; no default directory                                        | Recorded OAR projections for any harness; complete wrappers/native payloads retained                 |
-| acp         | Explicit JSON-RPC or bare SessionNotification JSONL; no default directory                        | Stable v1/v2 updates; no universal ACP export archive or live connection                             |
-| kimi        | KIMI_CODE_HOME/sessions or ~/.kimi-code/sessions; each agents/*/wire.jsonl                       | Confirmed flat durable wire records and companion state.json; no Python kimi-cli or ZIP decoder      |
-| grok        | GROK_HOME/sessions or ~/.grok/sessions; updates.jsonl                                            | Standard ACP updates and summary.json; unmapped xAI extensions remain unknown                        |
-| antigravity | AGY_CONVERSATIONS_DIR or ~/.gemini/antigravity-cli/conversations; *.db                           | Partial observed CLI steps schema; no guarantee for Google's separate ACP-server/IDE store           |
-| morph       | MISTER_MORPH_FILE_STATE_DIR or ~/.morph; stats/topics_projection.json and journal/events.*.jsonl | Current topic/task journal; repeated snapshots retained; custom config paths use explicit roots      |
-| copilot     | ~/.copilot/session-state; flat JSONL and events.jsonl                                            | Native messages, mirrored tool requests/execution and usage; no quota accounting                     |
-| hermes      | HERMES_HOME or ~/.hermes; state.db and historical sessions                                       | All selected SQLite rows, JSON snapshots and JSONL captures/exports; no routing/index ingestion      |
-| openclaw    | OPENCLAW_STATE_DIR/agents or ~/.openclaw/agents and legacy ~/.clawdbot/agents                    | Selected session_windows/transcript_events, Zstandard payloads and legacy JSONL; no cold restoration |
-| qwen        | QWEN_HOME/projects or ~/.qwen/projects; chat JSONL                                               | Native Google parts, usage and system subtypes; telemetry excluded, malformed data never repaired    |
-| devin       | Absolute XDG_DATA_HOME or ~/.local/share; devin/cli/sessions.db                                  | All selected message nodes; native chain order and branch markers; no inferred usage                 |
-| fx          | ~/.fx/sessions; session.json and checkpoint.json                                                 | Manifest-3/checkpoint-1 history snapshots; post-checkpoint event tail diagnosed                      |
-| cline       | ~/.cline/data/sessions; <id>.json and adjacent <id>.messages.json                                | Version-1 CLI/Desktop messages, metrics and surface; external paths never followed                   |
-| deepseek    | DSH_HOME/sessions or ~/.dsh/sessions; session[.vN].jsonl[.zstd]                                  | Highest immutable generation, known v0–v4 facts; no migration or surface replay                      |
-| droid       | ~/.factory/sessions and ~/.factory/projects; JSONL                                               | Legacy stored messages and stream-json captures; no current private-store certification              |
+| Provider    | Source and discovery                                                                                  | Mapping boundary                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| claude      | Combined CLAUDE_CONFIG_DIRS/CLAUDE_CONFIG_DIR, conventional/XDG and .claude* projects; Desktop/Cowork | Native Claude JSONL; no inference of workspace or lineage from directory names                       |
+| cursor      | IDE global/workspace state.vscdb; .cursor/projects agent-transcripts; .cursor/chats and acp-sessions  | IDE rows and confirmed persisted text graph; private steps and unreferenced blobs remain evidence    |
+| oar         | Explicit voyage/3 or RawEvent JSONL; no default directory                                             | Recorded OAR projections for any harness; complete wrappers/native payloads retained                 |
+| acp         | Explicit JSON-RPC or bare SessionNotification JSONL; no default directory                             | Stable v1/v2 updates; no universal ACP export archive or live connection                             |
+| kimi        | KIMI_CODE_HOME/sessions or ~/.kimi-code/sessions; each agents/*/wire.jsonl                            | Confirmed flat durable wire records and companion state.json; no Python kimi-cli or ZIP decoder      |
+| grok        | GROK_HOME/sessions or ~/.grok/sessions; updates.jsonl                                                 | Standard ACP updates and summary.json; unmapped xAI extensions remain unknown                        |
+| antigravity | AGY_CONVERSATIONS_DIR or ~/.gemini/antigravity-cli/conversations; *.db                                | Partial observed CLI steps schema; no guarantee for Google's separate ACP-server/IDE store           |
+| morph       | MISTER_MORPH_FILE_STATE_DIR or ~/.morph; stats/topics_projection.json and journal/events.*.jsonl      | Current topic/task journal; repeated snapshots retained; custom config paths use explicit roots      |
+| copilot     | ~/.copilot/session-state; flat JSONL and events.jsonl                                                 | Native messages, mirrored tool requests/execution and usage; no quota accounting                     |
+| hermes      | HERMES_HOME or ~/.hermes; state.db and historical sessions                                            | All selected SQLite rows, JSON snapshots and JSONL captures/exports; no routing/index ingestion      |
+| openclaw    | OPENCLAW_STATE_DIR/agents or ~/.openclaw/agents and legacy ~/.clawdbot/agents                         | Selected session_windows/transcript_events, Zstandard payloads and legacy JSONL; no cold restoration |
+| qwen        | Existing QWEN_HOME/projects or ~/.qwen/projects; certified chats[/archive] JSONL                      | Native Google parts, usage and system subtypes; telemetry excluded, malformed data never repaired    |
+| devin       | Absolute XDG_DATA_HOME or ~/.local/share; devin/cli/sessions.db                                       | All selected message nodes; native chain order and branch markers; no inferred usage                 |
+| fx          | ~/.fx/sessions; session.json and checkpoint.json                                                      | Manifest-3/checkpoint-1 history snapshots; post-checkpoint event tail diagnosed                      |
+| cline       | ~/.cline/data/sessions; <id>.json and adjacent <id>.messages.json                                     | Version-1 CLI/Desktop messages, metrics and surface; external paths never followed                   |
+| deepseek    | DSH_HOME/sessions or ~/.dsh/sessions; session[.vN].jsonl[.zstd]                                       | Highest immutable generation, known v0–v4 facts; no migration or surface replay                      |
+| droid       | ~/.factory/sessions and ~/.factory/projects; JSONL                                                    | Legacy stored messages and stream-json captures; no current private-store certification              |
 
 Together with Claude, Codex, Cursor and Pi, these cover readable native formats for OAR's current harness inventory, including community Morph.
 Coverage is defined by the table and adjacent research, not by harness name alone.
@@ -330,6 +364,49 @@ All additions use agent-session/v1 with additive provider IDs, source-format str
 The format union, provider fixture manifest, source-import policy and installed-subpath smoke test enforce these additions.
 
 ## Dependency and ingestion decisions
+
+Shared pathMatcher uses [picomatch](https://github.com/micromatch/picomatch) 4.0.7 for fixed,
+provider-owned directory layout globs.
+Qwen, Claude Desktop and Cursor reuse this matcher;
+Node path.relative owns root containment and native separators are normalized only for matching.
+Hidden directories remain eligible, caller roots are literal paths rather than glob patterns,
+and paths outside an asserted root are rejected.
+Native source paths and public APIs stay unchanged.
+Picomatch is pure JavaScript, MIT licensed, with no runtime dependencies or install scripts;
+its types are development-only and tsdown keeps the runtime package external.
+[Executable policy](../tools/policy.ts) reviews both dependencies.
+Handwritten glob or separator logic duplicates general infrastructure.
+Node path.matchesGlob is
+experimental on the minimum Node 22.18 runtime; a filesystem glob walker would replace our existing
+source failure, ordering and symlink contracts unnecessarily.
+Pathe's cross-platform normalization
+would reinterpret legal POSIX backslashes.
+Env-paths allocates an application's own conventional
+directories: its Config/Preferences layouts and default nodejs suffix do not describe native Agent stores,
+and its captured home directory cannot preserve per-call homeDir isolation.
+Providers therefore retain ownership of native system directory names and environment precedence;
+Node homedir/path/fs already supply the required filesystem behavior.
+Focused tests enforce hidden/literal roots, exact layouts, containment and POSIX backslashes.
+
+Cursor's provider-owned [persisted store reader](../src/providers/cursor/persisted.ts) reuses SqliteReader,
+Ingestion and the installed @bufbuild/protobuf wire reader.
+Node crypto owns SHA-256 content-address validation;
+Node realpath owns static symlink/ancestor checks for ACP stores and sidecars.
+[Executable policy](../tools/policy.ts) permits those read-only platform APIs, with no new dependency.
+Scanning validates bounded native metadata and the root blob, without parsing conversation turns.
+Reading buffers the blob table, walks confirmed graph edges in recorded order, and retains every native row,
+including unknown private variants and unreferenced history.
+Repeated graph edges emit repeated events;
+Ingestion.record returns its evidence handle and associate selects that existing handle rather than copying a row.
+Synthetic SQL/graph fixtures and repeated-reference assertions enforce the evidence contract.
+Missing referenced nodes, invalid content addresses and malformed known graph fields fail explicitly.
+ACP schemaVersion 1 sidecars supply cwd; a UUID directory must match native agentId.
+Symlink descendants are excluded by the walker and static ACP pathname checks also reject symlink roots/sidecars.
+These checks are not descriptor-bound protection against adversarial path replacement; reads retain the existing
+SQLite fingerprint/WAL validation and no atomic snapshot claim.
+User stores are never copied or written.
+Chat and ACP are additive cursor_sqlite locator.storage values; modern and legacy IDE locators retain their behavior.
+Grok updates.jsonl, Kimi physical streams and Antigravity CLI evidence surfaces remain unchanged.
 
 Provider mapping belongs to the adapter and shared format helpers; a runtime library or live protocol client is an alternative acquisition layer outside this package's local read-only scope.
 No OAR, ACP SDK or harness runtime dependency is installed.

@@ -4,15 +4,36 @@ import process from 'node:process'
 
 import type { Session } from '../../contracts/session.ts'
 import { contentBlocks, jsonlProvider } from '../../shared/ingestion.ts'
+import { isDirectory, pathMatcher } from '../../shared/paths.ts'
 import { array, object, optional, string, timestamp } from '../../shared/value.ts'
+
+const chatPath = pathMatcher(['*/chats/*.jsonl', '*/chats/archive/*.jsonl'])
 
 export const qwenProvider = jsonlProvider({
   id: 'qwen',
-  roots(options) {
+  async roots(options) {
+    if (options.roots?.qwen)
+      return options.roots.qwen
     const root = options.homeDir === undefined ? process.env.QWEN_HOME : undefined
-    return options.roots?.qwen ?? [join(root ?? join(options.homeDir ?? homedir(), '.qwen'), 'projects')]
+    const fallback = join(options.homeDir ?? homedir(), '.qwen/projects')
+    const configured = root !== undefined && root !== '' ? join(root, 'projects') : undefined
+    return [configured !== undefined && await isDirectory(configured) ? configured : fallback]
   },
-  accepts: path => path.endsWith('.jsonl') && !['system.jsonl', 'system_telemetry.jsonl'].includes(basename(path)),
+  accepts(path, candidate) {
+    if (!path.endsWith('.jsonl') || ['system.jsonl', 'system_telemetry.jsonl'].includes(basename(path)))
+      return false
+    if (candidate.explicitFile)
+      return true
+    if (!/^[\da-f-]{32,36}\.jsonl$/i.test(basename(path)))
+      return false
+    return candidate.roots.some(root => chatPath(path, root))
+  },
+  identify({ path, header, explicitFile }) {
+    if (explicitFile)
+      return {}
+    const id = basename(path, '.jsonl')
+    return object(header[0]).sessionId === id ? { id, metadata: { id_origin: 'native' } } : false
+  },
   metadata(records) {
     let facts: Partial<Session> = {}
     for (const native of records) {

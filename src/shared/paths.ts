@@ -1,11 +1,41 @@
-import { readdir, stat } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { readdir, realpath, stat } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
+import process from 'node:process'
+
+import picomatch from 'picomatch'
 
 import { SessionError } from '../contracts/diagnostic.ts'
 import type { ScanEvent, ScanOptions } from '../contracts/provider.ts'
 import { positiveLimit, scanFailure } from '../contracts/provider.ts'
 
 export { positiveLimit }
+
+/** Match a native pathname against fixed provider globs, optionally within a scan root. */
+export function pathMatcher(patterns: string | readonly string[]): (path: string, root?: string) => boolean {
+  const matches = picomatch(typeof patterns === 'string' ? patterns : [...patterns], { dot: true, windows: false })
+  return (path, root) => {
+    const candidate = root === undefined ? path : relative(root, path)
+    if (root !== undefined && (isAbsolute(candidate) || candidate === '..' || candidate.startsWith(`..${sep}`)))
+      return false
+    // Normalize native separators only: a backslash is a legal filename character on POSIX.
+    return matches(sep === '/' ? candidate : candidate.split(sep).join('/'))
+  }
+}
+
+/** A canonical pathname rejects symbolic links in the file and its ancestors. */
+export async function canonicalPath(path: string): Promise<boolean> {
+  try {
+    const absolute = resolve(path)
+    const canonical = await realpath(path)
+    return canonical === absolute
+      || (process.platform === 'darwin' && ['/tmp', '/var'].some(alias => absolute.startsWith(`${alias}/`) && canonical === `/private${absolute}`))
+  }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return false
+    ioError(error, path)
+  }
+}
 
 export function ioErrorOf(error: unknown, path: string): SessionError {
   if (error instanceof SessionError)
@@ -31,6 +61,16 @@ export async function exists(path: string): Promise<boolean> {
   }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return false
+    ioError(error, path)
+  }
+}
+export async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory()
+  }
+  catch (error) {
+    if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? ''))
       return false
     ioError(error, path)
   }

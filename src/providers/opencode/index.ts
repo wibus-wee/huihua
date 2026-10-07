@@ -604,6 +604,14 @@ export const opencodeProvider = {
       yield* scanSource('opencode', source, options, async function* () {
         if (json) {
           const native = await readJson(path, positiveLimit(options.headerBytes, 65536), true, options.signal)
+          if (!explicitFiles.has(path)) {
+            const v = object(native.native)
+            // Retain documented older metadata with full native facts, including pre-prefix IDs.
+            const historical = typeof v.directory === 'string' && timestamp(object(v.time).created) !== undefined
+            const hasFacts = historical || typeof v.title === 'string' || timestamp(v.time_created ?? object(v.time).created) !== undefined
+            if (!hasFacts || 'role' in v || 'type' in v || v.id !== basename(path, '.json') || (!/^ses_.+\.json$/.test(basename(path)) && !historical))
+              return
+          }
           yield { type: 'ref', ref: {
             id: `source:${path}`,
             provider: 'opencode',

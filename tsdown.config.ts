@@ -32,5 +32,5 @@ export default defineConfig({
   target: 'node22.18',
   dts: true,
   clean: true,
-  deps: { onlyBundle: [], onlyImport: ['fzstd', 'xxhashjs', '@bufbuild/protobuf'] },
+  deps: { onlyBundle: [], onlyImport: ['fzstd', 'xxhashjs', '@bufbuild/protobuf', 'picomatch'] },
 })
