@@ -4,6 +4,9 @@
 
 Huihua is a TypeScript library for reading local session data produced by different Coding Agents through one consistent API.
 
+> [!NOTE]
+> **Under heavy development.** APIs are not yet stable and may change in ways that break compatibility between releases.
+
 ## Supported Providers
 
 <p>
