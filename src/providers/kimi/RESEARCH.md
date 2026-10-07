@@ -12,6 +12,12 @@ Reviewed official Kimi Code at `21406fb4c805cc8c715e6d1f16ad3fb5f25f4fe3` on 202
 Native read/open consumes associated state.json; supplied JSONL never opens the provenance label or companion files.
 A wire file is one agent's physical stream; no global order is invented across child files.
 IDs alone can repeat across refs for agents in one native session, so retain the full SessionRef.
+Refs and file-backed reads now expose metadata.agentId and metadata.agentRole (main or subagent)
+from the native agents/<agent>/wire.jsonl layout, and metadata.nativeSessionId from state.json when present.
+These additive fields distinguish physical streams without merging them or inferring parentSessionId.
+Acquired JSONL without that native directory layout does not invent an agent role.
+Even a supplied provenance label shaped like agents/main/wire.jsonl cannot establish an agent role;
+the shared metadata context distinguishes native file reads from supplied byte acquisition.
 ZIP debug exports and Markdown are not decoded; extracted native directories are supported.
 Synthetic fixtures are schema examples, not anonymized captures or a release-wide certification.
 

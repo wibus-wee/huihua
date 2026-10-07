@@ -162,6 +162,7 @@ export async function policy(): Promise<void> {
   )
   const allowedNode = new Set([
     'node:buffer',
+    'node:crypto',
     'node:process',
     'node:fs',
     'node:fs/promises',
@@ -273,7 +274,7 @@ export async function policy(): Promise<void> {
             !new Set(
               node.moduleSpecifier.text === 'node:fs'
                 ? ['createReadStream']
-                : ['open', 'stat', 'readdir'],
+                : ['open', 'stat', 'readdir', 'realpath'],
             ).has(element.propertyName?.text ?? element.name.text)
           ) {
             throw new Error(`filesystem write-capable import: ${name}`)

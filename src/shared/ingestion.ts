@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { resolve } from 'node:path'
 
 import type { Diagnostic, ErrorCode } from '../contracts/diagnostic.ts'
 import { SessionError } from '../contracts/diagnostic.ts'
@@ -46,7 +47,7 @@ export class Ingestion {
     native: unknown,
     source: RawRecord['source'],
     evidence: { text?: string, bytes?: readonly number[] } = {},
-  ): void {
+  ): RawRecord {
     const raw = object(native)
     this.#current = {
       sequence: this.#record++,
@@ -58,6 +59,14 @@ export class Ingestion {
       ...optional('bytes', evidence.bytes),
     }
     this.#frames.push({ type: 'record', record: this.#current })
+    return this.#current
+  }
+
+  /** Repeated graph edges refer to existing evidence instead of copying its native row. */
+  associate(record: RawRecord): void {
+    if (record.provider !== this.#provider || record.sequence >= this.#record)
+      throw new Error('association without previously ingested native record')
+    this.#current = record
   }
 
   emit<K extends EventType>(
@@ -340,15 +349,26 @@ export function openFrom(
     },
   }
 }
+interface JsonlCandidate {
+  readonly path: string
+  readonly roots: readonly string[]
+  /** True only when the caller supplied this exact file, not its parent directory. */
+  readonly explicitFile: boolean
+}
 export interface JsonlAdapter {
   id: string
-  roots: (options: ScanOptions) => readonly string[]
-  metadata: (records: readonly unknown[], path: string) => Partial<Session>
+  roots: (options: ScanOptions) => readonly string[] | Promise<readonly string[]>
+  metadata: (records: readonly unknown[], path: string, context: { readonly fileBacked: boolean }) => Partial<Session>
   parse: (ingest: Ingestion, native: unknown) => void
   parser?: () => { parse: JsonlAdapter['parse'], finish?: (ingest: Ingestion) => void }
   metadataFiles?: (path: string) => readonly string[]
   time?: (native: unknown) => Session['updatedAt']
-  accepts?: (path: string) => boolean
+  accepts?: (path: string, candidate: JsonlCandidate) => boolean
+  /** Discovery only: false rejects a candidate; identity overrides provisional metadata. */
+  identify?: (input: JsonlCandidate & {
+    readonly header: readonly unknown[]
+    readonly companions: readonly unknown[]
+  }) => Partial<Pick<SessionRef, 'id' | 'metadata'>> | false
 }
 export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
   open: (ref: SessionRef, options?: ReadOptions) => Promise<OpenSession>
@@ -412,7 +432,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         )
       }
       else {
-        let facts = adapter.metadata([line.native], ref.source.path)
+        let facts = adapter.metadata([line.native], ref.source.path, { fileBacked: companions })
         if (
           facts.id !== undefined
           && selectedId !== undefined
@@ -516,14 +536,17 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
     id: adapter.id,
     async detect(options = {}) {
       const roots: string[] = []
-      for (const path of adapter.roots(options)) {
+      for (const path of await adapter.roots(options)) {
         if (await exists(path))
           roots.push(path)
       }
       return { provider: adapter.id, roots, available: roots.length > 0 }
     },
     async* scan(options = {}): AsyncGenerator<ScanEvent> {
-      for await (const path of files(adapter.roots(options), adapter.accepts ?? (p => p.endsWith('.jsonl')), options, adapter.id)) {
+      const roots = (await adapter.roots(options)).map(path => resolve(path))
+      const explicit = new Set(options.roots?.[adapter.id]?.map(path => resolve(path)))
+      const candidate = (path: string): JsonlCandidate => ({ path, roots, explicitFile: explicit.has(path) })
+      for await (const path of files(roots, p => adapter.accepts?.(p, candidate(p)) ?? p.endsWith('.jsonl'), options, adapter.id)) {
         if (typeof path !== 'string') {
           yield path
           continue
@@ -545,12 +568,22 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
             if (failed)
               return
           }
-          const facts = adapter.metadata([...metadata, ...records], path)
+          const facts = adapter.metadata([...metadata, ...records], path, { fileBacked: true })
+          const identity = adapter.identify?.({ ...candidate(path), header: records, companions: metadata })
+          if (identity === false)
+            return
+          const certified = identity === undefined
+            ? facts
+            : {
+                ...facts,
+                ...identity,
+                metadata: { ...(facts.metadata ?? { id_origin: 'source_locator' }), ...identity.metadata },
+              }
           yield { type: 'ref', ref: {
             id: `source:${path}`,
             provider: adapter.id,
             metadata: { id_origin: 'source_locator' },
-            ...facts,
+            ...certified,
             source,
           } }
         })

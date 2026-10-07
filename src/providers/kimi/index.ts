@@ -16,7 +16,7 @@ export const kimiProvider = jsonlProvider({
   metadataFiles(path) {
     return basename(dirname(dirname(path))) === 'agents' ? [join(dirname(dirname(dirname(path))), 'state.json')] : []
   },
-  metadata(records) {
+  metadata(records, path, context) {
     let facts: Partial<Session> = {}
     for (const native of records) {
       const v = object(native)
@@ -28,14 +28,17 @@ export const kimiProvider = jsonlProvider({
           ...optional('updatedAt', timestamp(v.updatedAt)),
           ...optional('workspace', typeof (v.cwd ?? v.workDir) === 'string' ? { path: String(v.cwd ?? v.workDir) } : undefined),
           ...optional('parentSessionId', string(v.forkedFrom)),
-          metadata: { id_origin: 'native' },
+          metadata: { ...facts.metadata, id_origin: 'native', nativeSessionId: v.id },
         }
       }
       else if (v.type === 'metadata') {
         facts = { ...facts, ...optional('createdAt', timestamp(v.created_at)), metadata: { ...facts.metadata, ...optional('protocol_version', v.protocol_version) } }
       }
     }
-    return facts
+    const agentId = basename(dirname(path))
+    return context.fileBacked && basename(dirname(dirname(path))) === 'agents'
+      ? { ...facts, metadata: { ...facts.metadata, agentId, agentRole: agentId === 'main' ? 'main' : 'subagent' } }
+      : facts
   },
   time: native => timestamp(object(native).time),
   parse(ingest, native) {

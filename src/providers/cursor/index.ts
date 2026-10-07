@@ -1,5 +1,5 @@
 import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
@@ -10,7 +10,7 @@ import {
   messageEvents,
   openFrom,
 } from '../../shared/ingestion.ts'
-import { files } from '../../shared/paths.ts'
+import { canonicalPath, files } from '../../shared/paths.ts'
 import { scanSource } from '../../shared/scan.ts'
 import type { Row } from '../../shared/sqlite.ts'
 import { binarySafe, decodeValue, SqliteReader } from '../../shared/sqlite.ts'
@@ -21,21 +21,33 @@ import {
   string,
   timestamp,
 } from '../../shared/value.ts'
+import { openPersisted, persistedIdentity, persistedSidecar } from './persisted.ts'
 
 function roots(options: ScanOptions): readonly string[] {
   const home = options.homeDir ?? homedir()
   return (
     options.roots?.cursor ?? [
-      join(home, 'Library/Application Support/Cursor/User'),
-      join(home, '.config/Cursor/User'),
-      join(home, 'AppData/Roaming/Cursor/User'),
+      ...['Library/Application Support', '.config', 'AppData/Roaming']
+        .flatMap(base => ['globalStorage', 'workspaceStorage'].map(store => join(home, base, 'Cursor/User', store))),
       join(home, '.cursor/projects'),
+      join(home, '.cursor/chats'),
+      join(home, '.cursor/acp-sessions'),
     ]
   )
 }
 const cli = jsonlProvider({
   id: 'cursor',
   roots,
+  accepts: (path, candidate) => path.endsWith('.jsonl') && (candidate.explicitFile || path.split(sep).includes('agent-transcripts')),
+  identify({ header, explicitFile }) {
+    return explicitFile || header.some((native) => {
+      const v = object(native)
+      return (['user', 'assistant'].includes(String(v.role)) && 'content' in object(v.message))
+        || (v.type === 'turn_ended' && v.status === 'error' && typeof v.error === 'string' && v.error !== '')
+    })
+      ? {}
+      : false
+  },
   metadata(records) {
     const id = records
       .map(v => string(object(v).sessionId))
@@ -94,9 +106,11 @@ function bubble(ingest: Ingestion, value: unknown): void {
 async function* scanDatabase(
   path: string,
   options: ScanOptions,
+  storage?: 'chat' | 'acp',
 ): AsyncGenerator<ScanEvent> {
   const db = await SqliteReader.open(path, {
     ...optional('signal', options.signal),
+    maxRecordBytes: options.headerBytes ?? 65536,
   })
   function ref(id: string, value: unknown, storage: string): SessionRef {
     const v = object(value)
@@ -110,6 +124,32 @@ async function* scanDatabase(
     }
   }
   try {
+    if (storage !== undefined || (basename(path) === 'store.db' && db.tables.has('meta'))) {
+      const kind = storage ?? 'chat'
+      const limits = { ...optional('signal', options.signal), maxRecordBytes: options.headerBytes ?? 65536 }
+      let sidecar
+      if (kind === 'acp') {
+        const companion = join(dirname(path), 'meta.json')
+        let failed = false
+        for await (const event of scanSource('cursor', { path: companion }, options, async function* () {
+          sidecar = await persistedSidecar(companion, limits)
+        })) {
+          failed = true
+          yield event
+        }
+        if (failed || sidecar === undefined)
+          return
+      }
+      const identity = await persistedIdentity(db, path, kind, limits, sidecar)
+      if (identity) {
+        yield { type: 'ref', ref: {
+          ...identity.facts,
+          provider: 'cursor',
+          source: { path, format: 'cursor_sqlite', locator: { id: identity.facts.id, storage: kind } },
+        } }
+      }
+      return
+    }
     let found = false
     for await (const row of db.rows('cursorDiskKV')) {
       if (typeof row.key === 'string' && row.key.startsWith('composerData:')) {
@@ -150,6 +190,8 @@ async function openCursor(ref: SessionRef, options: ReadOptions = {}) {
     throw new SessionError('UnsupportedSchema', 'unknown Cursor source format')
   const id = string(ref.source.locator?.id)
   const storage = ref.source.locator?.storage
+  if (storage === 'chat' || storage === 'acp')
+    return openPersisted(ref, storage, options)
   if (id === undefined) {
     throw new SessionError(
       'SessionNotFound',
@@ -332,24 +374,49 @@ export const cursorProvider = {
   stream: cli.stream,
   open: openCursor,
   async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
-    for await (const path of files(roots(options), p => /\.(?:jsonl|db|vscdb)$/.test(p), options, 'cursor')) {
+    const explicit = new Set(options.roots?.cursor?.map(path => resolve(path)))
+    const jsonRoots = options.roots?.cursor ?? [join(options.homeDir ?? homedir(), '.cursor/projects')]
+    for await (const event of cli.scan({ ...options, roots: { cursor: jsonRoots } })) {
+      if (event.type === 'ref' && event.ref.id.startsWith('source:')) {
+        yield { type: 'ref', ref: { ...event.ref, id: `source:${basename(event.ref.source.path)}`, metadata: { ...event.ref.metadata, id_origin: 'source_filename' } } }
+      }
+      else {
+        yield event
+      }
+    }
+    function persistedFamily(path: string): 'chat' | 'acp' | undefined {
+      if (basename(path) !== 'store.db' || !/^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(basename(dirname(path))))
+        return
+      const parent = dirname(dirname(path))
+      const family = basename(parent) === 'acp-sessions' ? 'acp' : basename(dirname(parent)) === 'chats' ? 'chat' : undefined
+      if (family === undefined)
+        return
+      const name = family === 'acp' ? 'acp-sessions' : 'chats'
+      const storeRoot = family === 'acp' ? parent : dirname(parent)
+      const authorities = roots(options).filter(root => basename(root) === name).map(root => resolve(root))
+      if (authorities.length === 0 || authorities.includes(storeRoot))
+        return family
+    }
+    function accepts(path: string): boolean {
+      if (explicit.has(path))
+        return /\.(?:db|vscdb)$/.test(path)
+      return persistedFamily(path) !== undefined
+        || (basename(path) === 'state.vscdb' && path.split(sep).some(part => part === 'globalStorage' || part === 'workspaceStorage'))
+    }
+    const databaseRoots = options.roots?.cursor ?? roots(options).filter(root => basename(root) !== 'projects')
+    const admittedRoots: string[] = []
+    for (const root of databaseRoots) {
+      yield* scanSource('cursor', { path: root }, options, async function* () {
+        if (basename(root) !== 'acp-sessions' || await canonicalPath(root))
+          admittedRoots.push(root)
+      })
+    }
+    for await (const path of files(admittedRoots, accepts, options, 'cursor')) {
       if (typeof path !== 'string') {
         yield path
         continue
       }
-      if (path.endsWith('.jsonl')) {
-        for await (const event of cli.scan({ ...options, roots: { cursor: [path] } })) {
-          if (event.type === 'ref' && event.ref.id.startsWith('source:')) {
-            yield { type: 'ref', ref: { ...event.ref, id: `source:${basename(path)}`, metadata: { id_origin: 'source_filename' } } }
-          }
-          else {
-            yield event
-          }
-        }
-      }
-      else {
-        yield* scanSource('cursor', { path, format: 'cursor_sqlite' }, options, () => scanDatabase(path, options))
-      }
+      yield* scanSource('cursor', { path, format: 'cursor_sqlite' }, options, () => scanDatabase(path, options, persistedFamily(path)))
     }
   },
   async read(ref: SessionRef, options?: ReadOptions) {

@@ -336,11 +336,12 @@ void it('DeepSeek reads generations 0–4, preserves surface edits and packed ob
 
 void it('new native roots isolate discovery and exclude telemetry and routing indexes', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'huihua-discovery-'))
+  const qwenId = '11111111-1111-1111-1111-111111111111'
   t.after(async () => rm(root, { force: true, recursive: true }))
   for (const [provider, source, target] of [
     ['copilot', 'copilot/session/events.jsonl', '.copilot/session-state/id/events.jsonl'],
     ['openclaw', 'openclaw/session.jsonl', '.openclaw/agents/main/sessions/id.jsonl'],
-    ['qwen', 'qwen/session.jsonl', '.qwen/projects/project/chats/id.jsonl'],
+    ['qwen', 'qwen/session.jsonl', `.qwen/projects/project/chats/${qwenId}.jsonl`],
     ['droid', 'droid/session.jsonl', '.factory/sessions/project/id.jsonl'],
     ['deepseek', 'deepseek/session/session.v4.jsonl', '.dsh/sessions/project/id/session.v4.jsonl'],
     ['cline', 'cline/session/session.json', '.cline/data/sessions/session/session.json'],
@@ -350,7 +351,8 @@ void it('new native roots isolate discovery and exclude telemetry and routing in
   ] as const) {
     const path = join(root, target)
     await mkdir(join(path, '..'), { recursive: true })
-    await writeFile(path, await readFile(fixture(source)))
+    const native = await readFile(fixture(source))
+    await writeFile(path, provider === 'qwen' ? native.toString().replaceAll('qwen-session', qwenId) : native)
     const detected = await sessions.require(provider).detect({ homeDir: root })
     assert.equal(detected.available, true)
     assert.ok(detected.roots.every(path => path.startsWith(root)))

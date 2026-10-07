@@ -1,11 +1,27 @@
-import { readdir, stat } from 'node:fs/promises'
+import { readdir, realpath, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import process from 'node:process'
 
 import { SessionError } from '../contracts/diagnostic.ts'
 import type { ScanEvent, ScanOptions } from '../contracts/provider.ts'
 import { positiveLimit, scanFailure } from '../contracts/provider.ts'
 
 export { positiveLimit }
+
+/** A canonical pathname rejects symbolic links in the file and its ancestors. */
+export async function canonicalPath(path: string): Promise<boolean> {
+  try {
+    const absolute = resolve(path)
+    const canonical = await realpath(path)
+    return canonical === absolute
+      || (process.platform === 'darwin' && ['/tmp', '/var'].some(alias => absolute.startsWith(`${alias}/`) && canonical === `/private${absolute}`))
+  }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return false
+    ioError(error, path)
+  }
+}
 
 export function ioErrorOf(error: unknown, path: string): SessionError {
   if (error instanceof SessionError)
@@ -31,6 +47,16 @@ export async function exists(path: string): Promise<boolean> {
   }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return false
+    ioError(error, path)
+  }
+}
+export async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory()
+  }
+  catch (error) {
+    if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? ''))
       return false
     ioError(error, path)
   }

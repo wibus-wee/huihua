@@ -22,5 +22,18 @@ This adapter deliberately does not infer token cost or classification.
 
 ## Implementation decisions
 
+Reviewed Agent Sessions [Claude discovery](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/SessionDiscovery.swift)
+on 2026-10-07 as third-party compatibility evidence for CLAUDE_CONFIG_DIRS, `.claude*` sibling installations,
+and Desktop/Cowork `local-agent-mode-sessions/**/local_*/.claude/projects` transcripts.
+These private Desktop paths are not an official stable storage contract.
+Huihua combines these roots with CLAUDE_CONFIG_DIR and conventional/XDG projects rather than replacing
+defaults when an environment root is present.
+CLAUDE_CONFIG_DIRS uses the platform path-list delimiter.
+Explicit roots still replace defaults; explicit homeDir excludes process environment roots.
+Directory discovery requires native sessionId in the bounded prefix; exact supplied files remain readable
+even without native identity.
+Desktop discovery admits only the transcript subtree and excludes journals.
+A failed home sibling listing produces a source failure while independently configured/default roots still scan.
+
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.

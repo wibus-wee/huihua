@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
-import fs, { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import fs, { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { syncBuiltinESMExports } from 'node:module'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import os, { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+import process from 'node:process'
+import { DatabaseSync } from 'node:sqlite'
 import { it } from 'node:test'
 
 import type { ScanEvent, Session, SessionEvent, SessionRef } from '../src/index.ts'
@@ -23,6 +25,7 @@ import {
   toolCallsOf,
   toolResultsOf,
 } from '../src/observe/index.ts'
+import { jsonlProvider } from '../src/shared/ingestion.ts'
 import { files } from '../src/shared/paths.ts'
 import { scanSource } from '../src/shared/scan.ts'
 import { assertSessionContract } from '../src/testing/index.ts'
@@ -32,6 +35,290 @@ async function directory(t: { after: (fn: () => Promise<void>) => void }) {
   t.after(async () => rm(root, { recursive: true, force: true }))
   return root
 }
+async function put(path: string, text: string) {
+  await mkdir(dirname(path), { recursive: true })
+  await writeFile(path, text)
+}
+void it('Qwen directory discovery certifies exact chat layout and the first complete record identity', async (t) => {
+  const root = await directory(t)
+  const projects = join(root, '.qwen/projects')
+  const id = '11111111-1111-1111-1111-111111111111'
+  const record = `${JSON.stringify({ type: 'user', sessionId: id, message: { parts: [{ text: 'hello' }] } })}\n`
+  for (const relative of [`p/chats/${id}.jsonl`, `p/chats/archive/${id}.jsonl`, `p/backup/chats/${id}.jsonl`, `p/debug.jsonl`, `p/subagents/${id}.jsonl`, 'p/chats/not-an-id.jsonl'])
+    await put(join(projects, relative), record)
+  const bad = '22222222-2222-2222-2222-222222222222'
+  for (const prefix of [record, '{}\n', 'broken\n'])
+    await put(join(projects, `bad-${prefix.length}/chats/${bad}.jsonl`), `${prefix}${JSON.stringify({ sessionId: bad })}\n`)
+  const result = await sessions.scan({ providers: ['qwen'], homeDir: root })
+  assert.deepEqual(result.failures, [])
+  assert.deepEqual(result.refs.map(ref => ref.source.path).sort(), [join(projects, `p/chats/${id}.jsonl`), join(projects, `p/chats/archive/${id}.jsonl`)].sort())
+  assert.ok(result.refs.every(ref => ref.id === id))
+  assert.deepEqual(await sessions.scan({ providers: ['qwen'], homeDir: root, headerBytes: 10 }), { refs: [], failures: [] })
+  assert.equal((await sessions.parse('qwen', { jsonl: record })).id, id)
+  // A directly supplied backup remains a supported acquisition surface.
+  assert.equal((await sessions.scan({ providers: ['qwen'], roots: { qwen: [resolve('fixtures/qwen/session.jsonl')] } })).refs.length, 1)
+  await put(join(projects, `p/chats/${id}.jsonl`), `${record}{"sessionId":"later-conflict"}\n`)
+  const ref = (await sessions.scan({ providers: ['qwen'], homeDir: root })).refs.find(ref => ref.source.path === join(projects, `p/chats/${id}.jsonl`))!
+  assert.equal(ref.id, id)
+  const parsed = await sessions.read(ref)
+  assert.equal(parsed.id, id)
+  assert.ok(parsed.diagnostics.some(diagnostic => diagnostic.message.includes('conflicting native')))
+})
+void it('Qwen falls back only when QWEN_HOME/projects is not a directory', async (t) => {
+  const root = await directory(t)
+  const id = '11111111-1111-1111-1111-111111111111'
+  await put(join(root, `.qwen/projects/p/chats/${id}.jsonl`), `${JSON.stringify({ sessionId: id })}\n`)
+  const original = process.env.QWEN_HOME
+  process.env.QWEN_HOME = join(root, 'custom')
+  t.mock.method(os, 'homedir', () => root)
+  syncBuiltinESMExports()
+  t.after(() => {
+    if (original === undefined)
+      delete process.env.QWEN_HOME
+    else process.env.QWEN_HOME = original
+    t.mock.restoreAll()
+    syncBuiltinESMExports()
+  })
+  assert.equal((await sessions.scan({ providers: ['qwen'] })).refs.length, 1)
+  assert.deepEqual((await sessions.require('qwen').detect()).roots, [join(root, '.qwen/projects')])
+  await put(join(root, 'custom/projects'), 'not a directory')
+  assert.equal((await sessions.scan({ providers: ['qwen'] })).refs.length, 1)
+  await rm(join(root, 'custom/projects'))
+  await mkdir(join(root, 'custom/projects'))
+  assert.equal((await sessions.scan({ providers: ['qwen'] })).refs.length, 0)
+  assert.equal((await sessions.scan({ providers: ['qwen'], homeDir: root })).refs.length, 1)
+  assert.deepEqual(await sessions.scan({ providers: ['qwen'], roots: { qwen: [] } }), { refs: [], failures: [] })
+})
+void it('Claude finds sibling configurations and Desktop transcripts without admitting Desktop journals', async (t) => {
+  const root = await directory(t)
+  const paths = ['.claude/projects/p/a.jsonl', '.claude-work/projects/p/b.jsonl', '.config/claude/projects/p/c.jsonl', 'Library/Application Support/Claude/local-agent-mode-sessions/account/task/local_1/.claude/projects/p/d.jsonl']
+  for (const [i, path] of paths.entries())
+    await put(join(root, path), `${JSON.stringify({ type: 'user', sessionId: String(i), message: { content: 'hello' } })}\n`)
+  await put(join(root, 'Library/Application Support/Claude/local-agent-mode-sessions/account/task/journal.jsonl'), '{}\n')
+  const result = await sessions.scan({ providers: ['claude'], homeDir: root })
+  assert.deepEqual(result.failures, [])
+  assert.deepEqual(result.refs.map(ref => ref.id).sort(), ['0', '1', '2', '3'])
+})
+void it('Claude combines CLAUDE_CONFIG_DIRS, single config and defaults and respects explicit overrides', async (t) => {
+  const root = await directory(t)
+  const keys = ['CLAUDE_CONFIG_DIRS', 'CLAUDE_CONFIG_DIR', 'XDG_CONFIG_HOME'] as const
+  const previous = keys.map(key => process.env[key])
+  process.env.CLAUDE_CONFIG_DIRS = [join(root, 'one'), join(root, 'two/projects')].join(process.platform === 'win32' ? ';' : ':')
+  process.env.CLAUDE_CONFIG_DIR = join(root, 'single')
+  process.env.XDG_CONFIG_HOME = join(root, 'xdg')
+  t.mock.method(os, 'homedir', () => root)
+  syncBuiltinESMExports()
+  t.after(() => {
+    for (const [i, key] of keys.entries()) {
+      if (previous[i] === undefined)
+        delete process.env[key]
+      else process.env[key] = previous[i]
+    }
+    t.mock.restoreAll()
+    syncBuiltinESMExports()
+  })
+  for (const [i, path] of ['one/projects', 'two/projects', 'single/projects', '.claude/projects', 'xdg/claude/projects'].entries())
+    await put(join(root, path, 'p/s.jsonl'), `${JSON.stringify({ type: 'system', sessionId: String(i) })}\n`)
+  assert.deepEqual((await sessions.scan({ providers: ['claude'] })).refs.map(ref => ref.id).sort(), ['0', '1', '2', '3', '4'])
+  assert.deepEqual((await sessions.scan({ providers: ['claude'], homeDir: root })).refs.map(ref => ref.id), ['3'])
+  assert.deepEqual(await sessions.scan({ providers: ['claude'], roots: { claude: [] } }), { refs: [], failures: [] })
+})
+void it('Claude reports denied sibling discovery while retaining independently readable stores', async (t) => {
+  const root = await directory(t)
+  await put(join(root, '.claude/projects/p/s.jsonl'), '{"sessionId":"s"}\n')
+  const original = fs.readdir
+  t.mock.method(fs, 'readdir', async (path: string, options: { withFileTypes: true }) => {
+    if (path === root)
+      throw Object.assign(new Error('home listing denied'), { code: 'EACCES', syscall: 'scandir' })
+    return original(path, options)
+  })
+  syncBuiltinESMExports()
+  t.after(() => {
+    t.mock.restoreAll()
+    syncBuiltinESMExports()
+  })
+  const result = await sessions.scan({ providers: ['claude'], homeDir: root })
+  assert.deepEqual(result.refs.map(ref => ref.id), ['s'])
+  assert.equal(result.failures.length, 1)
+  assert.equal(result.failures[0]?.source?.path, root)
+  assert.equal(result.failures[0]?.code, 'PermissionDenied')
+})
+void it('JSONL identification sees bounded headers and separate companions and governs identity before parsing', async (t) => {
+  const root = await directory(t)
+  const paths = [join(root, 'valid.jsonl'), join(root, 'unrelated.jsonl')]
+  await put(paths[0]!, '{"certified":true,"id":"native"}\n')
+  await put(paths[1]!, '{}\n')
+  await put(join(root, 'companion.json'), '{"kind":"companion"}')
+  const provider = jsonlProvider({
+    id: 'custom',
+    roots: async () => [root],
+    metadataFiles: () => [join(root, 'companion.json')],
+    metadata: () => ({ id: 'provisional', metadata: { kept: true } }),
+    identify({ header, companions }) {
+      assert.deepEqual(companions, [{ kind: 'companion' }])
+      return (header[0] as { certified?: boolean }).certified === true ? { id: 'native', metadata: { certified: true } } : false
+    },
+    parse() { throw new Error('scan must not parse transcript events') },
+  })
+  const result = await createSessionRegistry([provider]).scan()
+  assert.deepEqual(result.failures, [])
+  assert.deepEqual(result.refs.map(ref => [ref.id, ref.metadata]), [['native', { kept: true, certified: true }]])
+})
+void it('Cursor directory discovery limits JSONL to agent-transcripts and IDE databases to state stores', async (t) => {
+  const root = await directory(t)
+  const transcript = join(root, '.cursor/projects/p/agent-transcripts/s/s.jsonl')
+  for (const path of [transcript, join(root, '.cursor/projects/p/debug.jsonl'), join(root, '.config/Cursor/User/debug.jsonl')])
+    await put(path, '{"role":"user","message":{"content":"hello"}}\n')
+  await put(join(root, '.config/Cursor/User/random.db'), 'not sqlite')
+  const ide = join(root, '.config/Cursor/User/globalStorage/state.vscdb')
+  await mkdir(dirname(ide), { recursive: true })
+  await copyFile(resolve('fixtures/cursor/ide-current.db'), ide)
+  const result = await sessions.scan({ providers: ['cursor'], homeDir: root })
+  assert.deepEqual(result.failures, [])
+  assert.deepEqual(result.refs.map(ref => ref.source.path).sort(), [transcript, ide].sort())
+  assert.equal((await sessions.scan({ providers: ['cursor'], roots: { cursor: [root] } })).refs.length, 2)
+})
+void it('Cursor discovers chat and ACP stores, checks identity, retains blobs and ignores symlink children', async (t) => {
+  const root = await directory(t)
+  const id = '11111111-1111-1111-1111-111111111111'
+  const fixture = resolve('fixtures/cursor/persisted/acp-sessions', id)
+  const stores = [join(root, '.cursor/chats/workspace', id), join(root, '.cursor/acp-sessions', id)]
+  for (const path of stores) {
+    await mkdir(path, { recursive: true })
+    await copyFile(join(fixture, 'store.db'), join(path, 'store.db'))
+    await copyFile(join(fixture, 'meta.json'), join(path, 'meta.json'))
+  }
+  const mismatch = join(root, '.cursor/acp-sessions/22222222-2222-2222-2222-222222222222')
+  await mkdir(mismatch)
+  await copyFile(join(fixture, 'store.db'), join(mismatch, 'store.db'))
+  await copyFile(join(fixture, 'meta.json'), join(mismatch, 'meta.json'))
+  await symlink(stores[1]!, join(root, '.cursor/acp-sessions/33333333-3333-3333-3333-333333333333'))
+  const nested = join(root, '.cursor/acp-sessions/backup/acp-sessions', id)
+  await mkdir(nested, { recursive: true })
+  await copyFile(join(fixture, 'store.db'), join(nested, 'store.db'))
+  await copyFile(join(fixture, 'meta.json'), join(nested, 'meta.json'))
+  const result = await sessions.scan({ providers: ['cursor'], homeDir: root })
+  assert.deepEqual(result.failures, [])
+  assert.equal(result.refs.length, 2)
+  for (const ref of result.refs) {
+    assert.equal(ref.id, id)
+    assert.ok(['chat', 'acp'].includes(String(ref.source.locator?.storage)))
+    const before = await readFile(ref.source.path)
+    const session = await sessions.read(ref)
+    assertSessionContract(session)
+    assert.deepEqual(conversationOf(session).map(event => event.type), ['user_message', 'assistant_message', 'assistant_message'])
+    const replies = conversationOf(session).filter(event => event.type === 'assistant_message')
+    assert.equal(replies[0]?.record, replies[1]?.record)
+    assert.ok(session.events.some(event => event.type === 'unknown'))
+    assert.ok(jsonOf(session).includes('native_bytes'))
+    assert.deepEqual(await readFile(ref.source.path), before)
+    if (ref.source.locator?.storage === 'acp')
+      assert.equal(session.workspace?.path, '/captured/cursor')
+  }
+  const acp = result.refs.find(ref => ref.source.locator?.storage === 'acp')!
+  await writeFile(join(dirname(acp.source.path), 'meta.json'), '{"schemaVersion":2}')
+  assert.equal((await sessions.scan({ providers: ['cursor'], homeDir: root })).refs.length, 1)
+  await assert.rejects(sessions.read(acp), hasCode('UnsupportedSchema'))
+})
+void it('Cursor store discovery respects bounds and read rejects missing graph nodes without source writes', async (t) => {
+  const root = await directory(t)
+  const id = '11111111-1111-1111-1111-111111111111'
+  const path = join(root, '.cursor/acp-sessions', id, 'store.db')
+  const fixture = resolve('fixtures/cursor/persisted/acp-sessions', id)
+  await mkdir(dirname(path), { recursive: true })
+  await copyFile(join(fixture, 'store.db'), path)
+  await copyFile(join(fixture, 'meta.json'), join(dirname(path), 'meta.json'))
+  const limited = await sessions.scan({ providers: ['cursor'], homeDir: root, headerBytes: 64 })
+  assert.equal(limited.refs.length, 0)
+  assert.ok(limited.failures.length > 0)
+  const ref = (await sessions.scan({ providers: ['cursor'], homeDir: root })).refs[0]!
+  const controller = new AbortController()
+  const reason = new Error('cancel persisted source')
+  const opened = await sessions.open(ref, { signal: controller.signal })
+  await assert.rejects(async () => {
+    for await (const frame of opened.stream()) {
+      assert.equal(frame.type, 'record')
+      controller.abort(reason)
+    }
+  }, error => error === reason)
+  // Mutate only the temporary test store, leaving its certified root intact.
+  const db = new DatabaseSync(path)
+  try {
+    db.exec('DELETE FROM blobs WHERE data = X\'0a0f68656c6c6f2066726f6d2075736572\'')
+  }
+  finally { db.close() }
+  const before = await readFile(path)
+  await assert.rejects(sessions.read(ref), hasCode('CorruptedSession'))
+  assert.deepEqual(await readFile(path), before)
+})
+void it('Cursor excludes an ACP symlink root before inspecting its stores', async (t) => {
+  const root = await directory(t)
+  const outside = join(root, 'outside')
+  await put(join(outside, '11111111-1111-1111-1111-111111111111/store.db'), 'damaged outside database')
+  await mkdir(join(root, '.cursor'))
+  await symlink(outside, join(root, '.cursor/acp-sessions'))
+  assert.deepEqual(await sessions.scan({ providers: ['cursor'], homeDir: root }), { refs: [], failures: [] })
+})
+void it('Cursor reports an ACP companion denial and continues independent chat stores', async (t) => {
+  const root = await directory(t)
+  const id = '11111111-1111-1111-1111-111111111111'
+  const fixture = resolve('fixtures/cursor/persisted/acp-sessions', id)
+  for (const relative of [`.cursor/chats/workspace/${id}`, `.cursor/acp-sessions/${id}`]) {
+    const path = join(root, relative)
+    await mkdir(path, { recursive: true })
+    await copyFile(join(fixture, 'store.db'), join(path, 'store.db'))
+  }
+  const companion = join(root, '.cursor/acp-sessions', id, 'meta.json')
+  const original = fs.stat
+  t.mock.method(fs, 'stat', async (path: string) => {
+    if (path === companion)
+      throw Object.assign(new Error('companion denied'), { code: 'EACCES', syscall: 'stat' })
+    return original(path)
+  })
+  syncBuiltinESMExports()
+  t.after(() => {
+    t.mock.restoreAll()
+    syncBuiltinESMExports()
+  })
+  const result = await sessions.scan({ providers: ['cursor'], homeDir: root })
+  assert.equal(result.refs.length, 1)
+  assert.equal(result.refs[0]?.source.locator?.storage, 'chat')
+  assert.equal(result.failures.length, 1)
+  assert.equal(result.failures[0]?.source?.path, companion)
+  assert.equal(result.failures[0]?.code, 'PermissionDenied')
+})
+void it('OpenCode directory discovery rejects JSON lookalikes and validates native session metadata', async (t) => {
+  const root = await directory(t)
+  await put(join(root, 'storage/session/p/ses_good.json'), '{"id":"ses_good","title":"native"}')
+  await put(join(root, 'storage/session/p/debug.json'), '{"id":"debug"}')
+  await put(join(root, 'storage/session/p/ses_wrong.json'), '{"id":"ses_other"}')
+  await put(join(root, 'storage/session/p/ses_empty.json'), '{}')
+  await put(join(root, 'storage/message/s/ses_message.json'), '{"id":"ses_message"}')
+  const result = await sessions.scan({ providers: ['opencode'], roots: { opencode: [root] } })
+  assert.deepEqual(result.failures, [])
+  assert.deepEqual(result.refs.map(ref => ref.id), ['ses_good'])
+})
+void it('Kimi physical refs expose native session identity and agent role without merging streams', async (t) => {
+  const root = await directory(t)
+  await put(join(root, 's/state.json'), '{"id":"native","createdAt":1,"agents":{}}')
+  for (const agent of ['main', 'child'])
+    await put(join(root, `s/agents/${agent}/wire.jsonl`), '{"type":"metadata","protocol_version":"1.5"}\n')
+  await symlink(join(root, 's/agents/main'), join(root, 's/agents/link'))
+  const result = await sessions.scan({ providers: ['kimi'], roots: { kimi: [root] } })
+  assert.equal(result.refs.length, 2)
+  for (const ref of result.refs) {
+    const agentId = dirname(ref.source.path).split('/').at(-1)
+    assert.equal(ref.metadata.nativeSessionId, 'native')
+    assert.equal(ref.metadata.agentId, agentId)
+    assert.equal(ref.metadata.agentRole, agentId === 'main' ? 'main' : 'subagent')
+    const session = await sessions.read(ref)
+    assert.equal(session.metadata.agentId, agentId)
+    assertSessionContract(session)
+  }
+  const acquired = await sessions.parse('kimi', { jsonl: '{"type":"metadata","protocol_version":"1.5"}\n', source: join(root, 's/agents/main/wire.jsonl') })
+  assert.equal(acquired.metadata.agentRole, undefined)
+  assert.equal(acquired.metadata.agentId, undefined)
+})
 function hasCode(code: string) {
   return (error: unknown) =>
     error instanceof SessionError && error.code === code
@@ -545,7 +832,7 @@ void it('unsafe filesystem session ID cannot traverse paths', async (t) => {
   await writeFile(path, '{"id":"../../outside"}')
   const ref = (await sessions.scan({
     providers: ['opencode'],
-    roots: { opencode: [join(root, 'storage')] },
+    roots: { opencode: [path] },
   })).refs[0]!
   await assert.rejects(async () => sessions.read(ref), hasCode('CorruptedSession'))
 })
@@ -566,7 +853,7 @@ void it('malformed legacy message cannot hide later parts', async (t) => {
   )
   const ref = (await sessions.scan({
     providers: ['opencode'],
-    roots: { opencode: [storage] },
+    roots: { opencode: [join(storage, 'session/project/s.json')] },
   })).refs[0]!
   const session = await sessions.read(ref)
   assert.ok(session.events.some(e => e.type === 'unknown'))

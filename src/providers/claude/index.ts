@@ -1,33 +1,68 @@
+import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { basename, isAbsolute, join } from 'node:path'
+import { basename, delimiter, isAbsolute, join, relative, sep } from 'node:path'
 import process from 'node:process'
 
+import type { ScanOptions } from '../../contracts/provider.ts'
 import type { Session } from '../../contracts/session.ts'
 import { jsonlProvider, messageEvents } from '../../shared/ingestion.ts'
+import { ioError } from '../../shared/paths.ts'
+import { scanSource } from '../../shared/scan.ts'
 import { object, optional, string, timestamp } from '../../shared/value.ts'
 
-export const claudeProvider = jsonlProvider({
+async function resolveClaudeRoots(options: ScanOptions, siblingsEnabled = true): Promise<readonly string[]> {
+  if (options.roots?.claude)
+    return options.roots.claude
+  const home = options.homeDir ?? homedir()
+  const config
+    = options.homeDir === undefined ? process.env.CLAUDE_CONFIG_DIR : undefined
+  const multi = options.homeDir === undefined ? process.env.CLAUDE_CONFIG_DIRS : undefined
+  const xdg
+    = options.homeDir === undefined ? process.env.XDG_CONFIG_HOME : undefined
+  let siblings: string[] = []
+  try {
+    siblings = siblingsEnabled
+      ? (await readdir(home, { withFileTypes: true }))
+          .filter(entry => entry.isDirectory() && entry.name.startsWith('.claude'))
+          .map(entry => join(home, entry.name, 'projects'))
+      : []
+  }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+      ioError(error, home)
+  }
+  return [...new Set([
+    ...[...(multi?.split(delimiter).filter(Boolean) ?? []), ...(config !== undefined && config !== '' ? [config] : [])]
+      .map(path => basename(path) === 'projects' ? path : join(path, 'projects')),
+    join(home, '.claude/projects'),
+    ...siblings.sort(),
+    join(
+      xdg !== undefined && isAbsolute(xdg) ? xdg : join(home, '.config'),
+      'claude/projects',
+    ),
+    join(home, 'Library/Application Support/Claude/local-agent-mode-sessions'),
+  ])]
+}
+const claude = jsonlProvider({
   id: 'claude',
-  roots(options) {
-    if (options.roots?.claude)
-      return options.roots.claude
-    const home = options.homeDir ?? homedir()
-    const config
-      = options.homeDir === undefined ? process.env.CLAUDE_CONFIG_DIR : undefined
-    if (config !== undefined && config !== '') {
-      return [
-        basename(config) === 'projects' ? config : join(config, 'projects'),
-      ]
+  roots: resolveClaudeRoots,
+  accepts(path, candidate) {
+    if (!path.endsWith('.jsonl'))
+      return false
+    if (candidate.explicitFile)
+      return true
+    const desktop = candidate.roots.find(root => basename(root) === 'local-agent-mode-sessions')
+    if (desktop !== undefined) {
+      const parts = relative(desktop, path).split(sep)
+      if (parts[0] !== '..') {
+        const index = parts.indexOf('.claude')
+        return index > 0 && parts[index - 1]!.startsWith('local_') && parts[index + 1] === 'projects'
+      }
     }
-    const xdg
-      = options.homeDir === undefined ? process.env.XDG_CONFIG_HOME : undefined
-    return [
-      join(home, '.claude/projects'),
-      join(
-        xdg !== undefined && isAbsolute(xdg) ? xdg : join(home, '.config'),
-        'claude/projects',
-      ),
-    ]
+    return basename(path) !== 'journal.jsonl'
+  },
+  identify({ header, explicitFile }) {
+    return explicitFile || header.some(record => typeof object(record).sessionId === 'string') ? {} : false
   },
   metadata(records) {
     const facts: Partial<Session> = {}
@@ -80,3 +115,15 @@ export const claudeProvider = jsonlProvider({
     }
   },
 })
+export const claudeProvider = {
+  ...claude,
+  async* scan(options: ScanOptions = {}) {
+    let roots: readonly string[] | undefined
+    yield* scanSource('claude', { path: options.homeDir ?? homedir() }, options, async function* () {
+      roots = await resolveClaudeRoots(options)
+    })
+    // A denied home listing cannot hide independently configured or conventional stores.
+    roots ??= await resolveClaudeRoots(options, false)
+    yield* claude.scan({ ...options, roots: { claude: roots } })
+  },
+}
