@@ -274,7 +274,7 @@ Frame order, sequences, selected metadata/evidence, per-record mapping-before-de
 Consumer callbacks own cancellation of their own pending work, as iterator consumers do.
 
 Alternatives were a new usage parser (breaks provider ownership), batching through another mandatory iterator layer (changes default delivery and adds forwarding), or omitting callback errors/cancellation/EOF diagnostics (weakens the contract).
-The measured removal of one per-line iterator delegate reduced complete CLI time by 5–7%, providing evidence to test removal of per-frame iterator round trips.
+Profiling identified repeated per-line and per-frame iterator work as avoidable overhead in the reporting path.
 `consume` is optional; existing and third-party handles need not implement it, and all existing APIs/default frames and `agent-session/v1` remain unchanged.
 Usage uses this capability when present, otherwise existing select/full-stream fallback, without a private provider import.
 Fixture/callback equivalence, async backpressure, error/cancellation cleanup, installed declarations and the optional-capability/public-consumer guards in `tools/policy.ts` enforce this boundary.
@@ -334,7 +334,7 @@ The Usage builder owns date/timezone/DST rules and accounts excluded undated obs
 Alternatives were filtering on source mtime/session start (unsafe across dates), moving calendar policy into providers (wrong owner), or repeated date parsing after acceptance.
 The predicate cannot skip native validation or source EOF and introduces no inferred time/model or serialization changes.
 The Usage runner automatically chooses compact facts plus this predicate only when explicit `since` and `until` name the same calendar day.
-An unbounded or multi-day report keeps evidence-free canonical consumption: compact envelopes alone did not show consistent gains in the five-workload experiment.
+An unbounded or multi-day report keeps evidence-free canonical consumption: compact envelopes alone did not show consistent gains across the tested fixture workloads.
 This conservative query-shape decision belongs to the consumer, not to provider discovery or native parsing; it is not a general speed guarantee.
 
 The private Usage runner owns a bounded scheduling experiment (one, two or four files).
@@ -342,9 +342,9 @@ It opens references in scan order, groups incremental handles only, serializes b
 Sibling reads are aborted on failure and no partial final JSON is printed.
 The builder's per-session state and sorted final output retain deterministic sums, cross-source duplicate diagnostics and provenance despite interleaved delivery.
 Alternatives in that experiment were unbounded Promise.all (memory/file-descriptor costs), workers/native execution (then outside scope), or parallel buffered snapshots (retains multiple large native objects).
-One file remains the default because the experiment did not show a stable concurrency gain even on 100-file input.
+Concurrency remains serial by default because small-file gains are inconsistent and worker memory costs are substantial.
 Two/four-file controls and batch decoding remain explicit, tested benchmark prototypes rather than user flags; all four candidates are reproducible through the same maintained harness.
-The harness's optional `--final` phase measures actual defaults, the preserved CLI, controlled fact/filter variants and ccusage with fifteen repetitions; generation/building remain outside output timings.
+The maintained harness compares complete reports, first-result latency and process peak memory; generation/building remain outside output timings.
 These tuning options belong to the private benchmark runner, not new user-facing CLI flags; production defaults depend on full-output measurements.
 Executable policy, installed types, fixture/report equivalence, decoder boundaries, callback cleanup and concurrency/failure regressions enforce each owner and compatibility boundary.
 
@@ -373,16 +373,14 @@ Alternatives were Promise-only concurrency (does not parallelize CPU), transferr
 Worker startup and per-isolate memory must be included in full-output and process-wide RSS measurements; one file and buffered fallback remain serial.
 Repeated identical source selectors also fall back to serial reads so native repeated acquisitions are counted rather than discarded or rejected by partition merging.
 Private worker-count controls stay off by default until an identical-report benchmark establishes a useful workload and memory tradeoff.
-The measured large-file benefit now supports an explicit CLI --workers 1|2|4 option, owned by Usage argument parsing and scheduling; the default remains one because worker RSS and small-file startup costs are substantial.
+A repeated large-file comparison supports an explicit CLI --workers 1|2|4 option, owned by Usage argument parsing and scheduling; the default remains one because worker RSS and small-file startup costs are substantial.
 The alternative of automatic file-count/size thresholds would extrapolate beyond the available fixture measurements.
 This additive command option changes execution only, not discovery facts, token arithmetic, report filters/schema, public Huihua APIs or dependencies; private benchmark overrides still isolate each mode.
 Usage argument parsing also accepts one leading -- forwarded literally by pinned pnpm 12; a focused regression reproduces the old error before the fix and verifies the compiled executable.
 This affects runner argument transport only and introduces no report/schema/provider change.
 Executable architecture checks enforce public imports, emitted worker entry, bounded counts, compact partitions and sibling cleanup; fixture and adversarial partition regressions enforce trust and overflow semantics.
 The CLI build has a separate worker entry and may share emitted chunks; its main-thread entry guard recognizes the actual cli.js path without launching another CLI inside a worker.
-The benchmark hashes every emitted consumer chunk and uses a preserved consumer with the current public core to isolate metadata allocation from consumer/scheduler changes.
-Its --cpu phase adds 100 content-bearing files and ten larger content files to the earlier five inputs, records fifteen repetitions, and includes every worker isolate in process VmHWM.
-The --published validation phase runs the actual CLI with --workers 2/4 (no wrapper) on the single-file control and both content-bearing multi-file inputs, hashing the final argument parser and all emitted consumer chunks.
+Comparisons use the emitted consumer and a preserved baseline where available. Measurements use fixture-derived inputs and include worker isolates in process peak memory. The actual emitted CLI accepts bounded --workers 2/4 options; single-file input remains serial.
 
 SessionRegistry.parse(provider, input, options) separates acquisition from discovery.
 FileInput supplies a path, optional format (JSONL by default), id and locator; the registry dispatches directly to the existing read SPI.

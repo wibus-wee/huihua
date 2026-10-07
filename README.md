@@ -129,7 +129,7 @@ For Claude and Codex, the CLI prefers optional `open.consumeUsage(consumer)`: th
 It reuses the existing provider parser and preserves all diagnostics; native JSON is still decoded and validated.
 For an explicit single-day query (`--since` equals `--until`), Claude/Codex instead use optional `consumeUsageFacts` with the report's timestamp predicate, before allocating usage context and canonical event frames.
 The same native mapping and aggregation produce identical reports; complete evidence APIs retain their full path.
-Batch UTF-8 decoding and multi-file concurrency were measured but remain off by default; see the four-experiment results in the guide.
+Batch UTF-8 decoding remains off by default; worker usage and measured tradeoffs are summarized in the guide.
 Use `--workers 2` or `--workers 4` to parse multiple JSONL sessions on separate CPU threads, at increased memory cost; the default is serial.
 Workers reuse public provider contracts and the same aggregation rules, including cross-session duplicate diagnostics; single-file and buffered sources remain serial.
 Other sources use optional `consume(selection, consumer)`, then `select` or the full stream, with records for attribution.
