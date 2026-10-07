@@ -182,8 +182,9 @@ The provider is
 explicit — content and file extensions are never used to guess it.
 Without an explicit `id`,
 the first native identity wins and later conflicting identities are preserved and diagnosed.
-Acquired JSONL is supported by every line-based provider; `opencode`, `antigravity`, `cline`,
-`fx` and `devin` require file input, and unsupported input fails `UnsupportedSchema`.
+Acquired JSONL is supported by every line-based provider; `opencode`, `cline`, `fx`
+and `devin` require file input, and unsupported input fails `UnsupportedSchema`.
+Antigravity accepts acquired CLI JSONL; SQLite and Markdown sources require their explicit file formats.
 
 `sessions.stream(provider, input)` consumes acquired JSONL incrementally without collecting a
 snapshot.
