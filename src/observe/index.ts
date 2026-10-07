@@ -1,4 +1,4 @@
-import type { EventType, SessionEvent } from '../contracts/event.ts'
+import type { EventType, SessionEvent, Timestamp } from '../contracts/event.ts'
 import type { Session } from '../contracts/session.ts'
 
 /** Select existing events in source order, retaining duplicates and evidence references. */
@@ -31,4 +31,13 @@ export function fileChangesOf(session: Pick<Session, 'events'>) {
 }
 export function subagentsOf(session: Pick<Session, 'events'>) {
   return eventsOf(session, 'subagent')
+}
+/** Unix epoch milliseconds for a native timestamp; absent or unparseable input stays absent. */
+export function millisOf(timestamp: Timestamp | undefined): number | undefined {
+  if (timestamp === undefined)
+    return undefined
+  if (timestamp.format === 'unix_millis')
+    return timestamp.value
+  const parsed = Date.parse(timestamp.value)
+  return Number.isNaN(parsed) ? undefined : parsed
 }

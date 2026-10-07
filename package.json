@@ -28,6 +28,10 @@
       "types": "./dist/observe/index.d.ts",
       "import": "./dist/observe/index.js"
     },
+    "./ingest": {
+      "types": "./dist/ingest/index.d.ts",
+      "import": "./dist/ingest/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js"

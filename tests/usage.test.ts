@@ -427,7 +427,7 @@ void it('CLI selective reads produce the same complete report as full-stream agg
     '--timezone',
     'UTC',
     '--json',
-  ], { encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: root } })
+  ], { encoding: 'utf8', env: { ...process.env, HOME: root, CLAUDE_CONFIG_DIR: root, CLAUDE_CONFIG_DIRS: '', XDG_CONFIG_HOME: '' } })
   assert.deepEqual(JSON.parse(output), expected)
   assert.equal(expected.undatedUsageEventCount, 1)
   assert.ok(expected.providers[0]?.diagnostics.includes('corrupted JSONL record'))

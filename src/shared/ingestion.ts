@@ -441,7 +441,7 @@ export function openFrom(
     },
   }
 }
-interface JsonlCandidate {
+export interface JsonlCandidate {
   readonly path: string
   readonly roots: readonly string[]
   /** True only when the caller supplied this exact file, not its parent directory. */

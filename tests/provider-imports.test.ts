@@ -7,7 +7,8 @@ import { join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { it } from 'node:test'
 
-import { conversationOf, eventsOf, fileChangesOf, sessions, toolCallsOf, toolResultsOf } from '../src/index.ts'
+import { conversationOf, createSessionRegistry, eventsOf, fileChangesOf, millisOf, sessions, toolCallsOf, toolResultsOf } from '../src/index.ts'
+import * as ingest from '../src/ingest/index.ts'
 import { assertSessionContract } from '../src/testing/index.ts'
 
 const fixture = (path: string) => resolve('fixtures', path)
@@ -651,4 +652,49 @@ void it('independently validated DeepSeek v0-v4 plain and checksummed frames sha
       assert.equal(toolResultsOf(plain)[0]?.data.callId, 'call-v4-1')
     }
   }
+})
+
+void it('the public ingest kit builds a conforming third-party JSONL provider', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-ingest-'))
+  t.after(async () => rm(root, { force: true, recursive: true }))
+  await writeFile(join(root, 'session.jsonl'), [
+    { type: 'session_meta', id: 'kit-session' },
+    { role: 'user', content: [{ type: 'text', text: 'hi' }] },
+    { role: 'assistant', content: [{ type: 'text', text: 'hello' }], timestamp: '2026-01-01T00:00:00Z' },
+    '{broken',
+  ].map(value => typeof value === 'string' ? value : JSON.stringify(value)).join('\n'))
+  for (const name of ['Ingestion', 'openFrom', 'jsonlProvider', 'jsonStoreProvider', 'sqliteStoreProvider', 'scanSource', 'jsonLines', 'jsonLinesFrom', 'header', 'readJson', 'files', 'exists', 'isDirectory', 'canonicalPath', 'pathMatcher', 'ioError', 'ioErrorOf', 'positiveLimit', 'scanFailure', 'contentBlocks', 'messageEvents', 'chatMessageEvents', 'joinedText', 'array', 'object', 'optional', 'string', 'timestamp'])
+    assert.equal(typeof (ingest as unknown as Record<string, unknown>)[name], 'function', name)
+  const provider = ingest.jsonlProvider({
+    id: 'kit',
+    roots: () => [root],
+    metadata: records => ({
+      ...ingest.optional('id', ingest.string(records.map(ingest.object).find(record => ingest.string(record.type) === 'session_meta')?.id)),
+    }),
+    parse: (lines, native) => {
+      const record = ingest.object(native)
+      if (ingest.string(record.type) === 'session_meta')
+        lines.emit('system', { sourceType: 'session_meta', payload: record })
+      else
+        ingest.chatMessageEvents(lines, native)
+    },
+  })
+  const registry = createSessionRegistry([provider])
+  const { refs, failures } = await registry.scan()
+  assert.deepEqual(failures, [])
+  assert.equal(refs.length, 1)
+  const opened = await registry.open(refs[0]!)
+  assert.equal(opened.readMode, 'incremental')
+  const session = await opened.snapshot()
+  assertSessionContract(session)
+  assert.equal(session.id, 'kit-session')
+  assert.deepEqual(conversationOf(session).map(e => e.data.content), [
+    [{ type: 'text', data: 'hi' }],
+    [{ type: 'text', data: 'hello' }],
+  ])
+  assert.equal(eventsOf(session, 'unknown')[0]?.data.sourceType, 'malformed_jsonl')
+  assert.equal(millisOf(conversationOf(session)[1]?.timestamp), Date.parse('2026-01-01T00:00:00Z'))
+  assert.equal(millisOf({ format: 'unix_millis', value: 42 }), 42)
+  assert.equal(millisOf({ format: 'rfc3339', value: 'not a date' }), undefined)
+  assert.equal(millisOf(undefined), undefined)
 })

@@ -5,6 +5,7 @@ export default defineConfig({
     'index': 'src/index.ts',
     'registry': 'src/registry.ts',
     'observe/index': 'src/observe/index.ts',
+    'ingest/index': 'src/ingest/index.ts',
     'testing/index': 'src/testing/index.ts',
     'providers/claude/index': 'src/providers/claude/index.ts',
     'providers/codex/index': 'src/providers/codex/index.ts',

@@ -1,4 +1,5 @@
 import { SessionError } from './contracts/diagnostic.ts'
+import type { SessionEvent } from './contracts/event.ts'
 import type {
   DetectOptions,
   JsonlInput,
@@ -149,12 +150,18 @@ export class SessionRegistry {
       },
       async* stream() {
         const value = await snapshot()
+        const eventsByRecord = new Map<number, SessionEvent[]>()
+        for (const event of value.events) {
+          const owned = eventsByRecord.get(event.record)
+          if (owned === undefined)
+            eventsByRecord.set(event.record, [event])
+          else
+            owned.push(event)
+        }
         for (const record of value.records) {
           yield { type: 'record', record }
-          for (const event of value.events) {
-            if (event.record === record.sequence)
-              yield { type: 'event', event }
-          }
+          for (const event of eventsByRecord.get(record.sequence) ?? [])
+            yield { type: 'event', event }
         }
         for (const diagnostic of value.diagnostics)
           yield { type: 'diagnostic', diagnostic }

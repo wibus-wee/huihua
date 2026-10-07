@@ -60,213 +60,137 @@ bun install huihua
 yarn add huihua
 ```
 
-## Read evidence, project what you need
-
-```ts
-import { jsonOf, sessions } from 'huihua'
-import {
-  conversationOf,
-  eventsOf,
-  fileChangesOf,
-  subagentsOf,
-  toolCallsOf,
-  toolResultsOf,
-} from 'huihua/observe'
-
-const { refs } = await sessions.scan({ providers: ['codex'] })
-if (refs[0]) {
-  const session = await sessions.read(refs[0])
-  const conversation = conversationOf(session)
-  const calls = toolCallsOf(session)
-  const results = toolResultsOf(session)
-  const tools = eventsOf(session, 'tool_call', 'tool_result')
-  const changes = fileChangesOf(session)
-  const agents = subagentsOf(session)
-  const json = jsonOf(session) // JSON.stringify(session) works as well
-}
-```
-
-A session uses `agent-session/v1`: ordered `records` contain native evidence once; normalized
-`events` refer to their record sequence.
-Messages, reasoning, tools, commands, usage, system and
-unknown records retain order.
-Repeated IDs, mirrored events, native tool names and Pi branches
-survive.
-Unknown data is retained rather than dropped.
-Missing facts remain absent.
-Projections
-are disposable views of events, with evidence associations intact.
-
-| Selector                    | Selected events                                               |
-| --------------------------- | ------------------------------------------------------------- |
-| eventsOf(session, ...types) | One or more explicit event types, with a narrowed result type |
-| conversationOf(session)     | User and assistant messages                                   |
-| toolCallsOf(session)        | Tool calls                                                    |
-| toolResultsOf(session)      | Tool results                                                  |
-| fileChangesOf(session)      | File changes                                                  |
-| subagentsOf(session)        | Subagent lifecycle events                                     |
-
-Selectors retain order, duplicates and original event objects; they do not merge messages or resolve relationships.
-An empty result means no matching normalized events were found, not that the source format lacks the capability.
-The [architecture contract](docs/architecture.md#projections-and-review-boundaries) defines selection and evidence semantics.
-
-## Example Packages
-
-| Name                                           | Description                                                                                                                                                           |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@huihua/usage`](packages/usage/package.json) | A derivative package that uses Huihua to report daily token usage and model breakdowns from local coding-agent sessions. See the [Usage guide](docs/usage-report.md). |
-
-Keep the full SessionRef: an ID alone can be ambiguous across stores. `diagnostics` explains partial
-parses and unsupported records.
-Raw `text` preserves JSON numeric spellings outside JavaScript's
-safe integer range; use it when exact native numeric lexemes matter.
-
-## Scan local sources
-
-```ts
-const { refs, failures } = await sessions.scan()
-for (const failure of failures)
-  console.warn(failure.provider, failure.source?.path, failure.message)
-```
-
-Scanning preserves refs when another source or provider fails, including refs found before a database scan fails midway.
-Missing stores produce no refs or failures.
-Invalid requests and caller cancellation still throw.
-A discovered ref does not guarantee a later read will succeed.
-
-```ts
-for await (const event of sessions.scanStream()) {
-  if (event.type === 'ref')
-    console.log(event.ref)
-  else
-    console.warn(event.failure)
-}
-```
-
-scanStream emits discoveries and failures as they become available; scan collects the same events and sorts its refs.
-Both deduplicate by provider and complete source, preserving equal IDs from different stores.
-See the [scanning contract](docs/architecture.md#scanning-and-failure-reports) for failure scope, cancellation and third-party SPI migration.
-
-## Parse supplied data without discovery
-
-| Entry point               | Input                           | Output                                             |
-| ------------------------- | ------------------------------- | -------------------------------------------------- |
-| `parse(provider, input)`  | Explicit file or acquired JSONL | Complete Session snapshot                          |
-| `stream(provider, input)` | Acquired JSONL                  | One consumption of incremental SessionFrame values |
-| `open(ref)`               | Explicit file/store reference   | Replayable handle with frames and snapshots        |
+## Quick start
 
 ```ts
 import { sessions } from 'huihua'
+import { conversationOf, toolCallsOf } from 'huihua/observe'
 
-// A known JSONL file: no detect(), scan(), directory traversal or header pre-read.
-const fromFile = await sessions.parse('codex', { path: '/backups/rollout.jsonl' })
+const { refs, failures } = await sessions.scan({ providers: ['codex'] })
+for (const failure of failures)
+  console.warn(failure.provider, failure.source?.path, failure.message)
 
-// Already acquired JSONL: string, Uint8Array or AsyncIterable<Uint8Array>.
-const fromText = await sessions.parse('claude', {
-  jsonl: '{"type":"user","sessionId":"example","message":{"content":"hello"}}\n',
-  source: 'upload:example',
-})
-```
-
-JSONL acquisition is supported by Codex, Claude, Pi, Cursor's CLI adapter, OAR, ACP, Kimi, Grok, Morph, Copilot, OpenClaw, Qwen, Droid, DeepSeek and Hermes captures/exports.
-File reads and supplied data use the same provider mapping, raw evidence, ordering, diagnostics and record limits.
-The provider is explicit; content and file extensions are not used to guess it.
-The source label is provenance only and is never opened as a path.
-Without an explicit id, the first native identity wins; conflicting later identities are preserved and diagnosed.
-If none exists, a labeled source identity is returned.
-File inputs default to JSONL; compressed files require format: 'jsonl_zstd'.
-
-A database contains multiple sessions; specify the exact format and native selector:
-
-```ts
-const fromDatabase = await sessions.parse('cursor', {
-  path: '/backups/state.vscdb',
-  format: 'cursor_sqlite',
-  id: 'composer-id',
-  locator: { storage: 'modern' }, // Use 'legacy' for ItemTable-backed stores.
-})
-const fromOpenCode = await sessions.parse('opencode', {
-  path: '/backups/opencode.db',
-  format: 'opencode_sqlite',
-  id: 'session-id',
-  // locator: { table: 'session_v2' } selects that empirical schema; default is 'session'.
-})
-```
-
-OpenCode's historical session metadata files use format: 'opencode_files' and retain their message/part directory layout.
-OpenCode does not consume arbitrary JSONL exports; unsupported acquired input fails explicitly.
-parse() returns a full snapshot; a supplied byte stream is consumed once, incrementally, while the returned Session accumulates in memory.
-Use stream() to consume acquired JSONL without collecting that snapshot:
-
-```ts
-// bytes is a caller-supplied AsyncIterable<Uint8Array> from an already acquired object.
-for await (const frame of sessions.stream('codex', {
-  jsonl: bytes,
-  source: 'stored-object:rollout',
-})) {
-  if (frame.type === 'event') {
-    // Await your batch writes here; the parser follows consumer backpressure.
-  }
+if (refs[0]) {
+  const session = await sessions.read(refs[0])
+  conversationOf(session) // user and assistant messages, in source order
+  toolCallsOf(session) // tool calls
 }
 ```
 
-stream() also accepts text or Uint8Array and yields the same record/event/diagnostic/metadata frames as file-backed open().
-Each returned sequence permits one consumer; concurrent consumption or replay throws TypeError.
-To replay, call stream() again with text/bytes or a fresh byte iterable.
-Early return closes the producer's iterator; cancellation is checked between frames and chunks.
-Producers waiting on their own I/O must also handle the supplied AbortSignal.
-Prefixes remain provisional until successful completion, and early return does not validate an unread suffix.
-The [direct acquisition contract](docs/architecture.md#direct-acquisition) defines lifecycle and capability boundaries.
-For incremental event consumption from a known file, construct a SessionRef and call open(); refs need not originate from scan().
+A `Session` uses the `agent-session/v1` schema: `records` hold each native record once in read
+order, normalized `events` refer back to their record, and `diagnostics` explain partial parses.
+Unknown data is retained rather than dropped; missing facts stay absent.
+Keep the whole `SessionRef` when passing sessions around — an ID alone can be ambiguous across
+stores, and `source` identifies the exact file or selector.
 
-## Stream large transcripts
+| Selector                      | Selected events                                   |
+| ----------------------------- | ------------------------------------------------- |
+| `eventsOf(session, ...types)` | Explicit event types, with a narrowed result type |
+| `conversationOf(session)`     | User and assistant messages                       |
+| `toolCallsOf(session)`        | Tool calls                                        |
+| `toolResultsOf(session)`      | Tool results                                      |
+| `fileChangesOf(session)`      | File changes                                      |
+| `subagentsOf(session)`        | Subagent lifecycle events                         |
+
+Selectors keep order, duplicates and the original event objects; they never merge messages or
+resolve relationships. `millisOf(timestamp)` converts a native `Timestamp` to epoch
+milliseconds, leaving absent or unparseable input absent.
+Serialize with `jsonOf(session)` or `JSON.stringify(session)`; `record.text` preserves JSON
+numeric spellings beyond JavaScript's safe integer range.
+
+## Reading paths
+
+| Entry point                        | Input                                                           | Returns                                                              |
+| ---------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `sessions.scan(options?)`          | Provider ids, `roots`, `homeDir`, `signal`                      | `{ refs, failures }`; refs sorted                                    |
+| `sessions.scanStream(options?)`    | Same                                                            | `AsyncIterable<ScanEvent>`; refs and failures as discovered          |
+| `sessions.read(ref)`               | `SessionRef`                                                    | Complete `Session` snapshot                                          |
+| `sessions.open(ref)`               | `SessionRef`                                                    | Replayable handle: `stream()`, `events()`, `records()`, `snapshot()` |
+| `sessions.parse(provider, input)`  | `{ path, format?, id?, locator? }` or `{ jsonl, source?, id? }` | Complete `Session` snapshot                                          |
+| `sessions.stream(provider, input)` | `{ jsonl }` acquired input                                      | Single-consumer `AsyncIterable<SessionFrame>`                        |
+| `sessions.detect(options?)`        | `homeDir`, `roots`                                              | Per-provider discovered roots                                        |
+| `sessions.require(id)`             | Provider id                                                     | Its registered handle, or `ProviderNotFound`                         |
+| `sessions.providers()`             | —                                                               | Registered provider handles                                          |
+
+Errors split by caller versus data: invalid requests and cancellation throw, while source
+problems become in-band `failures` and `diagnostics` that never retract already emitted refs.
+Iterables are lazy, follow consumer backpressure and check cancellation between frames; a
+streamed prefix is provisional until the iterator completes.
+The [architecture contract](docs/architecture.md) owns the full semantics.
+
+## Scanning local stores
 
 ```ts
-const opened = await sessions.open(refs[0]!)
-console.log(opened.readMode) // 'incremental' or 'buffered', selected by this source's adapter.
-for await (const frame of opened.stream()) {
-  if (frame.type === 'event') {
-    // Consume incrementally; record, diagnostic and metadata frames remain available too.
-  }
-}
-const snapshot = await opened.snapshot() // A fresh read, collected into a complete Session
-```
-
-`opened.events()` and `opened.records()` filter the same stream.
-File-backed JSONL handles also support optional `opened.consume(selection, consumer)` with the same canonical frames and parser.
-It completes after validated EOF; synchronous callbacks avoid per-frame iterator steps, and returned Promises provide backpressure.
-Callback errors and AbortSignal cancellation stop delivery and close the source.
-Handles without this optional capability retain the stream/select APIs.
-JSONL reads are incremental and
-close on early return or AbortSignal cancellation. `read`/`snapshot` collects the full result;
-SQL ordering can buffer a selected session's rows.
-readMode makes that buffering visible; it describes iteration, while snapshot always collects the full session.
-A streamed prefix remains provisional until
-completion, because an unread suffix may contain corruption.
-Details and resource limits live in
-[the architecture contract](docs/architecture.md).
-
-## Providers and custom roots
-
-```ts
-const { refs } = await sessions.scan({
+const { refs, failures } = await sessions.scan({
   providers: ['codex'],
   roots: { codex: ['/backups/codex/sessions'] },
 })
 ```
 
-Explicit roots replace defaults and accept a supported file or directory.
-Explicit `homeDir`
-isolates discovery from the process environment.
-Default discovery honors CODEX_HOME,
-CLAUDE_CONFIG_DIRS, CLAUDE_CONFIG_DIR, absolute XDG_CONFIG_HOME/XDG_DATA_HOME and PI_CODING_AGENT_DIR.
-Claude also discovers `.claude*` sibling configurations and Desktop/Cowork local transcripts.
-Qwen uses QWEN_HOME only when its projects directory exists, otherwise falling back to ~/.qwen/projects.
-Directory discovery validates Qwen chat layout and native identity; Cursor JSONL must live under agent-transcripts.
-Explicit file roots and parse() remain available for acquired backups outside native layouts.
-Kimi, Grok, Antigravity and Morph honor the store roots listed in the [coverage contract](docs/architecture.md#provider-coverage-and-format-ownership).
-Copilot, Hermes, OpenClaw, Qwen, Devin, fx, Cline, DeepSeek and legacy Droid discover their native roots listed in the coverage contract.
-OAR and ACP recordings require explicit input or roots.
+Explicit `roots` replace defaults and accept supported files or directories; `homeDir` isolates
+discovery from the process environment.
+Default roots honor each provider's environment
+variables — CODEX_HOME, CLAUDE_CONFIG_DIR(S), XDG_CONFIG_HOME/XDG_DATA_HOME and the per-provider
+variables in the [coverage contract](docs/architecture.md#provider-coverage-and-format-ownership).
+Missing stores produce no refs and no failures; a discovered ref does not guarantee that a later
+read succeeds.
+
+## Reading sessions
+
+```ts
+const opened = await sessions.open(refs[0]!)
+opened.readMode // 'incremental' or 'buffered': the adapter's iteration strategy
+for await (const frame of opened.stream()) {
+  // 'record' | 'event' | 'diagnostic' | 'metadata' frames, in source order
+}
+const snapshot = await opened.snapshot() // a fresh read, collected into a Session
+```
+
+Each call opens a fresh read-only source and closes it on completion, early return or
+cancellation, so replays observe file changes. `read` is equivalent to `open().snapshot()`.
+File-backed handles may expose optional capabilities — `select(selection)`, `consume(selection, fn)`
+and, where the provider certifies enough usage context, `consumeUsage(fn)`/`consumeUsageFacts(fn)`;
+support is member presence on the handle.
+Refs need not originate from `scan()`: construct one with `provider`, `id` and `source`
+(`path`, `format`, optional `locator`) and call `open` or `read` directly.
+
+## Supplying input directly
+
+`parse`/`stream` skip discovery — no `detect()`, directory walk or header pre-read:
+
+```ts
+// A known file:
+const fromFile = await sessions.parse('codex', { path: '/backups/rollout.jsonl' })
+
+// Already acquired text, bytes or AsyncIterable<Uint8Array>:
+const fromText = await sessions.parse('claude', {
+  jsonl: '{"type":"user","sessionId":"example","message":{"content":"hello"}}\n',
+  source: 'upload:example', // provenance label only; never opened as a path
+})
+
+// Structured stores need their explicit format and native selector:
+const fromDatabase = await sessions.parse('cursor', {
+  path: '/backups/state.vscdb',
+  format: 'cursor_sqlite',
+  id: 'composer-id',
+  locator: { storage: 'modern' }, // 'legacy' selects ItemTable-backed stores
+})
+```
+
+File inputs default to `format: 'jsonl'`; compressed files take `'jsonl_zstd'`.
+The provider is
+explicit — content and file extensions are never used to guess it.
+Without an explicit `id`,
+the first native identity wins and later conflicting identities are preserved and diagnosed.
+Acquired JSONL is supported by every line-based provider; `opencode`, `antigravity`, `cline`,
+`fx` and `devin` require file input, and unsupported input fails `UnsupportedSchema`.
+
+`sessions.stream(provider, input)` consumes acquired JSONL incrementally without collecting a
+snapshot.
+Each returned sequence accepts one consumer — including for string and byte-array
+input — and a second iterator throws `TypeError`; call `stream` again to replay.
+
+## Provider coverage
 
 | Provider                        | Implemented stores                                                                          | Compatibility evidence                            |
 | ------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------- |
@@ -291,71 +215,16 @@ OAR and ACP recordings require explicit input or roots.
 | DeepSeek Harness (`deepseek`)   | v0–v4 immutable JSONL generations and Zstandard logs                                        | [Research](src/providers/deepseek/RESEARCH.md)    |
 | Factory Droid (`droid`)         | Legacy interactive JSONL and captured stream-json records                                   | [Research](src/providers/droid/RESEARCH.md)       |
 
-```ts
-const voyage = await sessions.parse('oar', { path: '/backups/run.jsonl' })
-const acp = await sessions.parse('acp', { path: '/backups/acp.jsonl' })
-const agy = await sessions.parse('antigravity', {
-  path: '/backups/conversation.db',
-  format: 'antigravity_sqlite',
-})
-const morph = await sessions.parse('morph', {
-  path: '/backups/morph-state',
-  format: 'morph_journal',
-  id: 'topic-id',
-})
-```
+The linked research owns each provider's native-format evidence and limitations; the coverage
+contract owns discovery roots and mapping boundaries.
+OAR and ACP define recordings rather than
+native stores, so they require explicit input or roots.
+All stores share the same engine limits: unencrypted rowid SQLite with committed WAL, bounded
+records (16 MiB default) and 32 MiB Zstandard windows.
+Coverage is fixture-backed — not a promise
+to decode every private future format.
 
-ACP defines a protocol rather than a universal export container; client-specific archives need their own evidence.
-Antigravity's native adapter covers an observed CLI database subset; Google's separate ACP-server/IDE storage is not certified.
-Use `oar` or `acp` for recordings of that server.
-Kimi reads extracted native directories, not ZIP or Markdown exports.
-Morph preserves repeated task snapshots, and OAR preserves submitted requests alongside runtime echoes.
-
-For the new structured stores, parse() requires an explicit format:
-
-```ts
-const hermes = await sessions.parse('hermes', {
-  path: '/backups/state.db',
-  format: 'hermes_sqlite',
-  id: 'session-id',
-})
-const devin = await sessions.parse('devin', {
-  path: '/backups/sessions.db',
-  format: 'devin_sqlite',
-  id: 'session-id',
-})
-const openclaw = await sessions.parse('openclaw', {
-  path: '/backups/openclaw-agent.sqlite',
-  format: 'openclaw_sqlite',
-  id: 'session-id',
-})
-const cline = await sessions.parse('cline', {
-  path: '/backups/session/session.json',
-  format: 'cline_json',
-})
-// Also supported: hermes_json and fx_json, using the exact snapshot/manifest path.
-```
-
-JSON snapshots are bounded complete-file reads and report buffered mode.
-Devin retains abandoned branches; filter on native on_main_chain metadata when you need the selected chain.
-fx reads checkpoint history and diagnoses its unconsumed event tail.
-Cline ignores exported external paths and reads only the adjacent messages file.
-DeepSeek selects the highest generation per session directory and retains surface changes without replaying migrations.
-OpenClaw cold archives and newer private schemas outside the documented tables remain unsupported.
-
-Cursor discovers ~/.cursor/chats and ~/.cursor/acp-sessions stores, validates native metadata and the root blob,
-and reads the confirmed protobuf user/assistant text graph.
-Private tool/thinking steps, shell turns and historical blobs remain complete native evidence with diagnostics.
-Kimi refs retain every physical agent stream and expose metadata.agentRole, metadata.agentId and, when recorded, metadata.nativeSessionId.
-SQLite ingestion supports unencrypted rowid
-tables, overflow and committed WAL without source writes; virtual/generated-column/WITHOUT ROWID
-schemas fail explicitly.
-Active database changes and nonempty rollback journals can return
-PartialParse.
-Zstandard windows are capped at 32 MiB and dictionary frames are unsupported.
-These are fixture-backed boundaries, not a promise to decode every private future product format.
-
-## Compose your own registry
+## Custom registries and adapters
 
 ```ts
 import { codexProvider } from 'huihua/providers/codex'
@@ -363,26 +232,41 @@ import { createSessionRegistry } from 'huihua/registry'
 
 const registry = createSessionRegistry([codexProvider])
 const { refs } = await registry.scan()
-const provider = registry.require('codex')
 ```
 
-Third-party adapters use `defineProvider({ id, detect, scan, read })`; scan returns `AsyncIterable<ScanEvent>` with ref and failure events.
-Optionally implement `open` for file streaming, `parse` for acquired snapshots and `stream` for acquired frames.
-The registry knows no builtin identities; duplicate registration fails.
-`registry.require(id)` resolves a registered provider handle or throws ProviderNotFound;
-capability support is member presence on that handle, such as `provider.open`.
-The public
-[SPI](src/contracts/provider.ts) is thin.
-The independent `/registry` entrypoint exposes the same registry as the root without loading builtin providers.
-Supported exports are the root, `/registry`, `/observe`,
+The root `sessions` composes every builtin provider; `huihua/registry` exposes the same registry
+without loading them.
+The public [SPI](src/contracts/provider.ts) is thin —
+`defineProvider({ id, detect, scan, read })`, plus optional `open`, `parse` and `stream`
+capabilities. `huihua/ingest` re-exports the bounded primitives builtin adapters are built on —
+`jsonlProvider`, the JSON and SQLite store factories, `Ingestion`, `openFrom`, framing, traversal,
+failure and value helpers — so third-party adapters conform to the same scan, ordering,
+cancellation and evidence rules without duplicating them.
+Supported exports are the root, `/registry`, `/observe`, `/ingest`,
 `/testing` and `/providers/{claude,codex,cursor,opencode,pi,oar,acp,kimi,grok,antigravity,morph,copilot,hermes,openclaw,qwen,devin,fx,cline,deepseek,droid}`.
 Internal paths are not package exports.
 
-## Development and releases
+## Boundaries
 
-Use the pinned pnpm version and run pnpm check before submitting changes.
-The [quality and release automation](docs/architecture.md#quality-and-release-automation) contract describes CI, version tags and npm Trusted Publisher setup.
-The opt-in [`pnpm bench`](docs/jsonl-benchmark.md) command measures synthetic large JSONL reads; it is not part of `pnpm check`.
+Huihua reads local session evidence and nothing else: it never executes agents, connects to
+networks, writes to or repairs stores, and never opens a database through a SQLite engine or
+creates sidecars and locks.
+It provides no runtime control, search, indexing or UI, and does
+not infer facts that a source does not establish.
+
+## Example packages
+
+| Name                                           | Description                                                                                                                                                           |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@huihua/usage`](packages/usage/package.json) | A derivative package that uses Huihua to report daily token usage and model breakdowns from local coding-agent sessions. See the [Usage guide](docs/usage-report.md). |
+
+## Development
+
+Use the pinned pnpm version and run `pnpm check` before submitting changes;
+the [contributing guide](CONTRIBUTING.md) describes the validation pipeline, fixture rules and
+review policy, and the [architecture contract](docs/architecture.md) owns layer and API semantics.
+The opt-in [`pnpm bench`](docs/jsonl-benchmark.md) command measures synthetic large JSONL reads;
+it is not part of `pnpm check`.
 
 ## License
 

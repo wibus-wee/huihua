@@ -82,13 +82,15 @@ export async function packageCheck(): Promise<void> {
       import * as huihua from 'huihua';
       import * as registry from 'huihua/registry';
       import * as observe from 'huihua/observe';
+      import * as ingest from 'huihua/ingest';
       import {assertSessionContract} from 'huihua/testing';
       const {sessions,AgentSession}=huihua;
       const {conversationOf,eventsOf,toolCallsOf,toolResultsOf}=observe;
       assert.equal(sessions,AgentSession);
       assert.equal(registry.SessionRegistry,huihua.SessionRegistry);assert.equal(registry.createSessionRegistry,huihua.createSessionRegistry);
       assert.deepEqual(registry.createSessionRegistry().providers(),[]);
-      for(const name of ['eventsOf','conversationOf','toolCallsOf','toolResultsOf','fileChangesOf','subagentsOf']){assert.equal(typeof observe[name],'function');assert.equal(huihua[name],observe[name]);}
+      for(const name of ['eventsOf','conversationOf','toolCallsOf','toolResultsOf','fileChangesOf','subagentsOf','millisOf']){assert.equal(typeof observe[name],'function');assert.equal(huihua[name],observe[name]);}
+      for(const name of ['Ingestion','jsonlProvider','jsonStoreProvider','sqliteStoreProvider','openFrom','scanSource','jsonLinesFrom','scanFailure','positiveLimit','messageEvents','chatMessageEvents','contentBlocks','files','pathMatcher']){assert.equal(typeof ingest[name],'function',name);}
       assert.equal(Object.hasOwn(observe,'filesOf'),false);
       assert.equal(huihua.SESSION_SCHEMA,'agent-session/v1');
       for(const name of ['claude','codex','cursor','opencode','pi','oar','acp','kimi','grok','antigravity','morph','copilot','openclaw','qwen','droid','deepseek','cline','fx','devin','hermes']){const module=await import('huihua/providers/'+name);assert.ok(Object.values(module).some(value=>value.id===name));}
@@ -150,6 +152,7 @@ export async function packageCheck(): Promise<void> {
       `
       import {sessions,defineProvider,type Provider,type SessionEvent,type SessionFrame,type SessionProvider,type ScanEvent,type ScanFailure,type ScanResult,type ErrorCode,type FrameSelection,type FrameConsumer,type UsageFactConsumer,type UsageFactItem} from 'huihua';
       import {createSessionRegistry,SessionRegistry} from 'huihua/registry';
+      import {jsonlProvider,type Ingestion,type JsonlAdapter,type JsonlCandidate} from 'huihua/ingest';
       import {codexProvider} from 'huihua/providers/codex';
       import {conversationOf,eventsOf,fileChangesOf,subagentsOf,toolCallsOf,toolResultsOf} from 'huihua/observe';
       const provider=defineProvider(codexProvider);
@@ -190,6 +193,9 @@ export async function packageCheck(): Promise<void> {
       async function* bytes(){yield new Uint8Array();}
       const frames:AsyncIterable<SessionFrame>=sessions.stream('codex',{jsonl:bytes(),source:'stored-object:consumer'});
       const providerFrames:AsyncIterable<SessionFrame>=codexProvider.stream({jsonl:new Uint8Array()});
+      const kitAdapter:JsonlAdapter={id:'kit',roots:()=>[],metadata:()=>({}),parse:(lines:Ingestion)=>{void lines;}};
+      const kitRegistry:SessionRegistry=createSessionRegistry([jsonlProvider(kitAdapter)]);void kitRegistry;
+      const candidate:JsonlCandidate|undefined=undefined;void candidate;
       const adapter:SessionProvider=provider;
       if(adapter.stream){const customFrames:AsyncIterable<SessionFrame>=adapter.stream({jsonl:''});void customFrames;}
       for await(const frame of frames){if(frame.type==='event'){const event:SessionEvent=frame.event;void event;}}

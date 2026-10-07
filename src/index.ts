@@ -32,6 +32,7 @@ export {
   conversationOf,
   eventsOf,
   fileChangesOf,
+  millisOf,
   subagentsOf,
   toolCallsOf,
   toolResultsOf,

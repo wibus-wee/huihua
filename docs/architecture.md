@@ -14,6 +14,7 @@ control, search, indexing, memory, analytics or UI.
 | src/providers/* | Discovery policy and native-to-canonical mapping; no inter-provider imports             |
 | src/shared      | Provider-independent discovery failures, paths and bounded ingestion primitives         |
 | src/observe     | Disposable projections using public contracts only                                      |
+| src/ingest      | Provider-authoring kit re-exporting the bounded shared primitives and store factories   |
 | src/testing     | Runner-independent evidence and ordering assertions                                     |
 
 ## Evidence and schema
@@ -217,8 +218,22 @@ Virtual, generated-column, encrypted and WITHOUT ROWID stores are explicitly uns
 The minimal third-party SPI requires detect/scan/read; defineProvider preserves the adapter's
 type.
 Implement open for streaming.
-Otherwise the registry offers an explicitly eager fallback.
+Otherwise the registry offers an explicitly eager fallback that groups snapshot events by their
+record sequence rather than rescanning them per record.
 Duplicate provider registration fails rather than silently replacing an owner.
+
+`huihua/ingest` is the supported provider-authoring surface.
+Owner is src/ingest, which re-exports the existing shared implementations — jsonlProvider, the
+JSON and selected-row SQLite store factories, Ingestion and openFrom, bounded JSONL framing,
+traversal, failure and value helpers — instead of duplicating them behind a parallel SPI.
+Adapters written against it get the same scan failure boundaries, ordering, cancellation,
+single-consumer and evidence rules as builtin providers; the unchanged contracts/provider.ts
+SPI remains sufficient for fully custom sources.
+Alternatives were keeping the helpers internal, which pushed third parties toward reimplementing
+failure and framing semantics incorrectly, or exporting all of src/shared, which would freeze
+SQLite pager and codec internals.
+The export is additive: contracts, registry dispatch, provider subpaths and agent-session/v1
+are unchanged.
 
 ### Selective frame delivery
 
@@ -604,6 +619,7 @@ fileChangesOf selects file_change, and subagentsOf selects subagent lifecycle ev
 These convenience functions use eventsOf and do not require a registered provider or read private provider structures.
 Empty results establish only the absence of matching normalized events, not format support or mapping completeness.
 Further conditions use ordinary array filtering.
+millisOf(timestamp) converts a native Timestamp to Unix epoch milliseconds; absent or unparseable input stays absent rather than guessing units.
 
 Selection does not merge split message blocks, strip wrappers, deduplicate mirrored records, match calls to results or construct agent trees.
 Relationship extraction belongs to the provider that understands the native format; future relationship queries must use public facts with evidence and preserve missing or ambiguous targets.
