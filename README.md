@@ -110,31 +110,17 @@ Selectors retain order, duplicates and original event objects; they do not merge
 An empty result means no matching normalized events were found, not that the source format lacks the capability.
 The [architecture contract](docs/architecture.md#projections-and-review-boundaries) defines selection and evidence semantics.
 
-## Local usage report
+## Derived Usage package
 
-The separate `@huihua/usage` workspace CLI reads discovered stores through the public streaming API:
+`@huihua/usage` is an optional derivative package built on Huihua's public discovery and streaming APIs.
+It adds a local daily token and model report.
 
 ```sh
-pnpm build
-pnpm --filter @huihua/usage start -- --provider claude --since 2026-01-01 --until 2026-01-31 --timezone America/Los_Angeles --json
+pnpm --filter @huihua/usage build
+pnpm --filter @huihua/usage start -- --provider claude --json
 ```
 
-Its provider matrix, native field evidence, partial/unavailable status and reporting limits are documented in [the usage report guide](docs/usage-report.md).
-It reports daily input/output/cache token totals and model breakdowns; JSON also includes per-session totals.
-Missing fields are null, ambiguous totals are partial, and unsafe cumulative counters are excluded with diagnostics.
-It does not estimate bills or remove native records.
-File-backed JSONL handles expose an optional `open.select({ events: ['usage'], records: true, metadataKeys: ['parentSessionId'] })` capability.
-This uses the same provider parser while avoiding unwanted event delivery and message content conversion; diagnostics, original sequence numbers and usage semantics survive.
-For Claude and Codex, the CLI prefers optional `open.consumeUsage(consumer)`: the provider supplies same-record model/identity context with Usage events, without constructing or delivering complete RawRecord evidence.
-It reuses the existing provider parser and preserves all diagnostics; native JSON is still decoded and validated.
-For an explicit single-day query (`--since` equals `--until`), Claude/Codex instead use optional `consumeUsageFacts` with the report's timestamp predicate, before allocating usage context and canonical event frames.
-The same native mapping and aggregation produce identical reports; complete evidence APIs retain their full path.
-Batch UTF-8 decoding remains off by default; worker usage and measured tradeoffs are summarized in the guide.
-Use `--workers 2` or `--workers 4` to parse multiple JSONL sessions on separate CPU threads, at increased memory cost; the default is serial.
-Workers reuse public provider contracts and the same aggregation rules, including cross-session duplicate diagnostics; single-file and buffered sources remain serial.
-Other sources use optional `consume(selection, consumer)`, then `select` or the full stream, with records for attribution.
-Callbacks may return a Promise for backpressure; consumption completes after validated EOF and propagates callback errors and cancellation.
-Explicit provider filters load only those public provider modules through `huihua/registry`; an unfiltered run uses the complete builtin registry.
+The [Usage guide](docs/usage-report.md) covers provider support and reporting behavior. `pnpm build` builds the Huihua library without building this derivative package.
 
 Keep the full SessionRef: an ID alone can be ambiguous across stores. `diagnostics` explains partial
 parses and unsupported records.

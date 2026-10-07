@@ -59,7 +59,7 @@ export async function policy(): Promise<void> {
   assert.equal(usagePackage.name, '@huihua/usage')
   assert.deepEqual(usagePackage.dependencies, { huihua: 'workspace:*' }, 'usage CLI must consume only Huihua public package API')
   assert.deepEqual(usagePackage.bin, { 'huihua-usage': './dist/cli.js' })
-  assert.equal(usagePackage.scripts.build, 'tsdown')
+  assert.equal(usagePackage.scripts.build, 'pnpm --filter huihua build && tsdown')
   assert.equal(usagePackage.scripts.start, 'node dist/cli.js')
   assert.equal(usagePackage.scripts.check, 'node dist/cli.js --help')
   const usageBuildSource = await readFile('packages/usage/tsdown.config.ts', 'utf8')

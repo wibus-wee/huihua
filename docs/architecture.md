@@ -680,7 +680,8 @@ The matrix and per-provider handling are specified in <usage-report.md>.
 The report layer does not change provider SPI, `agent-session/v1`, native formats, runtime dependencies or serialized sessions; the additive registry export and selection keys are specified above.
 Owner is `packages/usage` for CLI policy and report labels; alternatives were adding billing semantics to the shared schema or duplicating parsers, both of which would weaken evidence ownership and compatibility. `tools/policy.ts` verifies the workspace member, private package dependency, and public-package-only Huihua integration.
 The standalone package adds a workspace link to Huihua only, so consumers continue to use the existing pinned pnpm graph.
-`pnpm check` builds Huihua before type-aware lint and strict typechecking so the CLI's public imports resolve against emitted package declarations from a clean checkout or after a core API change, then runs the CLI's `--help` smoke check against the built public package.
+`pnpm build` builds only Huihua; the derivative Usage package's build first builds Huihua and then its CLI.
+`pnpm check` builds the Usage package before type-aware lint and strict typechecking so its public imports resolve against emitted declarations from a clean checkout or after a core API change, then runs the CLI's `--help` smoke check against the built public package.
 
 ## Quality and release automation
 
