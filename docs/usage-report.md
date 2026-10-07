@@ -101,28 +101,46 @@ This release focuses on the requested daily token/model report.
 
 ## Validation and performance
 
-The implementation is rebased onto current main, retaining its certified discovery, scan failures and Cursor graph evidence. Any scan failure makes the CLI exit without a report so unreadable sources cannot silently disappear from totals. A readable-Claude/corrupt-OpenCode regression covers that behavior. No fixtures or static v1 goldens were changed.
+The implementation is rebased onto current main, retaining its certified discovery, scan failures and Cursor graph evidence.
+Any scan failure makes the CLI exit without a report so unreadable sources cannot silently disappear from totals.
+A readable-Claude/corrupt-OpenCode regression covers that behavior.
+No fixtures or static v1 goldens were changed.
 
-Pinned pnpm 12.4.2 `pnpm check` passed: 379 tests, lint, strict types, Knip, executable architecture policy and installed ESM verification (63 files). Local validation used Linux and Node 24.19.0; the minimum Node line and macOS are checked by CI.
+Pinned pnpm 12.4.2 `pnpm check` passed: 379 tests, lint, strict types, Knip, executable architecture policy and installed ESM verification (63 files).
+Local validation used Linux and Node 24.19.0; the minimum Node line and macOS are checked by CI.
 
-A fair local comparison used the actual built Huihua 0.3.0 / Usage 0.1.0 CLIs, a preserved Huihua 0.2.0 baseline, and official ccusage 20.0.26 against identical synthetic Claude JSONL inputs. Runtime was Node 24.19.0 with pnpm 12.4.2 on Debian 13 / Linux 6.18.44, x64 AMD EPYC 9V74 with four available CPUs. Both tools used UTC, 2026-01-01 through 2026-01-03, JSON daily/model/cache/token totals, and no cost calculation. Complete Huihua reports matched byte for byte across variants; normalized daily/model counters matched ccusage before timings were compared.
+A fair local comparison used the actual built Huihua 0.3.0 / Usage 0.1.0 CLIs, a preserved Huihua 0.2.0 baseline, and official ccusage 20.0.26 against identical synthetic Claude JSONL inputs.
+Runtime was Node 24.19.0 with pnpm 12.4.2 on Debian 13 / Linux 6.18.44, x64 AMD EPYC 9V74 with four available CPUs.
+Both tools used UTC, 2026-01-01 through 2026-01-03, JSON daily/model/cache/token totals, and no cost calculation.
+Complete Huihua reports matched byte for byte across variants; normalized daily/model counters matched ccusage before timings were compared.
 
-Each workload had one warmup and fifteen fresh process runs in rotated order. Timing covered process start to complete output and to the first report byte. Linux process VmHWM sampled every 2 ms included worker threads; a final peak can be missed. Generation/build ran outside timed samples. Inputs were 100 content files with 20,000 rows (15.6 MB total), or ten content files with 100,000 rows (78.1 MB total).
+Each workload had one warmup and fifteen fresh process runs in rotated order.
+Timing covered process start to complete output and to the first report byte.
+Linux process VmHWM sampled every 2 ms included worker threads; a final peak can be missed.
+Generation/build ran outside timed samples.
+Inputs were 100 content files with 20,000 rows (15.6 MB total), or ten content files with 100,000 rows (78.1 MB total).
 
-| Input | Variant | Full output, ms | First byte, ms | Peak RSS, KiB |
-| --- | --- | ---: | ---: | ---: |
-| 100 files / 20,000 rows | Serial | 411.0 | 405.6 | 67,652 |
-| 100 files / 20,000 rows | 2 workers | 421.8 | 413.3 | 118,440 |
-| 100 files / 20,000 rows | 4 workers | 393.0 | 382.2 | 158,996 |
-| 100 files / 20,000 rows | ccusage | 62.7 | 62.2 | 50,044 |
-| 10 files / 100,000 rows | Serial | 1,155.5 | 1,147.6 | 91,532 |
-| 10 files / 100,000 rows | 2 workers | 853.8 | 844.1 | 173,420 |
-| 10 files / 100,000 rows | 4 workers | 710.6 | 699.5 | 210,100 |
-| 10 files / 100,000 rows | ccusage | 277.3 | 276.7 | 142,108 |
+| Input                   | Variant   | Full output, ms | First byte, ms | Peak RSS, KiB |
+| ----------------------- | --------- | --------------: | -------------: | ------------: |
+| 100 files / 20,000 rows | Serial    |           411.0 |          405.6 |        67,652 |
+| 100 files / 20,000 rows | 2 workers |           421.8 |          413.3 |       118,440 |
+| 100 files / 20,000 rows | 4 workers |           393.0 |          382.2 |       158,996 |
+| 100 files / 20,000 rows | ccusage   |            62.7 |           62.2 |        50,044 |
+| 10 files / 100,000 rows | Serial    |         1,155.5 |        1,147.6 |        91,532 |
+| 10 files / 100,000 rows | 2 workers |           853.8 |          844.1 |       173,420 |
+| 10 files / 100,000 rows | 4 workers |           710.6 |          699.5 |       210,100 |
+| 10 files / 100,000 rows | ccusage   |           277.3 |          276.7 |       142,108 |
 
-On the larger input, four workers cut Huihua's full-output median by 38.5% and first-byte latency by 39.0%, while peak memory rose 2.30 times. Huihua remained 2.56 times slower than ccusage. On 100 smaller files, four workers improved median time by only 4.4%; two workers were 2.6% slower than serial. Single-file sources stay serial. These results support opt-in workers and a serial default.
+On the larger input, four workers cut Huihua's full-output median by 38.5% and first-byte latency by 39.0%, while peak memory rose 2.30 times.
+Huihua remained 2.56 times slower than ccusage.
+On 100 smaller files, four workers improved median time by only 4.4%; two workers were 2.6% slower than serial.
+Single-file sources stay serial.
+These results support opt-in workers and a serial default.
 
-The measured work differs: Huihua decodes complete native JSON and retains identity, diagnostic and per-session report information; ccusage uses narrower native deserialization and different replay/deduplication semantics. No ccusage CPU-phase profile apportions the remaining gap. Inputs are synthetic fixture expansions with unique identities; these results do not establish production or other-provider performance, nor cross-tool equivalence for replay, forks or cumulative snapshots. No benchmark result files are retained in the repository.
+The measured work differs: Huihua decodes complete native JSON and retains identity, diagnostic and per-session report information; ccusage uses narrower native deserialization and different replay/deduplication semantics.
+No ccusage CPU-phase profile apportions the remaining gap.
+Inputs are synthetic fixture expansions with unique identities; these results do not establish production or other-provider performance, nor cross-tool equivalence for replay, forks or cumulative snapshots.
+No benchmark result files are retained in the repository.
 
 ## Architecture decision and compatibility
 

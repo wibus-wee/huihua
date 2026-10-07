@@ -380,7 +380,9 @@ Usage argument parsing also accepts one leading -- forwarded literally by pinned
 This affects runner argument transport only and introduces no report/schema/provider change.
 Executable architecture checks enforce public imports, emitted worker entry, bounded counts, compact partitions and sibling cleanup; fixture and adversarial partition regressions enforce trust and overflow semantics.
 The CLI build has a separate worker entry and may share emitted chunks; its main-thread entry guard recognizes the actual cli.js path without launching another CLI inside a worker.
-Comparisons use the emitted consumer and a preserved baseline where available. Measurements use fixture-derived inputs and include worker isolates in process peak memory. The actual emitted CLI accepts bounded --workers 2/4 options; single-file input remains serial.
+Comparisons use the emitted consumer and a preserved baseline where available.
+Measurements use fixture-derived inputs and include worker isolates in process peak memory.
+The actual emitted CLI accepts bounded --workers 2/4 options; single-file input remains serial.
 
 SessionRegistry.parse(provider, input, options) separates acquisition from discovery.
 FileInput supplies a path, optional format (JSONL by default), id and locator; the registry dispatches directly to the existing read SPI.
