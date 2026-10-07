@@ -48,6 +48,14 @@ async function sourceFiles(root = 'src'): Promise<string[]> {
   return output
 }
 export async function policy(): Promise<void> {
+  const producerHarness = await readFile('tools/producer-compat.ts', 'utf8')
+  assert(producerHarness.includes('from \'../src/index.ts\''))
+  assert(producerHarness.includes('homeDir: home'))
+  assert(producerHarness.includes('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: \'1\''))
+  const producerWorkflow = await readFile('.github/workflows/producer-compat.yml', 'utf8')
+  assert(producerWorkflow.includes('5bdf08c6d0c48c1b9a12a287ff9d135844e07d52'))
+  assert(producerWorkflow.includes('contents: read'))
+
   const workspacePackages = parseAllDocuments(await readFile('pnpm-workspace.yaml', 'utf8'))[0]!.toJS() as { packages: string[] }
   assert.deepEqual(workspacePackages.packages, ['packages/*'], 'the standalone usage CLI is the only workspace package')
   const usagePackage = JSON.parse(await readFile('packages/usage/package.json', 'utf8')) as {

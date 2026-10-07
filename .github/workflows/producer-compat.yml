@@ -1,0 +1,47 @@
+name: producer compatibility
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * *'
+permissions:
+  contents: read
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install pinned simulator and real producer
+        env:
+          CANARY: ${{ github.event_name == 'schedule' }}
+        run: |
+          git clone https://github.com/wibus-wee/model-api-simulator.git "$RUNNER_TEMP/simulator"
+          git -C "$RUNNER_TEMP/simulator" checkout --detach 5bdf08c6d0c48c1b9a12a287ff9d135844e07d52
+          (cd "$RUNNER_TEMP/simulator" && npm exec --yes --package=pnpm@11.24.0 -- pnpm install --frozen-lockfile)
+          VERSION=2.1.292
+          if [ "$CANARY" = true ]; then VERSION=$(npm view @anthropic-ai/claude-code version); fi
+          npm install --prefix "$RUNNER_TEMP/producers" --no-save "@anthropic-ai/claude-code@$VERSION"
+          echo "Claude Code $VERSION" >> "$GITHUB_STEP_SUMMARY"
+      - name: Produce native store and verify Huihua
+        env:
+          SIMULATOR_DIR: ${{ runner.temp }}/simulator
+          CLAUDE_BIN: ${{ runner.temp }}/producers/node_modules/.bin/claude
+          COMPAT_REPORT: ${{ runner.temp }}/producer-compat-report.json
+        run: pnpm test:producer-compat
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-producer-compatibility
+          path: |
+            ${{ runner.temp }}/producer-compat-report.json
+            /tmp/huihua-producer-*/
+          retention-days: 7
+          include-hidden-files: true

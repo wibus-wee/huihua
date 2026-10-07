@@ -728,3 +728,17 @@ Machine checks enforce import directions, sources/dependencies, type safety, fix
 semantics and public package exports.
 Review owns mapping completeness, fact-versus-inference,
 private-schema compatibility, abstraction reuse and whether new API belongs in this data layer.
+
+### Live producer compatibility infrastructure
+
+[Producer compatibility](producer-compatibility.md) is owned by tools/producer-compat.ts and its
+separate workflow.
+It executes an isolated external producer against a pinned loopback simulator,
+then uses Huihua's public session entry points.
+Runtime source, dependencies and agent-session/v1
+are unchanged.
+The alternative of generating native stores from an inferred schema was rejected
+because it cannot detect producer writer drift. tools/policy.ts checks that this infrastructure stays
+outside src and the runtime dependency graph.
+The baseline is a reviewed observation of synthetic
+native records, not a provider parsing rule or automatic golden update.
