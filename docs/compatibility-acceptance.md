@@ -87,3 +87,13 @@ The full package check includes lint, strict types, dependency/layer policy, fix
 On 2026-10-08, pnpm check passed all 409 tests, lint, strict types, Knip, executable architecture policy and installed ESM verification (65 files), using pinned pnpm 12.4.2 on macOS / Node 26.10.0.
 The Codex serialization regression found during full validation was corrected in implementation; unchanged native same-record facts retain the original metadata and immutable baselines pass.
 These checks supplement the behavior and native-counter comparisons above.
+
+### Portable Grok acquisition regression
+
+The subsequent [Linux / Node 22.18 CI run](https://github.com/wibus-wee/huihua/actions/runs/37702976284) failed one acquired-file comparison while macOS / Node 24 passed.
+Grok's companion selector treated a temporary import directory as a native session collection and probed an unrelated restricted sibling under /tmp, producing PermissionDenied.
+
+A focused regression injects EACCES for an unrelated sibling and asserts complete native text, source evidence, absent parent facts and zero sibling enumeration for portable imports.
+It fails before the fix and passes after the native-layout gate, together with the original acquired-file comparison, native sibling-lineage acceptance and exact companion-error-path regression.
+The fix preserves real permission failures for selected companions; it does not suppress them or change semantic baselines.
+After this regression was added, pnpm check passed all 410 tests and installed ESM verification (65 files) on macOS with Node 22.18.0 and pinned pnpm 12.4.2.

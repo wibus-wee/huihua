@@ -14,7 +14,10 @@ Directory scans select one surface (updates preferred); an exact chat_history.js
 If both files are explicitly supplied they remain independent evidence sources; no cross-source fold or deduplication is invented.
 History maps native roles, model_id, reasoning and explicit tool_results/errors, retaining unknown backend tools.
 summary current_model_id is preserved metadata, never a historical assistant model.
-Async metadata selection also reads the sibling subagents/<child-id>/meta.json through the same bounded companion path.
+The provider-owned async metadata hook searches sibling subagents/<child-id>/meta.json only for updates.jsonl or chat_history.jsonl with an existing adjacent summary.json.
+Portable files with other names, or native transcript names without that summary, acquire only adjacent metadata and never enumerate sibling directories.
+This native-layout gate preserves existing child associations without treating an arbitrary import directory as a session collection; it adds no public API or serialized schema change.
+Selecting companions remains separate from the shared bounded reader: denied summaries still fail at their actual companion path rather than being silently omitted.
 Only its explicit parent_session_id establishes lineage; native directory ancestry alone does not.
 Empty GROK_HOME uses the documented default, and explicit homeDir isolates process environment.
 

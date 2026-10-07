@@ -524,6 +524,9 @@ Kimi agent files remain separate refs; no timestamp sort invents a global order 
 ID-less state metadata supplies title, workspace and timestamps independently of source identity.
 Loop content/tool facts are normalized directly; step.end and agent.message.appended remain system evidence to avoid adding mirrored usage or conversation projections.
 Grok directory discovery prefers updates.jsonl when present and otherwise accepts chat_history.jsonl; an exact history file root overrides that preference.
+The Grok metadata hook searches sibling subagent sidecars only when a recognized native transcript has an existing adjacent summary.json.
+Portable imports without that native pair acquire only adjacent metadata; their parent directory is not searched as a session collection.
+The shared bounded reader retains ownership of companion evidence and reports denied summaries at their actual source paths.
 Only recorded sidecar parent IDs establish lineage; directory ancestry and summary models never supply historical facts.
 Antigravity CLI JSONL uses the same framer and mapper lifecycle.
 Native truncation fields produce diagnostics without synthesized tool identities.

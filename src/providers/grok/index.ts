@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import process from 'node:process'
 
+import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ScanOptions } from '../../contracts/provider.ts'
 import type { Session } from '../../contracts/session.ts'
 import { acpEvents, acpMetadata } from '../../shared/acp.ts'
@@ -21,6 +22,18 @@ const provider = jsonlProvider({
   accepts: path => ['updates.jsonl', 'chat_history.jsonl'].includes(basename(path)),
   async metadataFiles(path) {
     const paths = [join(dirname(path), 'summary.json')]
+    if (!['updates.jsonl', 'chat_history.jsonl'].includes(basename(path)))
+      return paths
+    try {
+      if (!await exists(paths[0]!))
+        return paths
+    }
+    catch (error) {
+      // Shared companion acquisition reports a denied summary at its own source path.
+      if (error instanceof SessionError && error.code === 'PermissionDenied')
+        return paths
+      throw error
+    }
     const bucket = dirname(dirname(path))
     let siblings
     try {

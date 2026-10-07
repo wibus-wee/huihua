@@ -96,6 +96,35 @@ void it('Grok discovery prefers authoritative journals and preserves recorded si
   assert.deepEqual(explicit.refs.map(r => r.source.path), [join(child, 'chat_history.jsonl')])
   assert.deepEqual(conversationOf(await sessions.read(explicit.refs[0]!))[0]?.data.content, [{ type: 'text', data: 'derived' }])
 })
+void it('Grok portable file reads never enumerate unrelated sibling directories', async (t) => {
+  const root = await directory(t)
+  const restricted = join(root, 'restricted')
+  await mkdir(restricted)
+  const original = fs.stat
+  const denied = Object.assign(new Error('unrelated sibling denied'), { code: 'EACCES', syscall: 'stat' })
+  t.mock.method(fs, 'stat', async (path: string) => {
+    if (path.startsWith(`${restricted}/`))
+      throw denied
+    return original(path)
+  })
+  const listing = t.mock.method(fs, 'readdir')
+  syncBuiltinESMExports()
+  t.after(() => {
+    t.mock.restoreAll()
+    syncBuiltinESMExports()
+  })
+  for (const [name, summary] of [['input.jsonl', true], ['updates.jsonl', false], ['chat_history.jsonl', false]] as const) {
+    const path = join(root, `portable-${name}`, name)
+    await put(path, '{"method":"session/update","params":{"sessionId":"portable","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"native text"}}}}\n')
+    if (summary)
+      await put(join(dirname(path), 'summary.json'), '{"info":{"id":"portable"}}')
+    const read = await sessions.parse('grok', { path })
+    assert.deepEqual(conversationOf(read)[0]?.data.content, [{ type: 'text', data: 'native text' }])
+    assert.equal(read.parentSessionId, undefined)
+    assert.ok(read.records.some(r => r.source.path === path))
+  }
+  assert.equal(listing.mock.callCount(), 0)
+})
 void it('Antigravity brain Markdown is a bounded native artifact, without invented messages or workspace', async (t) => {
   const root = await directory(t)
   const path = join(root, '.gemini/antigravity/brain/native/task.md')
