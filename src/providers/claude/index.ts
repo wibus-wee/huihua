@@ -1,12 +1,12 @@
 import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { basename, delimiter, isAbsolute, join, relative, sep } from 'node:path'
+import { basename, delimiter, isAbsolute, join } from 'node:path'
 import process from 'node:process'
 
 import type { ScanOptions } from '../../contracts/provider.ts'
 import type { Session } from '../../contracts/session.ts'
 import { jsonlProvider, messageEvents } from '../../shared/ingestion.ts'
-import { ioError } from '../../shared/paths.ts'
+import { ioError, pathMatcher } from '../../shared/paths.ts'
 import { scanSource } from '../../shared/scan.ts'
 import { object, optional, string, timestamp } from '../../shared/value.ts'
 
@@ -43,6 +43,8 @@ async function resolveClaudeRoots(options: ScanOptions, siblingsEnabled = true):
     join(home, 'Library/Application Support/Claude/local-agent-mode-sessions'),
   ])]
 }
+const desktopPath = pathMatcher('**/local_*/.claude/projects/**/*.jsonl')
+const insideRoot = pathMatcher('**')
 const claude = jsonlProvider({
   id: 'claude',
   roots: resolveClaudeRoots,
@@ -52,13 +54,8 @@ const claude = jsonlProvider({
     if (candidate.explicitFile)
       return true
     const desktop = candidate.roots.find(root => basename(root) === 'local-agent-mode-sessions')
-    if (desktop !== undefined) {
-      const parts = relative(desktop, path).split(sep)
-      if (parts[0] !== '..') {
-        const index = parts.indexOf('.claude')
-        return index > 0 && parts[index - 1]!.startsWith('local_') && parts[index + 1] === 'projects'
-      }
-    }
+    if (desktop !== undefined && insideRoot(path, desktop))
+      return desktopPath(path, desktop)
     return basename(path) !== 'journal.jsonl'
   },
   identify({ header, explicitFile }) {

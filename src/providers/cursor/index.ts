@@ -1,5 +1,5 @@
 import { homedir } from 'node:os'
-import { basename, dirname, join, resolve, sep } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
@@ -10,7 +10,7 @@ import {
   messageEvents,
   openFrom,
 } from '../../shared/ingestion.ts'
-import { canonicalPath, files } from '../../shared/paths.ts'
+import { canonicalPath, files, pathMatcher } from '../../shared/paths.ts'
 import { scanSource } from '../../shared/scan.ts'
 import type { Row } from '../../shared/sqlite.ts'
 import { binarySafe, decodeValue, SqliteReader } from '../../shared/sqlite.ts'
@@ -35,10 +35,12 @@ function roots(options: ScanOptions): readonly string[] {
     ]
   )
 }
+const transcriptPath = pathMatcher('**/agent-transcripts/**/*.jsonl')
+const ideDatabasePath = pathMatcher('**/{globalStorage,workspaceStorage}/**/state.vscdb')
 const cli = jsonlProvider({
   id: 'cursor',
   roots,
-  accepts: (path, candidate) => path.endsWith('.jsonl') && (candidate.explicitFile || path.split(sep).includes('agent-transcripts')),
+  accepts: (path, candidate) => path.endsWith('.jsonl') && (candidate.explicitFile || transcriptPath(path)),
   identify({ header, explicitFile }) {
     return explicitFile || header.some((native) => {
       const v = object(native)
@@ -401,7 +403,7 @@ export const cursorProvider = {
       if (explicit.has(path))
         return /\.(?:db|vscdb)$/.test(path)
       return persistedFamily(path) !== undefined
-        || (basename(path) === 'state.vscdb' && path.split(sep).some(part => part === 'globalStorage' || part === 'workspaceStorage'))
+        || ideDatabasePath(path)
     }
     const databaseRoots = options.roots?.cursor ?? roots(options).filter(root => basename(root) !== 'projects')
     const admittedRoots: string[] = []

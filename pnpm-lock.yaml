@@ -172,6 +172,9 @@ importers:
       fzstd:
         specifier: 0.1.1
         version: 0.1.1
+      picomatch:
+        specifier: 4.0.7
+        version: 4.0.7
       xxhashjs:
         specifier: 0.2.2
         version: 0.2.2
@@ -179,6 +182,9 @@ importers:
       '@types/node':
         specifier: ^22.18.0
         version: 22.20.5
+      '@types/picomatch':
+        specifier: 4.0.3
+        version: 4.0.3
       '@types/xxhashjs':
         specifier: ^0.2.4
         version: 0.2.4
@@ -1056,6 +1062,9 @@ packages:
 
   '@types/node@26.6.4':
     resolution: {integrity: sha512-ldVPDCzj7fsaGZrLB0NuHuTvJcsNasysBAqMolr/cgxrLd1xbqxIr3XJiPnHHJUCxj5sNF1vnRj9aWnrVh5Jcg==}
+
+  '@types/picomatch@4.0.3':
+    resolution: {integrity: sha512-iG0T6+nYJ9FAPmx9SsUlnwcq1ZVRuCXcVEvWnntoPlrOpwtSTKNDC9uVAxTsC3PUvJ+99n4RpAcNgBbHX3JSnQ==}
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
@@ -3437,6 +3446,8 @@ snapshots:
   '@types/node@26.6.4':
     dependencies:
       undici-types: 8.9.0
+
+  '@types/picomatch@4.0.3': {}
 
   '@types/unist@3.0.3': {}
 

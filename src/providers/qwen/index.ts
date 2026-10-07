@@ -1,11 +1,13 @@
 import { homedir } from 'node:os'
-import { basename, join, relative, sep } from 'node:path'
+import { basename, join } from 'node:path'
 import process from 'node:process'
 
 import type { Session } from '../../contracts/session.ts'
 import { contentBlocks, jsonlProvider } from '../../shared/ingestion.ts'
-import { isDirectory } from '../../shared/paths.ts'
+import { isDirectory, pathMatcher } from '../../shared/paths.ts'
 import { array, object, optional, string, timestamp } from '../../shared/value.ts'
+
+const chatPath = pathMatcher(['*/chats/*.jsonl', '*/chats/archive/*.jsonl'])
 
 export const qwenProvider = jsonlProvider({
   id: 'qwen',
@@ -24,11 +26,7 @@ export const qwenProvider = jsonlProvider({
       return true
     if (!/^[\da-f-]{32,36}\.jsonl$/i.test(basename(path)))
       return false
-    return candidate.roots.some((root) => {
-      const parts = relative(root, path).split(sep)
-      return parts[0] !== '..' && parts[1] === 'chats'
-        && (parts.length === 3 || (parts.length === 4 && parts[2] === 'archive'))
-    })
+    return candidate.roots.some(root => chatPath(path, root))
   },
   identify({ path, header, explicitFile }) {
     if (explicitFile)

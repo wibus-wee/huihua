@@ -7,11 +7,12 @@ import { dirname, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { parseAllDocuments } from 'yaml'
 
-const runtimeDependencies = new Set(['fzstd', 'xxhashjs', '@bufbuild/protobuf']) // Dependency decisions: docs/architecture.md.
+const runtimeDependencies = new Set(['fzstd', 'xxhashjs', '@bufbuild/protobuf', 'picomatch']) // Dependency decisions: docs/architecture.md.
 const developmentDependencies = new Set([
   'typescript',
   '@types/node',
   '@types/xxhashjs',
+  '@types/picomatch',
   'eslint',
   'eslint-config-hyoban',
   'knip',

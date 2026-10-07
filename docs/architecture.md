@@ -365,6 +365,29 @@ The format union, provider fixture manifest, source-import policy and installed-
 
 ## Dependency and ingestion decisions
 
+Shared pathMatcher uses [picomatch](https://github.com/micromatch/picomatch) 4.0.7 for fixed,
+provider-owned directory layout globs.
+Qwen, Claude Desktop and Cursor reuse this matcher;
+Node path.relative owns root containment and native separators are normalized only for matching.
+Hidden directories remain eligible, caller roots are literal paths rather than glob patterns,
+and paths outside an asserted root are rejected.
+Native source paths and public APIs stay unchanged.
+Picomatch is pure JavaScript, MIT licensed, with no runtime dependencies or install scripts;
+its types are development-only and tsdown keeps the runtime package external.
+[Executable policy](../tools/policy.ts) reviews both dependencies.
+Handwritten glob or separator logic duplicates general infrastructure.
+Node path.matchesGlob is
+experimental on the minimum Node 22.18 runtime; a filesystem glob walker would replace our existing
+source failure, ordering and symlink contracts unnecessarily.
+Pathe's cross-platform normalization
+would reinterpret legal POSIX backslashes.
+Env-paths allocates an application's own conventional
+directories: its Config/Preferences layouts and default nodejs suffix do not describe native Agent stores,
+and its captured home directory cannot preserve per-call homeDir isolation.
+Providers therefore retain ownership of native system directory names and environment precedence;
+Node homedir/path/fs already supply the required filesystem behavior.
+Focused tests enforce hidden/literal roots, exact layouts, containment and POSIX backslashes.
+
 Cursor's provider-owned [persisted store reader](../src/providers/cursor/persisted.ts) reuses SqliteReader,
 Ingestion and the installed @bufbuild/protobuf wire reader.
 Node crypto owns SHA-256 content-address validation;

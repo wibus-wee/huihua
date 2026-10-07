@@ -26,7 +26,7 @@ import {
   toolResultsOf,
 } from '../src/observe/index.ts'
 import { jsonlProvider } from '../src/shared/ingestion.ts'
-import { files } from '../src/shared/paths.ts'
+import { files, pathMatcher } from '../src/shared/paths.ts'
 import { scanSource } from '../src/shared/scan.ts'
 import { assertSessionContract } from '../src/testing/index.ts'
 
@@ -39,6 +39,20 @@ async function put(path: string, text: string) {
   await mkdir(dirname(path), { recursive: true })
   await writeFile(path, text)
 }
+void it('provider path globs preserve hidden directories, literal roots and native containment', () => {
+  const root = resolve('test-[literal]')
+  const matches = pathMatcher(['*/chats/*.jsonl', '*/chats/archive/*.jsonl'])
+  assert.equal(matches(join(root, '.project/chats/id.jsonl'), root), true)
+  assert.equal(matches(join(root, 'project/chats/archive/id.jsonl'), root), true)
+  assert.equal(matches(join(root, 'project/backup/chats/id.jsonl'), root), false)
+  assert.equal(matches(join(root, '../other/project/chats/id.jsonl'), root), false)
+  assert.equal(matches(join(`${root}-sibling`, 'project/chats/id.jsonl'), root), false)
+  const transcripts = pathMatcher('**/agent-transcripts/**/*.jsonl')
+  assert.equal(transcripts(join(root, '.cursor/projects/.project/agent-transcripts/id/id.jsonl')), true)
+  assert.equal(transcripts(join(root, '.cursor/projects/not-agent-transcripts/id.jsonl')), false)
+  if (process.platform !== 'win32')
+    assert.equal(transcripts(join(root, 'agent-transcripts\\id.jsonl')), false)
+})
 void it('Qwen directory discovery certifies exact chat layout and the first complete record identity', async (t) => {
   const root = await directory(t)
   const projects = join(root, '.qwen/projects')
