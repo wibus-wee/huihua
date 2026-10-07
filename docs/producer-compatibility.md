@@ -77,3 +77,17 @@ parse result.
 Codex is not silently skipped or marked green in this workflow; no Codex CI lane is
 claimed yet.
 Tool failures, cancellation, compaction and other providers remain future scenarios.
+
+## Cross-host calibration
+
+The first GitHub-hosted run completed the semantic journey but failed the initial local baseline.
+Inspection of its synthetic native JSONL showed an extra initialization `last-prompt` and
+`atis-latch` record.
+Observed maxima are therefore 3 and 2 respectively; other unknown counts
+remain unchanged.
+The attachment's `context.gitStatus` string was absent on GitHub's runner,
+so that one field path is explicitly optional.
+New field paths, other missing paths and counts above
+these observed bounds still fail.
+This is reviewed environment variation, not automatic acceptance
+of an upstream schema change. [Initial CI evidence](https://github.com/wibus-wee/huihua/actions/runs/37650773174).

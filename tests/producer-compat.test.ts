@@ -17,3 +17,9 @@ await test('producer drift detects silent structural fallback and native field c
   assert.throws(() => assertNoProducerDrift({ ...baseline, fieldPaths: ['$.type:string', '$.new:string'] }, baseline), /field\/type drift/)
   assert.throws(() => assertNoProducerDrift({ ...baseline, fieldPaths: [] }, baseline), /field\/type drift/)
 })
+
+await test('reviewed environment-only fields may be absent without ignoring new fields', () => {
+  const expected = { ...baseline, fieldPaths: ['$.optional:string', '$.type:string'], optionalFieldPaths: ['$.optional:string'] }
+  assertNoProducerDrift(baseline, expected)
+  assert.throws(() => assertNoProducerDrift({ ...baseline, fieldPaths: ['$.new:string', '$.type:string'] }, expected), /field\/type drift/)
+})

@@ -2,10 +2,10 @@
   "producer": "@anthropic-ai/claude-code@2.1.292",
   "simulatorCommit": "5bdf08c6d0c48c1b9a12a287ff9d135844e07d52",
   "unknown": {
-    "atis-latch": 1,
+    "atis-latch": 2,
     "queue-operation": 4,
     "attachment": 2,
-    "last-prompt": 2,
+    "last-prompt": 3,
     "cost-state": 2,
     "mode": 1
   },
@@ -117,5 +117,8 @@
     "$.uuid:string",
     "$.version:string",
     "$:object"
+  ],
+  "optionalFieldPaths": [
+    "$.attachment.context.gitStatus:string"
   ]
 }

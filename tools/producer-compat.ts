@@ -8,6 +8,7 @@ import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 
 import { sessions } from '../src/index.ts'
+import type { DriftSummary } from './producer-compat-assertions.ts'
 import { assertNoProducerDrift } from './producer-compat-assertions.ts'
 
 // Test infrastructure only: the production library never executes a producer.
@@ -110,7 +111,7 @@ try {
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`)
   await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
   stage = 'compatibility-baseline'
-  const baseline = JSON.parse(await readFile(new URL('./producer-compat-baseline.json', import.meta.url), 'utf8')) as { unknown: Record<string, number>, structured: number, fieldPaths: string[] }
+  const baseline = JSON.parse(await readFile(new URL('./producer-compat-baseline.json', import.meta.url), 'utf8')) as DriftSummary
   assertNoProducerDrift(report, baseline)
   assert.equal(session.diagnostics.length, Object.values(unknown).reduce((sum, count) => sum + count, 0), 'unexpected diagnostics beyond known unknown records')
   assert(session.diagnostics.every(diagnostic => diagnostic.code === 'PartialParse' && diagnostic.message.startsWith('unrecognized native record ')))
