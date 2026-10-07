@@ -99,6 +99,54 @@ A missing model is a null/unknown bucket rather than an invented session-wide la
 The CLI never creates prices, estimated cost, native cost sums or invoice amounts, and performs no runtime network fetches.
 This release focuses on the requested daily token/model report.
 
+## Validation after integrating current main
+
+The PR is rebased onto main commit `16ff2fc`, including the 0.3.0 scan result/failure contract and certified provider discovery.
+The CLI rejects incomplete discovery before printing totals, rather than silently discarding scan failures.
+A mixed readable-Claude/corrupt-OpenCode regression failed before that policy and passes for serial/four-worker commands after the fix.
+The shared adapter retains its existing fileBacked metadata context and async roots; Cursor graph associations keep the original raw record handle.
+No static v1 golden or fixture was changed by this PR.
+Pinned pnpm 12.4.2 check passes all 379 tests, lint/types, Knip, executable architecture policy and installed ESM verification (63 files).
+Linux/Node 24.19.0 was verified locally; the minimum Node line and macOS remain remote CI checks.
+
+The [225-run integration artifact](benchmarks/usage-pr-rebased.json) repeats the actual serial/two/four-worker executables, independently preserved 0.2.0 consumer/core and ccusage 20.0.26 on the same three fixture-derived inputs.
+Every full Huihua JSON is byte-identical across modes; normalized ccusage daily/model/cache/total counters match before timings are accepted.
+Source/build hashes match the integrated 0.3.0 core and 0.1.0 Usage CLI.
+There is one warmup and fifteen fresh sequential repetitions per case, rotated/reversed order, with no concurrent local build/test/profile.
+System, input sizes/content hashes, complete output, first report byte and sampled process VmHWM are recorded as before.
+The historical artifacts below identify earlier 0.2.0 builds and are not measurements of this integrated head.
+
+| Workload                 | Variant                  | Complete output, ms | First result, ms | Process peak RSS, KiB |
+| ------------------------ | ------------------------ | ------------------: | ---------------: | --------------------: |
+| Usage-only, one file     | Preserved CLI (0.2 core) |               214.2 |            209.9 |                59,796 |
+| Usage-only, one file     | Serial CLI (0.3 core)    |               214.3 |            209.9 |                58,088 |
+| Usage-only, one file     | --workers 2              |               222.3 |            218.5 |                58,860 |
+| Usage-only, one file     | --workers 4              |               222.5 |            218.2 |                58,736 |
+| Usage-only, one file     | ccusage                  |                61.7 |             61.2 |                37,660 |
+| 100 content files        | Preserved CLI (0.2 core) |               409.7 |            403.3 |                61,340 |
+| 100 content files        | Serial CLI (0.3 core)    |               411.0 |            405.6 |                67,652 |
+| 100 content files        | --workers 2              |               421.8 |            413.3 |               118,440 |
+| 100 content files        | --workers 4              |               393.0 |            382.2 |               158,996 |
+| 100 content files        | ccusage                  |                62.7 |             62.2 |                50,044 |
+| Ten larger content files | Preserved CLI (0.2 core) |              1169.1 |           1163.4 |                92,672 |
+| Ten larger content files | Serial CLI (0.3 core)    |              1155.5 |           1147.6 |                91,532 |
+| Ten larger content files | --workers 2              |               853.8 |            844.1 |               173,420 |
+| Ten larger content files | --workers 4              |               710.6 |            699.5 |               210,100 |
+| Ten larger content files | ccusage                  |               277.3 |            276.7 |               142,108 |
+
+On ten larger files (100,000 rows, 78,066,670 bytes), two/four workers save 26.1%/38.5% against current serial medians.
+Four-worker first report latency falls 39.0%, while peak RSS grows from 89.4 MiB to 205.2 MiB (2.30 times).
+It still takes 2.56 times ccusage's complete-output time on this input.
+On 100 smaller content files (20,000 rows, 15,604,670 bytes), four workers save only 4.4%; two workers are 2.6% slower than serial, and four-worker RSS is 2.35 times serial.
+Single-file flags launch no workers and cannot demonstrate threading gains.
+These results keep serial defaults justified and narrow the small-file benefit observed in the earlier round; they must not be combined into an additive speedup or attributed solely to the rebase.
+
+The demonstrated large-file improvement follows parallel CPU work, while startup/isolate/clone/merge costs and memory remain material.
+Huihua still decodes full native JSON and keeps identity/diagnostic/session reporting work; ccusage's native implementation uses narrower deserialization and different report/deduplication semantics.
+There is no measured ccusage CPU-phase split assigning an exact share of the remaining gap to those differences or to language.
+Only synthetic Claude fixture expansions with unique identities were timed: no real/redacted personal data, other-provider speed claim, replay equivalence or actual billing claim follows.
+The 2 ms VmHWM sampling can miss a final peak.
+
 ## Architecture decision and compatibility
 
 **Owner:** `packages/usage/src/report.ts` owns daily arithmetic, confidence labels, model evidence projection and the versioned CLI report; source reading/normalization remain provider-owned. `docs/architecture.md` records the decision and `tools/policy.ts` enforces public-only imports, absence of report source decoding/I/O, daily/model v2 output and the optional selection capability.
@@ -183,10 +231,10 @@ pnpm --filter @huihua/usage bench -- /absolute/path/to/ccusage /absolute/path/to
 The metadata-only consumer preserves the old executable/report and resolves the current public Huihua package; the preserved consumer resolves its own unchanged package.
 No baseline parser or binary is maintained in the production package.
 
-### Final user-command validation
+### Pre-rebase user-command validation (archived)
 
-The [225-run final artifact](benchmarks/usage-workers-final.json) measures the preserved executable, current serial CLI, actual --workers 2/4 commands and ccusage, with one warmup and fifteen rotated/reversed repetitions on three unchanged inputs.
-It includes the final argument parser, compiled worker and shared consumer chunks; all recorded source/build hashes match the delivered code.
+The [225-run pre-rebase artifact](benchmarks/usage-workers-final.json) measures the preserved executable, current serial CLI, actual --workers 2/4 commands and ccusage, with one warmup and fifteen rotated/reversed repetitions on three unchanged inputs.
+It includes the argument parser, compiled worker and shared consumer chunks from that 0.2.0 build; recorded hashes identify that archived version, not the integrated 0.3.0 head.
 The leading -- forwarded by pinned pnpm start is accepted; the focused reproduction failed before the fix and both the compiled regression and actual pnpm help command pass afterward.
 The [earlier user-flag validation](benchmarks/usage-workers-cli-candidate.json) remains an archived candidate from before that argument-transport fix, rather than being relabeled as the final build.
 No build/test/profile workload ran concurrently with measured children.
