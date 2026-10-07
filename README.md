@@ -110,17 +110,11 @@ Selectors retain order, duplicates and original event objects; they do not merge
 An empty result means no matching normalized events were found, not that the source format lacks the capability.
 The [architecture contract](docs/architecture.md#projections-and-review-boundaries) defines selection and evidence semantics.
 
-## Derived Usage package
+## Example Packages
 
-`@huihua/usage` is an optional derivative package built on Huihua's public discovery and streaming APIs.
-It adds a local daily token and model report.
-
-```sh
-pnpm --filter @huihua/usage build
-pnpm --filter @huihua/usage start -- --provider claude --json
-```
-
-The [Usage guide](docs/usage-report.md) covers provider support and reporting behavior. `pnpm build` builds the Huihua library without building this derivative package.
+| Name                                           | Description                                                                                                                                                           |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`@huihua/usage`](packages/usage/package.json) | A derivative package that uses Huihua to report daily token usage and model breakdowns from local coding-agent sessions. See the [Usage guide](docs/usage-report.md). |
 
 Keep the full SessionRef: an ID alone can be ambiguous across stores. `diagnostics` explains partial
 parses and unsupported records.
