@@ -61,11 +61,24 @@ const cli = jsonlProvider({
     const role = string(v.role)
     const message = object(v.message)
     const error = string(v.error)
-    if ((role === 'user' || role === 'assistant') && 'content' in message)
-      messageEvents(ingest, role, message.content)
-    else if ((role === undefined || role === '') && v.type === 'turn_ended' && v.status === 'error' && error !== undefined && error !== '')
+    if ((role === 'user' || role === 'assistant') && 'content' in message) {
+      for (const part of Array.isArray(message.content) ? message.content : [message.content]) {
+        const block = object(part)
+        const type = string(block.type)
+        if (['tool_use', 'tool-use', 'tool_call', 'tool-call'].includes(type ?? '') && typeof (block.name ?? block.tool) === 'string')
+          ingest.emit('tool_call', { ...optional('callId', string(block.id) ?? string(block.call_id)), toolName: String(block.name ?? block.tool), arguments: block.input ?? block.arguments ?? null })
+        else if (type === 'tool_result' || type === 'tool-result')
+          ingest.emit('tool_result', { ...optional('callId', string(block.tool_use_id) ?? string(block.tool_call_id)), ...optional('toolName', string(block.name)), result: block.content ?? null, isError: block.is_error === true })
+        else
+          messageEvents(ingest, role, part)
+      }
+    }
+    else if ((role === undefined || role === '') && v.type === 'turn_ended' && v.status === 'error' && error !== undefined && error !== '') {
       ingest.emit('error', { message: error, details: native })
-    else ingest.unknown(string(v.type) ?? 'untyped', native)
+    }
+    else {
+      ingest.unknown(string(v.type) ?? 'untyped', native)
+    }
   },
 })
 function payload(row: Row): unknown {

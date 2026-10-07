@@ -7,6 +7,7 @@ export interface SessionSource {
     | 'opencode_sqlite'
     | 'opencode_files'
     | 'antigravity_sqlite'
+    | 'antigravity_markdown'
     | 'morph_journal'
     | 'openclaw_sqlite'
     | 'hermes_json'

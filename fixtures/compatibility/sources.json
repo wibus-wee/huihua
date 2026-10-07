@@ -111,6 +111,78 @@
       "path": "deepseek/manifest.json",
       "upstream": "AgentSessionsTests/Resources/Fixtures/stage0/agents/deepseek-harness/manifest.json",
       "sha256": "2045f477c1a55c7730277f5690e6608fa781d95c450f0cab563846690075aef3"
+    },
+    {
+      "path": "kimi/assistant_tools.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/kimi/assistant_tools.jsonl",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "14d4f4b30ef570d0a34ce24e03724e6d043a18bdfcfc3adfa66cbe0ea247a8b6"
+    },
+    {
+      "path": "kimi/assistant_tools.state.json",
+      "upstream": "Resources/Fixtures/stage0/agents/kimi/assistant_tools.state.json",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "ea91a0a548d4e47ef483d68613f9b4d71524a92f36f4b8d24b4881b8954af38b"
+    },
+    {
+      "path": "cursor/schema_drift.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/cursor/schema_drift.jsonl",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "f999ecbdd3f7cb552b54a4f22e2cae8708d510101927f82cd93b86286e7cff15"
+    },
+    {
+      "path": "hermes/schema_drift.json",
+      "upstream": "Resources/Fixtures/stage0/agents/hermes/schema_drift.json",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "0f2c423ecfde5477b1763c5c5c5780f4e754c7a0032613caa2112afade329234"
+    },
+    {
+      "path": "antigravity/cli_small.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/antigravity/cli_small.jsonl",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "15b3d9b95ed2174d39ba5f584e30a179e836edaf5bacd9abb3ac3a43faf66ca5"
+    },
+    {
+      "path": "antigravity/cli_schema_drift.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/antigravity/cli_schema_drift.jsonl",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "4eeade283c5824a632a20d2c5858baf6963c88e150debd6273cc12c37f409343"
+    },
+    {
+      "path": "codex/large.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/codex/large.jsonl",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "5c141273a5228d10cbf061c486632776d3195c59ca636138b297f874d4f565e9"
+    },
+    {
+      "path": "codex/schema_drift.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/codex/schema_drift.jsonl",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "5442eee13c6ce5809c00ece91d787d99a4106a8d9372d2f551c3de93315457f4"
+    },
+    {
+      "path": "grok/chat_history.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/grok/chat_history.jsonl",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "b363be920771681f5c24e3af81701920368aa21beda27ea9948f59cd79a490ea"
+    },
+    {
+      "path": "grok/summary.json",
+      "upstream": "Resources/Fixtures/stage0/agents/grok/summary.json",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "79578700e4a32c3bd4cea1c95bf88988232ee28b70b2efdbd6f47c63048780d2"
+    },
+    {
+      "path": "grok/subagent/chat_history.jsonl",
+      "upstream": "Resources/Fixtures/stage0/agents/grok/subagent/chat_history.jsonl",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "2a4c88ef29805795f2851439b880eac97eb83778e41960a16383a41e3d38604c"
+    },
+    {
+      "path": "grok/subagent/summary.json",
+      "upstream": "Resources/Fixtures/stage0/agents/grok/subagent/summary.json",
+      "commit": "6fa9a73f489d37f655873871e5e6a5cf6975d1ff",
+      "sha256": "2661bc261d916688b0933e6bd445403f0a8df01243b0ae0cc4bffc6bdafeccf5"
     }
   ]
 }

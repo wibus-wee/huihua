@@ -35,6 +35,20 @@ function hasCode(code: string) {
   return (error: unknown) =>
     error instanceof SessionError && error.code === code
 }
+void it('OpenCode reads the part table once per selected session while preserving ordered parts and orphans', async (t) => {
+  const rows = t.mock.method(SqliteReader.prototype, 'rows')
+  const path = join(await directory(t), 'parts.db')
+  const producer = new DatabaseSync(path)
+  producer.exec(await readFile(resolve('fixtures/opencode/simple.sql'), 'utf8'))
+  producer.exec(`INSERT INTO message VALUES ('m2','session-1',1767225601000,'{"role":"assistant"}'), ('foreign','other',0,'{}');
+    INSERT INTO part VALUES ('p2','m2','session-1',0,'{"type":"text","text":"second"}'), ('orphan','missing','session-1',0,'{}'), ('foreign','foreign','other',0,'{}');`)
+  producer.close()
+  const session = await sessions.parse('opencode', { path, format: 'opencode_sqlite', id: 'session-1', locator: { id: 'session-1' } })
+  assert.deepEqual(session.records.filter(r => r.source.table === 'part').map(r => (r.native as { id: string }).id), ['p0', 'p2', 'orphan'])
+  assert.ok(session.diagnostics.some(d => d.message.includes('orphan part')))
+  assert.equal(rows.mock.calls.filter(call => call.arguments[0] === 'part').length, 1)
+  assert.equal(rows.mock.calls.filter(call => call.arguments[0] === 'message').length, 1)
+})
 void it('scan preserves database rows yielded before an invalid session identity', async (t) => {
   const path = join(await directory(t), 'partial.db')
   const db = new DatabaseSync(path)
@@ -115,6 +129,33 @@ function oracleRows(db: DatabaseSync, table: string) {
           : value]
   })))
 }
+void it('SQLite native DDL comments cannot change columns, defaults or decoded rows', async (t) => {
+  const path = join(await directory(t), 'commented.db')
+  const db = new DatabaseSync(path)
+  db.exec(`CREATE TABLE nodes (
+    row_id INTEGER PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    node_id INTEGER NOT NULL, -- node_id within this session's forest (, GENERATED
+    parent_node_id INTEGER, /* commas, quotes ' ) WITHOUT ROWID */
+    chat_message TEXT,
+    created_at REAL,
+    "literal--/*()*/" TEXT DEFAULT 'text--/*()*/ WITHOUT ROWID GENERATED'
+  ); INSERT INTO nodes VALUES (1, 'native', 7, 3, '{"role":"user"}', 1000, 'unchanged');
+  ALTER TABLE nodes ADD COLUMN extra TEXT /* DEFAULT 42 */ DEFAULT 'kept--/*value*/';`)
+  const expected = oracleRows(db, 'nodes')
+  const columns = Object.keys(expected[0]!)
+  db.close()
+  const before = await readFile(path)
+  const reader = await SqliteReader.open(path)
+  try {
+    assert.deepEqual(reader.columns('nodes'), columns)
+    const rows = []
+    for await (const row of reader.rows('nodes')) rows.push(row)
+    assert.deepEqual(rows, expected)
+  }
+  finally { await reader.close() }
+  assert.deepEqual(await readFile(path), before)
+})
 void it('SQLite oracle preserves NUL text and distinguishes blobs, integers and null', () => {
   const db = new DatabaseSync(':memory:')
   try {

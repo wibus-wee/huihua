@@ -449,13 +449,13 @@ export interface JsonlCandidate {
 }
 export interface JsonlAdapter {
   id: string
-  /** Provider mapping supplies all same-record facts needed by an evidence-free usage consumer. */
+  /** Provider mapping supplies recorded model/identity context needed by an evidence-free usage consumer. */
   usageContext?: true
   roots: (options: ScanOptions) => readonly string[] | Promise<readonly string[]>
   metadata: (records: readonly unknown[], path: string, context: { readonly fileBacked: boolean }, keys?: FrameSelection['metadataKeys']) => Partial<Session>
   parse: (ingest: Ingestion, native: unknown) => void
-  parser?: () => { parse: JsonlAdapter['parse'], finish?: (ingest: Ingestion) => void }
-  metadataFiles?: (path: string) => readonly string[]
+  parser?: () => { parse: JsonlAdapter['parse'], finish?: (ingest: Ingestion) => void, malformed?: () => void }
+  metadataFiles?: (path: string) => readonly string[] | Promise<readonly string[]>
   time?: (native: unknown) => Session['updatedAt']
   accepts?: (path: string, candidate: JsonlCandidate) => boolean
   /** Discovery only: false rejects a candidate; identity overrides provisional metadata. */
@@ -511,7 +511,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
     const parser = adapter.parser?.() ?? { parse: adapter.parse }
     async function* sources(): AsyncGenerator<Omit<NativeLine, 'position'> & { path: string, position?: number }> {
       if (companions) {
-        for (const path of adapter.metadataFiles?.(ref.source.path) ?? []) {
+        for (const path of await adapter.metadataFiles?.(ref.source.path) ?? []) {
           options.signal?.throwIfAborted()
           if (await exists(path)) {
             yield { ...await readJson(path, positiveLimit(options.maxRecordBytes, 16 * 1024 * 1024), false, options.signal), path }
@@ -537,6 +537,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         line,
       )
       if (line.malformed) {
+        parser.malformed?.()
         ingest.unknown(
           linePath === ref.source.path ? 'malformed_jsonl' : 'malformed_json',
           line.native,
@@ -703,7 +704,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         yield* scanSource(adapter.id, source, options, async function* () {
           const records = await header(path, compressed, options.headerBytes, options.signal)
           const metadata: unknown[] = []
-          for (const companion of adapter.metadataFiles?.(path) ?? []) {
+          for (const companion of await adapter.metadataFiles?.(path) ?? []) {
             let failed = false
             for await (const event of scanSource(adapter.id, { path: companion }, options, async function* () {
               if (await exists(companion))

@@ -31,6 +31,10 @@ Convert documented seconds to milliseconds without guessing other units.
 Native tool calls, results and reasoning use the shared message mapper.
 Do not traverse parent-session lineage, invoke repair/export commands, or query FTS/index tables.
 
+The [pinned schema-drift fixture](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/Resources/Fixtures/stage0/agents/hermes/schema_drift.json) records role=tool with finish_reason=error.
+The provider-local wrapper recognizes that explicit failure before delegating ordinary messages to the shared mapper.
+Snapshot, JSONL and SQLite paths use this same rule and retain the original result object and native usage.
+
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

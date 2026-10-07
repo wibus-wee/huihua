@@ -10,7 +10,7 @@ export const droidProvider = jsonlProvider({
   metadata(records) {
     const v = object(records.find(r => ['session_start', 'system'].includes(String(object(r).type))) ?? records.find(r => typeof object(r).session_id === 'string' || typeof object(r).sessionId === 'string'))
     const id = string(v.session_id) ?? string(v.sessionId) ?? (v.type === 'session_start' ? string(v.id) : undefined)
-    const cwd = string(v.cwd) ?? string(v.working_directory)
+    const cwd = string(v.cwd) ?? string(v.working_directory) ?? string(v.workingDirectory)
     return { ...optional('id', id), ...optional('title', string(v.title)), ...optional('createdAt', ['session_start', 'system'].includes(String(v.type)) ? timestamp(v.timestamp) : undefined), ...optional('workspace', cwd === undefined ? undefined : { path: cwd }), metadata: { compatibility: 'legacy_jsonl', ...optional('id_origin', id === undefined ? undefined : 'native') } }
   },
   parse(ingest, native) {
@@ -20,12 +20,13 @@ export const droidProvider = jsonlProvider({
     const toolName = string(v.toolName) ?? string(v.tool_name) ?? string(v.name)
     if (type === 'message') {
       const message = object(v.message ?? { ...v, content: v.content ?? v.text })
-      chatMessageEvents(ingest, { ...message, role: string(message.role)?.trim().toLowerCase() }, v)
+      const role = string(message.role)?.trim().toLowerCase()
+      chatMessageEvents(ingest, { ...message, role: role === 'toolresult' ? 'toolResult' : role }, v)
     }
     else if ((type === 'tool_call' || type === 'toolCall') && toolName !== undefined) {
       ingest.emit('tool_call', { ...optional('callId', callId), toolName, arguments: v.parameters ?? v.input ?? null })
     }
-    else if (type === 'tool_result') {
+    else if (type === 'tool_result' || type === 'toolResult') {
       const result = object(v.value)
       const exitCode = result.exitCode ?? result.exit_code ?? v.exitCode ?? v.exit_code
       const flag = v.isError ?? v.is_error

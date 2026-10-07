@@ -31,7 +31,7 @@ function normalize(ingest: Ingestion, native: unknown) {
   else
     ingest.unknown(type, native)
 }
-const jsonl = jsonlProvider({ id: 'openclaw', roots, accepts: path => path.endsWith('.jsonl') && !path.endsWith('.trajectory.jsonl'), metadata, parse: normalize })
+const jsonl = jsonlProvider({ id: 'openclaw', roots, accepts: path => /\.jsonl(?:\.deleted\.[^/\\]+)?$/.test(path) && !/\.trajectory\.jsonl(?:\.deleted\.|$)/.test(path), metadata, parse: normalize })
 const sqlite = sqliteStoreProvider({
   id: 'openclaw',
   format: 'openclaw_sqlite',

@@ -202,15 +202,15 @@ input — and a second iterator throws `TypeError`; call `stream` again to repla
 | OAR (`oar`)                     | Voyage/3 recordings and RawEvent JSONL from any harness                                     | [Research](src/providers/oar/RESEARCH.md)         |
 | ACP (`acp`)                     | Recorded stable v1/v2 session notifications and JSON-RPC JSONL                              | [Research](src/providers/acp/RESEARCH.md)         |
 | Kimi Code (`kimi`)              | Per-agent wire.jsonl with native session metadata                                           | [Research](src/providers/kimi/RESEARCH.md)        |
-| Grok Build (`grok`)             | Native updates.jsonl and summary.json; xAI extensions retained                              | [Research](src/providers/grok/RESEARCH.md)        |
-| Antigravity CLI (`antigravity`) | Partial observed SQLite/Protobuf steps; native bytes retained                               | [Research](src/providers/antigravity/RESEARCH.md) |
+| Grok Build (`grok`)             | Native update journal or derived chat history, with bounded native sidecars                 | [Research](src/providers/grok/RESEARCH.md)        |
+| Antigravity CLI (`antigravity`) | Observed SQLite/Protobuf steps, CLI brain JSONL and bounded Markdown artifacts              | [Research](src/providers/antigravity/RESEARCH.md) |
 | Mister Morph (`morph`)          | Topic discovery and ordered native task journal snapshots                                   | [Research](src/providers/morph/RESEARCH.md)       |
 | GitHub Copilot CLI (`copilot`)  | Flat/session-state events JSONL; mirrored calls and native usage                            | [Research](src/providers/copilot/RESEARCH.md)     |
 | Hermes Agent (`hermes`)         | Current state.db, historical JSON snapshots and JSONL captures/exports                      | [Research](src/providers/hermes/RESEARCH.md)      |
 | OpenClaw (`openclaw`)           | Current per-agent SQLite transcripts, compressed payloads and legacy JSONL                  | [Research](src/providers/openclaw/RESEARCH.md)    |
 | Qwen Code (`qwen`)              | Project chat JSONL, native Google message parts and system records                          | [Research](src/providers/qwen/RESEARCH.md)        |
 | Devin CLI (`devin`)             | SQLite session metadata and all message-tree nodes with main-chain markers                  | [Research](src/providers/devin/RESEARCH.md)       |
-| fx (`fx`)                       | Manifest and checkpoint JSON snapshots; event tail not replayed                             | [Research](src/providers/fx/RESEARCH.md)          |
+| fx (`fx`)                       | Manifest/checkpoint snapshots and optional display title; event tail not replayed           | [Research](src/providers/fx/RESEARCH.md)          |
 | Cline CLI/Desktop (`cline`)     | Version-1 manifests and adjacent messages JSON                                              | [Research](src/providers/cline/RESEARCH.md)       |
 | DeepSeek Harness (`deepseek`)   | v0–v4 immutable JSONL generations and Zstandard logs                                        | [Research](src/providers/deepseek/RESEARCH.md)    |
 | Factory Droid (`droid`)         | Legacy interactive JSONL and captured stream-json records                                   | [Research](src/providers/droid/RESEARCH.md)       |
@@ -223,6 +223,7 @@ All stores share the same engine limits: unencrypted rowid SQLite with committed
 records (16 MiB default) and 32 MiB Zstandard windows.
 Coverage is fixture-backed — not a promise
 to decode every private future format.
+The [compatibility acceptance report](docs/compatibility-acceptance.md) records the Agent Sessions comparison, focused before/after reproductions and real local-data checks.
 
 ## Custom registries and adapters
 

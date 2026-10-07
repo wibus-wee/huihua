@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import process from 'node:process'
 
 import { BinaryReader, WireType } from '@bufbuild/protobuf/wire'
@@ -8,17 +8,65 @@ import { BinaryReader, WireType } from '@bufbuild/protobuf/wire'
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
 import type { SessionFrame, SessionRef } from '../../contracts/session.ts'
-import { contentBlocks, Ingestion, openFrom } from '../../shared/ingestion.ts'
-import { exists, files } from '../../shared/paths.ts'
+import { contentBlocks, Ingestion, jsonlProvider, openFrom } from '../../shared/ingestion.ts'
+import { readText } from '../../shared/json-file.ts'
+import { exists, files, pathMatcher, positiveLimit } from '../../shared/paths.ts'
 import { scanSource } from '../../shared/scan.ts'
 import type { Row } from '../../shared/sqlite.ts'
 import { binarySafe, SqliteReader } from '../../shared/sqlite.ts'
-import { optional, parseNative } from '../../shared/value.ts'
+import { array, object, optional, parseNative, string, timestamp } from '../../shared/value.ts'
 
 function roots(options: ScanOptions): readonly string[] {
   const root = options.homeDir === undefined ? process.env.AGY_CONVERSATIONS_DIR : undefined
-  return options.roots?.antigravity ?? [root ?? join(options.homeDir ?? homedir(), '.gemini/antigravity-cli/conversations')]
+  const home = options.homeDir ?? homedir()
+  return options.roots?.antigravity ?? [root !== undefined && root !== '' ? root : join(home, '.gemini/antigravity-cli/conversations'), join(home, '.gemini/antigravity-cli/brain'), join(home, '.gemini/antigravity/brain')]
 }
+const transcriptPath = pathMatcher('*/.system_generated/logs/transcript.jsonl')
+const artifactPath = pathMatcher('*/*.md')
+const jsonl = jsonlProvider({
+  id: 'antigravity',
+  roots,
+  accepts: (path, candidate) => path.endsWith('.jsonl') && (candidate.explicitFile || candidate.roots.some(root => transcriptPath(path, root))),
+  identify: ({ header, explicitFile }) => explicitFile || header.some(record => 'step_index' in object(record) && typeof object(record).type === 'string') ? {} : false,
+  metadata(records) {
+    const v = object(records.find(record => timestamp(object(record).created_at) !== undefined))
+    return { ...optional('createdAt', timestamp(v.created_at)), metadata: { compatibility: 'observed_cli_transcript', id_origin: 'source_locator' } }
+  },
+  time: native => timestamp(object(native).created_at),
+  parse(ingest, native) {
+    const v = object(native)
+    const type = string(v.type) ?? 'antigravity_record'
+    const envelope = { ...v, timestamp: v.created_at }
+    const evidence = { ...optional('step_index', v.step_index), ...optional('source', v.source), ...optional('status', v.status), ...optional('truncated_fields', v.truncated_fields) }
+    if (array(v.truncated_fields).length)
+      ingest.diagnostic('PartialParse', `Antigravity recorded truncated fields: ${array(v.truncated_fields).map(String).join(', ')}`)
+    if (type === 'USER_INPUT') {
+      ingest.emit('user_message', { content: contentBlocks(v.content ?? null) }, envelope, evidence)
+    }
+    else if (type === 'PLANNER_RESPONSE') {
+      if (typeof v.thinking === 'string')
+        ingest.emit('reasoning', { text: v.thinking }, envelope, evidence)
+      if ('content' in v)
+        ingest.emit('assistant_message', { content: contentBlocks(v.content) }, envelope, evidence)
+      for (const call of array(v.tool_calls)) {
+        const c = object(call)
+        if (typeof c.name === 'string')
+          ingest.emit('tool_call', { ...optional('callId', string(c.id)), toolName: c.name, arguments: c.args ?? null }, envelope, evidence)
+        else
+          ingest.unknown('antigravity_tool_call', call, undefined, envelope, evidence)
+      }
+    }
+    else if (['RUN_COMMAND', 'VIEW_FILE', 'LIST_DIRECTORY', 'CODE_ACTION', 'SEARCH_WEB', 'GREP_SEARCH'].includes(type)) {
+      ingest.emit('tool_result', { result: v.content ?? null, isError: v.status === 'ERROR' || v.status === 'FAILED' }, envelope, evidence)
+    }
+    else if (['CHECKPOINT', 'CONVERSATION_HISTORY', 'SYSTEM_MESSAGE'].includes(type)) {
+      ingest.emit('system', { sourceType: type, payload: native }, envelope, evidence)
+    }
+    else {
+      ingest.unknown(type, native, undefined, envelope, evidence)
+    }
+  },
+})
 
 /** Select observed schema fields; the maintained library owns wire validation and skipping. */
 function field(data: Uint8Array | undefined, number: number): Uint8Array | undefined {
@@ -131,6 +179,21 @@ async function* stream(ref: SessionRef, options: ReadOptions): AsyncGenerator<Se
 async function open(ref: SessionRef, options: ReadOptions = {}) {
   if (ref.provider !== 'antigravity')
     throw new SessionError('ProviderNotFound', `expected antigravity, got ${ref.provider}`)
+  if (ref.source.format === 'jsonl' || ref.source.format === 'jsonl_zstd')
+    return jsonl.open(ref, options)
+  if (ref.source.format === 'antigravity_markdown') {
+    return openFrom(ref, async function* () {
+      const data = await readText(ref.source.path, positiveLimit(options.maxRecordBytes, 16 * 1024 * 1024), options.signal)
+      const ingest = new Ingestion('antigravity')
+      ingest.record(data.native, { path: ref.source.path }, data)
+      if (data.malformed)
+        ingest.unknown('brain_markdown', data.native, 'invalid UTF-8 in Antigravity brain artifact')
+      else
+        ingest.emit('system', { sourceType: 'brain_markdown', payload: data.native })
+      yield* ingest.drain()
+      yield* ingest.finish()
+    }, 'buffered')
+  }
   if (ref.source.format !== 'antigravity_sqlite')
     throw new SessionError('UnsupportedSchema', `unsupported Antigravity source format ${ref.source.format}`)
   return openFrom(ref, () => stream(ref, options), 'buffered')
@@ -146,6 +209,16 @@ export const antigravityProvider = {
     return { provider: 'antigravity', roots: found, available: found.length > 0 }
   },
   async* scan(options: ScanOptions = {}): AsyncGenerator<ScanEvent> {
+    yield* jsonl.scan(options)
+    const selectedRoots = roots(options)
+    const explicit = new Set(options.roots?.antigravity?.map(path => resolve(path)))
+    for await (const path of files(selectedRoots, p => p.endsWith('.md') && (explicit.has(p) || selectedRoots.some(root => artifactPath(p, root))), options, 'antigravity')) {
+      if (typeof path !== 'string') {
+        yield path
+        continue
+      }
+      yield { type: 'ref', ref: { provider: 'antigravity', id: `source:${path}`, source: { path, format: 'antigravity_markdown' }, metadata: { id_origin: 'source_locator', compatibility: 'brain_markdown_artifact' } } }
+    }
     for await (const path of files(roots(options), p => p.endsWith('.db'), options, 'antigravity')) {
       if (typeof path !== 'string') {
         yield path
@@ -168,4 +241,6 @@ export const antigravityProvider = {
   async read(ref: SessionRef, options?: ReadOptions) {
     return (await open(ref, options)).snapshot()
   },
+  parse: jsonl.parse,
+  stream: jsonl.stream,
 }

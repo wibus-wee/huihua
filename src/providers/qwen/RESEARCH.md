@@ -34,6 +34,12 @@ Use custom_title and parent_session only when recorded.
 Preserve compression/rewind records without replaying them.
 Managed daemon stores and arbitrary JSON exports are not supported.
 
+The [pinned parser](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/QwenSessionParser.swift) records a toolCallResult-only display surface.
+Huihua emits that explicit result only when no functionResponse part is present, labels result_origin=resultDisplay and preserves its native call ID/error.
+This third-party display surface is not claimed to be a complete model-facing result.
+Runtime-user notification/cron/goal_runtime records stay system evidence rather than human conversation.
+No active-chain folding, hook stripping or glued-JSON repair is applied.
+
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

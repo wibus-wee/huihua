@@ -516,9 +516,217 @@ void it('Copilot maps standalone reasoning and does not invent reasoning from nu
 void it('independent compatibility artifacts retain their pinned provenance and hashes', async () => {
   const source = JSON.parse(await readFile(compatibility('sources.json'), 'utf8')) as { commit: string, files: { path: string, sha256: string }[] }
   assert.equal(source.commit, 'b7893c772b0014918211f1c45a5ab58add229703')
-  assert.equal(source.files.length, 22)
+  assert.equal(source.files.length, 34)
   for (const entry of source.files)
     assert.equal(createHash('sha256').update(await readFile(compatibility(entry.path))).digest('hex'), entry.sha256, entry.path)
+})
+
+void it('captured Kimi loop journal exposes assistant, reasoning, tool pairs and ID-less state facts', async (t) => {
+  const jsonl = await readFile(compatibility('kimi/assistant_tools.jsonl'), 'utf8')
+  const session = await sessions.parse('kimi', { jsonl })
+  assertSessionContract(session)
+  assert.equal(session.records.length, 200)
+  assert.equal(eventsOf(session, 'assistant_message').length, 6)
+  assert.equal(eventsOf(session, 'reasoning').length, 22)
+  assert.equal(toolCallsOf(session).length, 19)
+  assert.equal(toolResultsOf(session).length, 19)
+  assert.equal(toolResultsOf(session).filter(e => e.data.isError).length, 1)
+  assert.deepEqual(toolCallsOf(session).map(e => e.data.callId), toolResultsOf(session).map(e => e.data.callId))
+  assert.equal(eventsOf(session, 'unknown').length, 0)
+  assert.equal(session.records.map(r => r.text).join(''), jsonl)
+  const root = await mkdtemp(join(tmpdir(), 'huihua-kimi-native-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'native/agents/main/wire.jsonl')
+  await mkdir(join(root, 'native/agents/main'), { recursive: true })
+  await writeFile(path, jsonl)
+  const state = JSON.parse(await readFile(compatibility('kimi/assistant_tools.state.json'), 'utf8')) as { title: string, workDir: string, createdAt: string }
+  await writeFile(join(root, 'native/state.json'), JSON.stringify(state))
+  const scanned = await sessions.scan({ providers: ['kimi'], roots: { kimi: [root] } })
+  assert.deepEqual(scanned.failures, [])
+  assert.equal(scanned.refs[0]?.title, state.title)
+  const read = await sessions.read(scanned.refs[0])
+  assert.equal(read.workspace?.path, state.workDir)
+  assert.deepEqual(read.createdAt, { format: 'rfc3339', value: state.createdAt })
+  assert.equal(read.metadata.id_origin, 'source_locator')
+})
+void it('Kimi loop image parts use the same native media mapping as context messages', async () => {
+  const part = { type: 'image_url', imageUrl: { url: 'data:image/png;base64,AA==' } }
+  const records = [{ type: 'context.append_message', message: { role: 'assistant', content: [part] } }, { type: 'context.append_loop_event', event: { type: 'content.part', part } }]
+  const session = await sessions.parse('kimi', { jsonl: records.map(r => JSON.stringify(r)).join('\n') })
+  assert.deepEqual(conversationOf(session).map(e => e.data.content), [[{ type: 'image', data: { uri: part.imageUrl.url, metadata: part } }], [{ type: 'image', data: { uri: part.imageUrl.url, metadata: part } }]])
+})
+
+void it('Cursor observed CLI tool aliases retain native blocks and expose tool events', async () => {
+  const session = await sessions.parse('cursor', { path: compatibility('cursor/schema_drift.jsonl') })
+  assertSessionContract(session)
+  assert.equal(toolCallsOf(session).length, 1)
+  assert.deepEqual(toolCallsOf(session)[0]?.data, { toolName: 'read_file', arguments: { path: 'build.log' } })
+  assert.equal(toolResultsOf(session).length, 1)
+  assert.equal(toolResultsOf(session)[0]?.data.toolName, 'read_file')
+  assert.deepEqual(toolResultsOf(session)[0]?.data.result, [{ type: 'text', text: 'Compile failed in Example.swift:42' }])
+  assert.equal(session.records.length, 4)
+})
+
+void it('Hermes recorded finish_reason error is a failed tool result', async () => {
+  const session = await sessions.parse('hermes', { path: compatibility('hermes/schema_drift.json'), format: 'hermes_json' })
+  assertSessionContract(session)
+  assert.equal(toolResultsOf(session).find(e => objectResult(e.data.result).finish_reason === 'error')?.data.isError, true)
+})
+function objectResult(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
+}
+
+void it('DeepSeek v2/v3 native result wrappers and explicit parent preserve identity and failures', async () => {
+  for (const version of [2, 3]) {
+    const records = [
+      { type: 'session', version, id: 'child', parentSession: 'parent', origin: 'subagent', delegationDepth: 1 },
+      { type: 'tool/call', time: 1, data: { callId: 'call', name: 'read', arguments: { path: 'a' } } },
+      { type: 'tool/result', time: 2, data: { message: { id: 'result', role: 'user', source: { kind: 'tool', callId: 'call' }, content: [{ type: 'tool-result', toolCallId: 'call', content: [{ type: 'text', text: 'failed' }], isError: true }] } } },
+    ]
+    const session = await sessions.parse('deepseek', { jsonl: records.map(r => JSON.stringify(r)).join('\n') })
+    assertSessionContract(session)
+    assert.equal(session.parentSessionId, 'parent')
+    assert.equal(toolResultsOf(session)[0]?.data.callId, 'call')
+    assert.equal(toolResultsOf(session)[0]?.data.isError, true)
+    assert.deepEqual(session.records.map(r => r.native), records)
+    assert.ok(!session.diagnostics.some(d => d.message.includes('no recorded result')))
+  }
+})
+
+void it('Droid camel tool-result role and event preserve pairs and workspace aliases', async () => {
+  const rows = [
+    { type: 'session_start', sessionId: 'native', workingDirectory: '/recorded' },
+    { type: 'toolCall', toolCallId: 'a', toolName: 'read', input: {} },
+    { type: 'message', message: { role: 'toolResult', toolCallId: 'a', content: 'ok' } },
+    { type: 'toolCall', toolCallId: 'b', toolName: 'read', input: {} },
+    { type: 'toolResult', toolCallId: 'b', value: { exitCode: 1 } },
+  ]
+  const session = await sessions.parse('droid', { jsonl: rows.map(r => JSON.stringify(r)).join('\n') })
+  assertSessionContract(session)
+  assert.equal(session.workspace?.path, '/recorded')
+  assert.deepEqual(toolResultsOf(session).map(e => [e.data.callId, e.data.isError]), [['a', false], ['b', true]])
+  assert.deepEqual(session.records.map(r => r.native), rows)
+  assert.deepEqual(session.diagnostics, [])
+})
+
+void it('Copilot tokenDetails-only shutdown retains summary usage without request invention', async () => {
+  const native = { type: 'session.shutdown', data: { tokenDetails: { inputTokens: 11, outputTokens: 7 } } }
+  const session = await sessions.parse('copilot', { jsonl: JSON.stringify(native) })
+  assertSessionContract(session)
+  assert.deepEqual(eventsOf(session, 'usage').map(e => e.data.usage), [native.data])
+  assert.equal(eventsOf(session, 'system').length, 1)
+  assert.deepEqual(session.records[0]?.native, native)
+})
+
+void it('Codex historical chat and function aliases retain normalized facts and raw records', async () => {
+  const session = await sessions.parse('codex', { path: compatibility('codex/schema_drift.jsonl') })
+  assertSessionContract(session)
+  assert.equal(conversationOf(session).length, 2)
+  assert.deepEqual(toolCallsOf(session)[0]?.data, { toolName: 'translate', arguments: { text: 'hello', to: 'es' } })
+  assert.equal(toolResultsOf(session)[0]?.data.result, 'hola')
+  assert.equal(eventsOf(session, 'unknown').length, 1)
+  const large = await sessions.parse('codex', { path: compatibility('codex/large.jsonl') })
+  assert.equal(toolCallsOf(large)[0]?.data.toolName, 'run_shell_command')
+  assert.deepEqual(toolResultsOf(large)[0]?.data.result, { stdout: 'line1\nline2\nline3\n', stderr: '', exitCode: 0 })
+})
+
+void it('Codex nested native subagent lineage and turn summaries remain explicit observations', async () => {
+  const rows = [
+    { type: 'session_meta', payload: { id: 'child', source: { subagent: { thread_spawn: { parent_thread_id: 'parent' } } } } },
+    { type: 'turn.completed', usage: { input_tokens: 12, output_tokens: 3 } },
+  ]
+  const session = await sessions.parse('codex', { jsonl: rows.map(r => JSON.stringify(r)).join('\n') })
+  assert.equal(session.parentSessionId, 'parent')
+  assert.deepEqual(eventsOf(session, 'usage')[0]?.data.usage, rows[1])
+  assert.deepEqual(session.records.map(r => r.native), rows)
+})
+
+void it('Claude explicit historical top-level tools preserve supplied names and outputs', async () => {
+  const rows = [{ type: 'tool_call', sessionId: 'native', name: 'read', input: { path: 'a' } }, { type: 'tool_result', sessionId: 'native', name: 'read', output: 'failed', is_error: true }]
+  const session = await sessions.parse('claude', { jsonl: rows.map(r => JSON.stringify(r)).join('\n') })
+  assertSessionContract(session)
+  assert.deepEqual(toolCallsOf(session)[0]?.data, { toolName: 'read', arguments: { path: 'a' } })
+  assert.deepEqual(toolResultsOf(session)[0]?.data, { toolName: 'read', result: 'failed', isError: true })
+  assert.deepEqual(session.records.map(r => r.native), rows)
+})
+
+void it('Qwen display-only result and runtime user subtype keep their explicit provenance', async () => {
+  const result = { type: 'tool_result', toolCallResult: { callId: 'call', name: 'read', status: 'error', resultDisplay: { text: 'failed' } } }
+  const notifications = ['notification', 'cron', 'goal_runtime'].map(subtype => ({ type: 'user', subtype, message: { parts: [{ text: 'runtime notification' }] } }))
+  const session = await sessions.parse('qwen', { jsonl: [result, ...notifications].map(r => JSON.stringify(r)).join('\n') })
+  assertSessionContract(session)
+  assert.deepEqual(toolResultsOf(session)[0]?.data, { callId: 'call', toolName: 'read', result: { text: 'failed' }, isError: true })
+  assert.equal(toolResultsOf(session)[0]?.providerMetadata.result_origin, 'resultDisplay')
+  assert.equal(eventsOf(session, 'system').length, 3)
+  assert.equal(eventsOf(session, 'user_message').length, 0)
+  const nativeResponse = { name: 'read', response: { text: 'model-facing result' } }
+  const paired = await sessions.parse('qwen', { jsonl: JSON.stringify({ ...result, message: { parts: [{ functionResponse: nativeResponse }] } }) })
+  assert.equal(toolResultsOf(paired).length, 1)
+  assert.deepEqual(toolResultsOf(paired)[0]?.data.result, nativeResponse.response)
+})
+
+void it('Antigravity captured CLI steps preserve planner output, calls, outcomes and truncation', async () => {
+  const session = await sessions.parse('antigravity', { path: compatibility('antigravity/cli_small.jsonl') })
+  assertSessionContract(session)
+  assert.equal(session.records.length, 19)
+  assert.equal(eventsOf(session, 'user_message').length, 2)
+  assert.equal(eventsOf(session, 'assistant_message').length, 1)
+  assert.equal(eventsOf(session, 'reasoning').length, 3)
+  assert.deepEqual(toolCallsOf(session).map(e => e.data.toolName), ['list_dir', 'write_file'])
+  assert.equal(toolResultsOf(session).length, 8)
+  assert.ok(toolResultsOf(session).every(e => e.data.callId === undefined))
+  assert.equal(session.diagnostics.filter(d => d.message.includes('truncated')).length, 8)
+  assert.equal((await sessions.open(session)).readMode, 'incremental')
+  const supplied = await sessions.parse('antigravity', { jsonl: await readFile(compatibility('antigravity/cli_small.jsonl'), 'utf8') })
+  assert.deepEqual(supplied.events, session.events)
+})
+
+void it('Grok captured chat history retains message models, reasoning and tools independently of journals', async () => {
+  const session = await sessions.parse('grok', { path: compatibility('grok/chat_history.jsonl') })
+  assertSessionContract(session)
+  assert.equal(session.id, '019f6851-7ec4-7ef0-97d3-03f3eee38755')
+  assert.equal(toolCallsOf(session).length, 2)
+  assert.equal(toolResultsOf(session).length, 2)
+  assert.equal(eventsOf(session, 'reasoning').length, 2)
+  assert.ok(eventsOf(session, 'assistant_message').every(e => e.data.model === 'grok-4.5'))
+  assert.equal(eventsOf(session, 'unknown').length, 3)
+  assert.ok(session.records.some(r => r.source.path.endsWith('summary.json')))
+})
+void it('fx optional display title and preferences remain native sidecar facts', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-display-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  for (const name of ['session.json', 'checkpoint.json'])
+    await writeFile(join(root, name), await readFile(compatibility(`fx/${name}`)))
+  const display = { title: 'Recorded title', preview: 'Recorded preview' }
+  await writeFile(join(root, 'display.json'), JSON.stringify(display))
+  const session = await sessions.parse('fx', { path: join(root, 'session.json'), format: 'fx_json' })
+  assertSessionContract(session)
+  assert.equal(session.title, display.title)
+  assert.deepEqual(session.records.find(r => r.source.path.endsWith('display.json'))?.native, display)
+  assert.equal(session.records.length, 3)
+  assert.deepEqual(session.metadata.preferences, { model: 'demo/model-1', effort: 'auto', fast_mode: false })
+  assert.ok(eventsOf(session, 'system').some(e => e.data.sourceType === 'compacted_summary'))
+  assert.ok(session.records.some(r => JSON.stringify(r.native).includes('background_command')))
+  assert.ok(session.diagnostics.some(d => d.message.includes('through_seq')))
+  const scan = await sessions.scan({ providers: ['fx'], roots: { fx: [root] } })
+  assert.deepEqual(scan.failures, [])
+  assert.equal(scan.refs[0]?.title, display.title)
+})
+void it('Devin sibling user images become canonical media without losing native dimensions and bytes', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-devin-image-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'sessions.db')
+  const producer = new DatabaseSync(path)
+  producer.exec(await readFile(fixture('devin/sessions.sql'), 'utf8'))
+  const message = { role: 'user', content: 'inspect image', images: [{ width: 2, height: 1, base64_data: 'AAEC' }] }
+  producer.prepare('UPDATE message_nodes SET chat_message = ? WHERE node_id = 1').run(JSON.stringify(message))
+  producer.close()
+  const scan = await sessions.scan({ providers: ['devin'], roots: { devin: [path] } })
+  const session = await sessions.read(scan.refs[0]!)
+  assertSessionContract(session)
+  const media = conversationOf(session).flatMap(e => e.data.content).filter(b => b.type === 'image')
+  assert.deepEqual(media, [{ type: 'image', data: { data: 'AAEC', metadata: message.images[0] } }])
+  assert.ok(session.records.some(r => (r.native as { chat_message?: string }).chat_message === JSON.stringify(message)))
 })
 
 void it('independent Copilot corpus preserves native evidence, mirrored arguments and standalone reasoning', async () => {

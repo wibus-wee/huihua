@@ -1,6 +1,6 @@
 import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { basename, delimiter, isAbsolute, join } from 'node:path'
+import { basename, delimiter, dirname, isAbsolute, join } from 'node:path'
 import process from 'node:process'
 
 import type { ScanOptions } from '../../contracts/provider.ts'
@@ -43,14 +43,23 @@ async function resolveClaudeRoots(options: ScanOptions, siblingsEnabled = true):
     join(home, 'Library/Application Support/Claude/local-agent-mode-sessions'),
   ])]
 }
-const desktopPath = pathMatcher('**/local_*/.claude/projects/**/*.jsonl')
+const desktopPath = pathMatcher('**/local_*/.claude/projects/**/*.{jsonl,ndjson}')
 const insideRoot = pathMatcher('**')
+function desktopDirectory(path: string): string | undefined {
+  let directory = dirname(path)
+  while (dirname(directory) !== directory) {
+    if (basename(directory).startsWith('local_') && desktopPath(path, dirname(directory)))
+      return directory
+    directory = dirname(directory)
+  }
+  return undefined
+}
 const claude = jsonlProvider({
   id: 'claude',
   usageContext: true,
   roots: resolveClaudeRoots,
   accepts(path, candidate) {
-    if (!path.endsWith('.jsonl'))
+    if (!path.endsWith('.jsonl') && !path.endsWith('.ndjson'))
       return false
     if (candidate.explicitFile)
       return true
@@ -62,7 +71,11 @@ const claude = jsonlProvider({
   identify({ header, explicitFile }) {
     return explicitFile || header.some(record => typeof object(record).sessionId === 'string') ? {} : false
   },
-  metadata(records, _path, _context, keys) {
+  metadataFiles(path) {
+    const local = desktopDirectory(path)
+    return local === undefined ? [] : [`${local}.json`]
+  },
+  metadata(records, path, _context, keys) {
     const facts: Partial<Session> = {}
     let metadata: Record<string, unknown> = {}
     const wantsWorkspace = keys === undefined || keys.includes('workspace')
@@ -72,6 +85,16 @@ const claude = jsonlProvider({
     const wantsTitle = keys === undefined || keys.includes('title')
     for (const record of records) {
       const v = object(record)
+      if (typeof v.cliSessionId === 'string') {
+        const local = desktopDirectory(path)
+        if (local !== undefined && v.sessionId === basename(local) && v.cliSessionId === basename(path).replace(/\.(?:jsonl|ndjson)$/, '')) {
+          if (wantsTitle)
+            Object.assign(facts, optional('title', string(v.title)))
+          if (wantsMetadata)
+            metadata = { ...metadata, desktop_session_id: v.sessionId }
+        }
+        continue
+      }
       const workspace = wantsWorkspace
         ? {
             ...optional('path', string(v.cwd)),
@@ -112,6 +135,15 @@ const claude = jsonlProvider({
             } })
           : undefined)
       }
+    }
+    else if ((type === 'tool_use' || type === 'tool_call') && typeof (v.name ?? v.tool) === 'string') {
+      ingest.emit('tool_call', { ...optional('callId', string(v.id) ?? string(v.tool_use_id)), toolName: String(v.name ?? v.tool), arguments: v.input ?? v.arguments ?? null })
+    }
+    else if (type === 'tool_result') {
+      ingest.emit('tool_result', { ...optional('callId', string(v.tool_use_id) ?? string(v.tool_call_id)), ...optional('toolName', string(v.name) ?? string(v.tool)), result: v.output ?? v.content ?? null, isError: v.is_error === true })
+    }
+    else if (typeof v.cliSessionId === 'string') {
+      ingest.emit('system', { sourceType: 'desktop_metadata', payload: native })
     }
     else if (['system', 'summary', 'custom-title'].includes(type)) {
       ingest.emit('system', { sourceType: type, payload: native })

@@ -24,6 +24,10 @@ Usage objects remain native; no quota or price calculation.
 Folder-trust prose never establishes a workspace.
 Attachment references remain data and are never opened.
 
+The [pinned compatibility telemetry](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Telemetry/CopilotTelemetryAccumulator.swift) accepts tokenDetails-only session.shutdown records.
+Huihua preserves those complete shutdown counters as Usage even without modelMetrics.
+They remain process summaries, excluded from the Usage CLI's response/day totals; preserving a summary is not permission to add it twice.
+
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
