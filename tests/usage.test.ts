@@ -43,6 +43,62 @@ void it('usage CLI accepts the leading argument separator forwarded by pinned pn
 function key(ref: { provider: string, source: unknown }): string {
   return JSON.stringify([ref.provider, ref.source])
 }
+void it('captured Kimi native token contributions include turn and session compaction exactly once', async () => {
+  const session = await sessions.parse('kimi', { path: resolve('fixtures/compatibility/kimi/assistant_tools.jsonl') })
+  const report = createUsageReport([session], new Map([[key(session), framesOf(session)]]), { providerIds: ['kimi'], timeZone: 'UTC' })
+  assert.equal(report.totals.usageEventCount, 23)
+  assert.equal(report.totals.inputTokens, 30174)
+  assert.equal(report.totals.outputTokens, 5515)
+  assert.equal(report.totals.cacheReadTokens, 661504)
+  assert.equal(report.totals.cacheCreationTokens, 0)
+  assert.equal(report.totals.totalTokens, 697193)
+  assert.deepEqual([...new Set(report.daily.flatMap(d => d.modelsUsed))], ['moonshot-ai/kimi-k2.7-code'])
+})
+void it('Codex model attribution follows explicit turn context across full, selected, recordless and date-filtered facts', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-codex-context-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const usage = (id: string, model?: string) => ({ type: 'token_usage_record', timestamp: '2026-01-02T00:00:00Z', payload: { response_id: id, ...(model === undefined ? {} : { model }), usage: { input_tokens: 10, output_tokens: 2, cached_input_tokens: 0, total_tokens: 12 } } })
+  const rows = [
+    { type: 'session_meta', payload: { id: 'native' } },
+    usage('before'),
+    { type: 'turn_context', timestamp: '2026-01-01T23:00:00Z', payload: { model: 'model-a', turn_id: 'a' } },
+    usage('a'),
+    usage('override', 'record-model'),
+    { type: 'turn_context', payload: { model: 'model-b', turn_id: 'b' } },
+    usage('b'),
+    { type: 'turn_context', payload: { turn_id: 'unknown' } },
+    usage('unknown'),
+    { type: 'turn_context', payload: { model: 'model-c' } },
+    { type: 'event_msg', payload: { type: 'task_complete' } },
+    usage('after-end'),
+  ]
+  const path = join(root, 'native.jsonl')
+  await writeFile(path, rows.map(r => JSON.stringify(r)).join('\n'))
+  const ref = { provider: 'codex', id: 'native', source: { path, format: 'jsonl' as const }, metadata: {} }
+  const opened = await codexProvider.open(ref)
+  const options = { providerIds: ['codex'], timeZone: 'UTC', since: '2026-01-02', until: '2026-01-02' }
+  const reports = []
+  const full = new UsageReportBuilder([ref], options)
+  for await (const frame of opened.stream()) full.add(ref, frame)
+  full.end(ref)
+  reports.push(full.finish())
+  for (const mode of ['selected', 'recordless', 'facts'] as const) {
+    const builder = new UsageReportBuilder([ref], options)
+    if (mode === 'selected')
+      await opened.consume!({ events: ['usage'], records: true }, frame => builder.add(ref, frame))
+    else if (mode === 'recordless')
+      await opened.consumeUsage!(frame => builder.add(ref, frame))
+    else
+      await opened.consumeUsageFacts!(item => builder.addFact(ref, item), { acceptTimestamp: time => time?.value === '2026-01-02T00:00:00Z' })
+    builder.end(ref)
+    reports.push(builder.finish())
+  }
+  for (const report of reports) {
+    assert.deepEqual(report.daily[0]?.modelBreakdowns.map(m => [m.model, m.totalTokens]), [['model-a', 12], ['model-b', 12], ['record-model', 12], [null, 36]])
+    assert.equal(report.totals.totalTokens, 72)
+    assert.deepEqual(report.daily, reports[0]?.daily)
+  }
+})
 
 void it('usage CLI rejects incomplete discovery instead of printing totals for only readable sources', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'huihua-usage-scan-failure-'))
@@ -692,4 +748,14 @@ void it('completed buffered sources release native record/model scratch without 
   assert.equal(report.totals.inputTokens, 4)
   assert.equal(report.daily[0]?.modelBreakdowns.find(model => model.model === 'fixture-model')?.inputTokens, 2)
   assert.equal(report.daily[0]?.modelBreakdowns.find(model => model.model === null)?.inputTokens, 2)
+})
+
+void it('Codex context stops at malformed records and cannot leak into another replay', async () => {
+  const usage = JSON.stringify({ type: 'token_usage_record', payload: { response_id: 'after', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } } })
+  const text = `${JSON.stringify({ type: 'turn_context', payload: { model: 'untrusted-after-gap' } })}\n{broken\n${usage}`
+  const session = await sessions.parse('codex', { jsonl: text })
+  const event = session.events.find(e => e.type === 'usage')!
+  assert.equal((event.providerMetadata.native_usage_context as { model?: string } | undefined)?.model, undefined)
+  const replay = await sessions.parse('codex', { jsonl: usage })
+  assert.equal((replay.events[0]!.providerMetadata.native_usage_context as { model?: string } | undefined)?.model, undefined)
 })

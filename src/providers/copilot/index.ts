@@ -64,7 +64,7 @@ export const copilotProvider = jsonlProvider({
     }
     else if (['session.start', 'session.resume', 'session.shutdown', 'session.model_change', 'session.info', 'session.title_changed', 'session.truncation', 'session.compaction_start', 'session.compaction_complete', 'assistant.turn_start', 'assistant.turn_end', 'system.message', 'hook.start', 'hook.end'].includes(type)) {
       ingest.emit('system', { sourceType: type, payload: native })
-      if (type === 'session.shutdown' && 'modelMetrics' in d)
+      if (type === 'session.shutdown' && ('modelMetrics' in d || 'tokenDetails' in d))
         ingest.emit('usage', { usage: d })
     }
     else {

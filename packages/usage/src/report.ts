@@ -122,7 +122,7 @@ const semantics = [
   'Repeated native records are retained and counted. Repeated response identities, forks and replay uncertainty mark affected totals partial; this is not deduplicated billable work.',
   'Cumulative checkpoints without safe request/date allocation are excluded with diagnostics; no snapshot deltas are invented.',
   'Claude and Pi-style cache counters are additional; Codex cached input is a subset of input and reasoning output is a subset of output.',
-  'Models come from explicit usage or same-record native/normalized facts. Null denotes unknown; no session-wide last-model guess is used.',
+  'Models come from explicit usage, same-record native/normalized facts, or recorded Codex turn context with provenance. Null denotes unknown; no session-wide last-model guess is used.',
   'Native timestamps determine local calendar dates. Undated usage has a null-date bucket without bounds and is excluded when bounds are active.',
   'No price estimates, native cost sums or actual billing claims are produced.',
 ]
@@ -254,7 +254,7 @@ function project(provider: string, event: UsageFact, session: SessionAccumulator
     }
   }
   else if (provider === 'codex') {
-    if (value.type === 'token_count' || 'info' in value) {
+    if (value.type === 'token_count' || 'info' in value || event.providerMetadata.usage_scope === 'turn_summary') {
       diagnostics.add('Codex token_count cumulative/last snapshots cannot be safely allocated to requests and dates; excluded from additive totals.')
       return undefined
     }
@@ -312,7 +312,25 @@ function project(provider: string, event: UsageFact, session: SessionAccumulator
     cacheAdditional = false
     completeScope = false
   }
-  else if (['deepseek', 'cline', 'kimi'].includes(provider)) {
+  else if (provider === 'kimi') {
+    if ('inputOther' in value || 'output' in value || 'inputCacheRead' in value || 'inputCacheCreation' in value) {
+      input = value.inputOther
+      output = value.output
+      read = value.inputCacheRead
+      write = value.inputCacheCreation
+    }
+    else {
+      input = value.inputTokens
+      output = value.outputTokens
+      read = value.cacheReadTokens
+      write = value.cacheWriteTokens
+      total = value.totalTokens
+      cacheAdditional = false
+      completeScope = false
+      diagnostics.add('Legacy Kimi token-named counters retain their partial scope; native generation fields were not present.')
+    }
+  }
+  else if (['deepseek', 'cline'].includes(provider)) {
     input = value.inputTokens
     output = value.outputTokens
     read = value.cacheReadTokens

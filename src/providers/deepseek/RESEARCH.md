@@ -26,6 +26,11 @@ Unknown/future events remain evidence with diagnostics.
 Zstandard uses the existing checksum/window-limited reader.
 No runtime/plugin dependency or native decoder is installed; dictionary frames and oversized windows remain unsupported.
 
+The [pinned historical decoder](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/DeepSeekHarness/DeepSeekHarnessFormatTypes.swift) distinguishes wrapped v2/v3 results and explicit parentSession headers.
+Huihua keeps parentSessionId precedence, then accepts parentSession; origin and delegationDepth remain native metadata.
+Historical result IDs come from nested toolCallId, source.callId or native callId/subCallId fields; nested isError establishes failure.
+The result projection retains the whole native wrapper and does not chase the parent or reconstruct seeded history.
+
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

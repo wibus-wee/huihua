@@ -35,6 +35,14 @@ even without native identity.
 Desktop discovery admits only the transcript subtree and excludes journals.
 A failed home sibling listing produces a source failure while independently configured/default roots still scan.
 
+[Pinned reference discovery/parser](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/ClaudeSessionParser.swift) also establishes `.ndjson` acquisition and historical top-level tool_use/tool_call/tool_result shapes as third-party compatibility evidence.
+They reuse the existing discovery and mapper; native block names, arguments, results and error flags remain intact.
+For Desktop transcripts under local_*/.claude/projects, the bounded metadata prelude reads the adjacent local_*.json.
+Only matching native local sessionId and cliSessionId/file identity establish a title association; custom-title records override the sidecar title.
+The local sidecar ID is preserved separately as desktop_session_id and never replaces the transcript ID.
+Foreign sidecar metadata stays raw; its model is not a historical response model.
+Supplied JSONL opens no sidecar.
+
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
 

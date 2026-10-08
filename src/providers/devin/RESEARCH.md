@@ -24,6 +24,10 @@ Keep JSON column strings and complete rows.
 Do not treat zero cost placeholders or context cursors as usage.
 Cloud sessions are outside local coverage.
 
+Native commented DDL is accepted by the existing shared SQLite schema lexer; comment-like quoted identifiers/defaults remain literal.
+Message-side sibling image arrays retain their explicit media facts alongside the unchanged complete SQL row.
+Read-only source-change/WAL checks still reject active mutations; schema acceptance does not create atomic isolation or authorize copying/repairing a store.
+
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

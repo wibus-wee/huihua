@@ -25,6 +25,10 @@ Keep resets, branches and compactions as observations; do not reconstruct curren
 Native compressed bytes and decoded JSON text remain reachable.
 Cold archives, encrypted storage locations, incognito memory and live Gateway calls are outside coverage.
 
+The [pinned discovery](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/OpenClawSessionDiscovery.swift) includes .jsonl.deleted.* history.
+Huihua admits those physical recordings through the existing JSONL mapper while retaining trajectory exclusions.
+Deleted files are independent evidence; they are never restored or rewritten.
+
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

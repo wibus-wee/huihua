@@ -48,6 +48,10 @@ export const qwenProvider = jsonlProvider({
     const type = string(v.type) ?? 'qwen_record'
     const m = object(v.message)
     const tool = object(v.toolCallResult)
+    if (type === 'user' && ['notification', 'cron', 'goal_runtime'].includes(String(v.subtype))) {
+      ingest.emit('system', { sourceType: String(v.subtype), payload: native })
+      return
+    }
     if (['user', 'assistant', 'tool_result'].includes(type)) {
       for (const part of array(m.parts)) {
         const p = object(part)
@@ -73,6 +77,9 @@ export const qwenProvider = jsonlProvider({
         else {
           ingest.unknown('qwen_part', part)
         }
+      }
+      if (type === 'tool_result' && v.toolCallResult !== undefined && !array(m.parts).some(p => 'functionResponse' in object(p))) {
+        ingest.emit('tool_result', { ...optional('callId', string(tool.callId)), ...optional('toolName', string(tool.name)), result: tool.resultDisplay ?? tool, isError: tool.error != null || tool.status === 'error' }, undefined, { result_origin: 'resultDisplay' })
       }
       if ('usageMetadata' in v)
         ingest.emit('usage', { usage: v.usageMetadata })

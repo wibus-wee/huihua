@@ -1,22 +1,13 @@
 # Codex compatibility research
 
-The optional `consumeUsage` delivery reuses the existing parser and adds
-same-record payload.model as `native_usage_context.model`, without delivering
-RawRecord frames.
-Response identity stays in the native token_usage_record
-payload.
-It retains cumulative token_count records for consumer diagnostics;
-it does not derive snapshot deltas or borrow a turn_context model.
-Default
-streams and their complete evidence are unchanged.
-JSON, identity, unknown
-record and tool diagnostics remain active.
-
-`consumeUsageFacts` uses the same mapping and lazy context extraction, with an
-optional caller-owned timestamp predicate before fact construction.
-Filtered token_count rows still undergo source validation; selected cumulative
-payloads remain native observations and are not converted to request deltas.
-Default event metadata and complete native records remain unchanged.
+The existing per-replay parser owns Usage model attribution in all delivery modes.
+An explicit payload.model wins; otherwise a compatible native turn_context supplies model with model_origin=turn_context and the recorded context.
+No model is inferred from session metadata, prose or a different turn ID.
+New contexts (even without a model), session/task starts, completion/abort and malformed records clear the window.
+Full, selective, callback, evidence-free and timestamp-filtered facts agree; replay and source state are isolated.
+Default event metadata with only same-record facts remains unchanged; inherited turn models add provenance, and evidence-free delivery explicitly carries either kind of model fact.
+Request response identity stays in the native token_usage_record payload.
+Cumulative token_count and turn.completed counters remain observations, excluded from additive request totals without deltas or deduplication.
 
 Reviewed 2026-10-05.
 Primary source: openai/codex
@@ -32,7 +23,7 @@ Secondary: recall [`47a2252`](https://github.com/pratikgajjar/recall/blob/47a225
 | [Official compression reader](https://github.com/openai/codex/blob/80cce09d059780528e59353ab3d87e4c97d1e944/codex-rs/rollout/src/compression.rs) accepts `.jsonl.zst` | Flat JSONL-only adapters omit compressed archives                                                                                                                                                                              | Use streaming zstd decoding, bounded decompressed headers/records and a 32 MiB window ceiling and 4 GiB declared-frame-size ceiling; reject dictionaries and validate content checksums; no materialized transcript |
 | Official protocol defines collab_agent_spawn_end / collab_agent_interaction and native agent statuses                                                                 | Flat consumers often discard collab lifecycle records                                                                                                                                                                          | Normalize only explicitly identified agents/stages; no invented ID for spawn_begin before an agent exists                                                                                                           |
 | Native lineage and history_base/subagent ordinals exist                                                                                                               | Flat viewers often do not reconstruct inheritance                                                                                                                                                                              | Expose explicit parent IDs; retain history_base/ordinals raw, never chase another store or fabricate inherited events                                                                                               |
-| Our pinned official recorder does not define token_usage_record                                                                                                       | [ccusage Codex parser](https://github.com/ccusage/ccusage/blob/b8bfa6aa2f179de118c2ef3bf066b1e4372878d2/rust/adapters/codex/src/parser.rs) tests separate request/compaction usage records and cumulative/last token snapshots | Accept the empirical shape as Usage with complete payload; preserve repeated/cumulative snapshots, never calculate deltas, infer model or drop replay history                                                       |
+| Our pinned official recorder does not define token_usage_record                                                                                                       | [ccusage Codex parser](https://github.com/ccusage/ccusage/blob/b8bfa6aa2f179de118c2ef3bf066b1e4372878d2/rust/adapters/codex/src/parser.rs) tests separate request/compaction usage records and cumulative/last token snapshots | Accept the empirical shape as Usage with complete payload; preserve repeated/cumulative snapshots, never calculate deltas or drop replay history; model attribution uses recorded provenance                        |
 
 Fixtures are authored minimal examples derived from these published shapes, not copied private
 transcripts.
@@ -45,7 +36,13 @@ The existing metadata mapper accepts selected patch keys from shared ingestion.
 Session-meta identity extraction always runs, including conflicting later headers;
 workspace/git/time/parent fields are constructed only when selected.
 Discovery and default full reads retain all original fields, and no usage field,
-model, timestamp or branch is inferred by this allocation change.
+timestamp or branch is inferred by this allocation change.
+Recorded turn-model attribution is a separate explicit provider decision above.
+
+[Pinned reference fixtures](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/Resources/Fixtures/stage0/agents/codex/schema_drift.jsonl) establish empirical historical chat/function/tool aliases.
+They are normalized by this same mapper while retaining complete native records.
+Nested source.subagent.thread_spawn.parent_thread_id supplies lineage only after explicit top-level parent_thread_id/forked_from_id, so precedence remains deterministic.
+These private aliases and request-usage observations are third-party compatibility evidence, distinct from the official protocol facts.
 
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.

@@ -6,6 +6,7 @@ import { SessionError } from '../../contracts/diagnostic.ts'
 import type { Ingestion } from '../../shared/ingestion.ts'
 import { contentBlocks } from '../../shared/ingestion.ts'
 import { jsonStoreProvider } from '../../shared/json-store.ts'
+import { exists } from '../../shared/paths.ts'
 import { array, object, optional, string, timestamp } from '../../shared/value.ts'
 
 function durable(value: unknown): unknown {
@@ -33,14 +34,23 @@ export const fxProvider = jsonStoreProvider({
   format: 'fx_json',
   roots: options => options.roots?.fx ?? [join(options.homeDir ?? homedir(), '.fx/sessions')],
   accepts: path => basename(path) === 'session.json',
-  sources: path => [path, join(dirname(path), 'checkpoint.json')],
+  metadataFiles: path => [join(dirname(path), 'display.json')],
+  async sources(path) {
+    const display = join(dirname(path), 'display.json')
+    return [path, join(dirname(path), 'checkpoint.json'), ...await exists(display) ? [display] : []]
+  },
   metadata(native) {
     const v = object(native)
     const state = object(v.state ?? native)
-    return { ...optional('id', string(v.session_id) ?? string(state.id)), ...optional('createdAt', timestamp(state.created_at_ms)), ...optional('updatedAt', timestamp(state.updated_at_ms)), ...optional('workspace', typeof state.workspace_root === 'string' ? { path: state.workspace_root } : undefined), metadata: { id_origin: 'native' } }
+    const id = string(v.session_id) ?? string(state.id)
+    return { ...optional('id', id), ...optional('title', string(v.title)), ...optional('createdAt', timestamp(state.created_at_ms)), ...optional('updatedAt', timestamp(state.updated_at_ms)), ...optional('workspace', typeof state.workspace_root === 'string' ? { path: state.workspace_root } : undefined), metadata: { ...optional('id_origin', id === undefined ? undefined : 'native'), ...optional('preferences', v.preferences ?? state.preferences) } }
   },
-  parse(ingest, native) {
+  parse(ingest, native, path) {
     const v = object(native)
+    if (basename(path) === 'display.json') {
+      ingest.emit('system', { sourceType: 'fx_display', payload: native })
+      return
+    }
     const checkpoint = 'state' in v
     if (checkpoint ? v.schema_version !== 1 : v.schema_version !== 3 || v.storage_format !== 'event_log_v1')
       throw new SessionError('UnsupportedSchema', 'unsupported fx snapshot schema')

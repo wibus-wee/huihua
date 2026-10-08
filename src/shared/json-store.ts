@@ -13,14 +13,15 @@ export function jsonStoreProvider(adapter: {
   format: string
   roots: (options: ScanOptions) => readonly string[]
   accepts: (path: string) => boolean
-  sources?: (path: string) => readonly string[]
+  sources?: (path: string) => readonly string[] | Promise<readonly string[]>
+  metadataFiles?: (path: string) => readonly string[]
   metadata: (native: unknown) => Partial<Session>
   parse: (ingest: Ingestion, native: unknown, path: string, ref: SessionRef) => void
 }) {
   async function* stream(ref: SessionRef, options: ReadOptions): AsyncGenerator<SessionFrame> {
     const ingest = new Ingestion(adapter.id)
     let nativeId: string | undefined
-    for (const path of adapter.sources?.(ref.source.path) ?? [ref.source.path]) {
+    for (const path of await adapter.sources?.(ref.source.path) ?? [ref.source.path]) {
       options.signal?.throwIfAborted()
       const data = await readJson(path, positiveLimit(options.maxRecordBytes, 16 * 1024 * 1024), false, options.signal)
       ingest.record(data.native, { path }, { ...optional('text', data.text), ...optional('bytes', data.bytes) })
@@ -69,7 +70,23 @@ export function jsonStoreProvider(adapter: {
         const source = { path, format: adapter.format }
         yield* scanSource(adapter.id, source, options, async function* () {
           const data = await readJson(path, positiveLimit(options.headerBytes, 65536), false, options.signal)
-          yield { type: 'ref', ref: { id: `source:${path}`, provider: adapter.id, source, metadata: { id_origin: 'source_locator' }, ...adapter.metadata(data.native) } }
+          let facts = adapter.metadata(data.native)
+          for (const companion of adapter.metadataFiles?.(path) ?? []) {
+            let failed = false
+            for await (const event of scanSource(adapter.id, { path: companion }, options, async function* () {
+              if (await exists(companion)) {
+                const data = await readJson(companion, positiveLimit(options.headerBytes, 65536), false, options.signal)
+                const next = adapter.metadata(data.native)
+                facts = { ...facts, ...next, metadata: { ...facts.metadata, ...next.metadata } }
+              }
+            })) {
+              failed = true
+              yield event
+            }
+            if (failed)
+              return
+          }
+          yield { type: 'ref', ref: { id: `source:${path}`, provider: adapter.id, source, metadata: { id_origin: 'source_locator' }, ...facts } }
         })
       }
     },

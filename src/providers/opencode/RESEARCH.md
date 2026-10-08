@@ -21,5 +21,10 @@ Fixtures are synthetic schema contracts, not private user history.
 
 ## Implementation decisions
 
+The message/part reader performs one message-table pass and one part-table pass per selected session.
+It groups selected parts, retains selected-session orphans, and uses all native message IDs to avoid mislabeling foreign-session parts as orphans.
+Existing native message ordering and part-ID ordering remain unchanged.
+The regression checks exact selected evidence, orphan diagnostics and traversal counts, rather than inferring performance from compilation or running a benchmark.
+
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.

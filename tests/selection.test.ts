@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import { mkdtemp, readdir, readFile, readlink, rm, writeFile } from 'node:fs/promises'
+import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
@@ -259,6 +261,7 @@ void it('selective delivery is lazy, replayable, bounded and cancellable after a
     if (++prefixCount === 1)
       break
   }
+  await assertClosed(path)
   assert.equal(prefixCount, 1)
   await assert.rejects(async () => framesOf(opened.select!({ events: [], records: false, metadata: false })), /exceeds 512 bytes/)
   await writeFile(path, usage)
@@ -275,6 +278,31 @@ void it('selective delivery is lazy, replayable, bounded and cancellable after a
     }
   }, /stop selection/)
 })
+
+for (const format of ['jsonl', 'jsonl_zstd'] as const) {
+  void it(`selective delivery is lazy and closes ${format} before early return settles`, async (t) => {
+    const path = resolve(fixtureRoot, format === 'jsonl' ? 'codex/simple.jsonl' : 'codex/simple.jsonl.zst')
+    const opened = await sessions.open({ id: 'source:early-return', provider: 'codex', metadata: {}, source: { path, format } })
+    assert.ok(opened.select)
+    const createInput = t.mock.method(fs, 'createReadStream')
+    syncBuiltinESMExports()
+    t.after(() => {
+      t.mock.restoreAll()
+      syncBuiltinESMExports()
+    })
+    let delivered = 0
+    for await (const frame of opened.select({ events: ['user_message'], records: false, metadata: false })) {
+      assert.equal(frame.type, 'event')
+      if (++delivered === 1)
+        break
+    }
+    assert.equal(delivered, 1)
+    assert.equal(createInput.mock.callCount(), 1)
+    const input = createInput.mock.calls[0]!.result!
+    assert.equal(input.closed, true, 'early return must wait for the source close event')
+    await assertClosed(path)
+  })
+}
 
 void it('callback delivery awaits consumer backpressure and reaches the same validated EOF', { timeout: 2000 }, async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'huihua-callback-backpressure-'))

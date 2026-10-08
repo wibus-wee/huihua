@@ -15,6 +15,15 @@ export interface NativeLine {
   readonly bytes?: readonly number[]
   readonly malformed?: boolean
 }
+async function closeReadStream(input: ReturnType<typeof createReadStream>): Promise<void> {
+  if (input.closed)
+    return
+  // Waiting only for close preserves the original consumer or cancellation error.
+  await new Promise<void>((resolve) => {
+    input.once('close', resolve)
+    input.destroy()
+  })
+}
 async function* chunks(
   path: string,
   compressed: boolean,
@@ -42,7 +51,7 @@ async function* chunks(
     ioError(error, path)
   }
   finally {
-    input.destroy()
+    await closeReadStream(input)
   }
 }
 function line(bytes: Buffer, position: number, decoded?: string): NativeLine | undefined {

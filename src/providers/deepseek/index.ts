@@ -22,7 +22,7 @@ const provider = jsonlProvider({
   accepts,
   metadata(records) {
     const v = object(records.find(r => object(r).type === 'session'))
-    return { ...optional('id', string(v.id)), ...optional('createdAt', timestamp(v.createdAt)), ...optional('workspace', typeof v.cwd === 'string' ? { path: v.cwd } : undefined), ...optional('parentSessionId', string(v.parentSessionId)), metadata: { ...optional('version', v.version), ...optional('id_origin', typeof v.id === 'string' ? 'native' : undefined) } }
+    return { ...optional('id', string(v.id)), ...optional('createdAt', timestamp(v.createdAt)), ...optional('workspace', typeof v.cwd === 'string' ? { path: v.cwd } : undefined), ...optional('parentSessionId', string(v.parentSessionId) ?? string(v.parentSession)), metadata: { ...optional('version', v.version), ...optional('origin', v.origin), ...optional('delegationDepth', v.delegationDepth), ...optional('id_origin', typeof v.id === 'string' ? 'native' : undefined) } }
   },
   time: native => timestamp(object(native).time ?? object(native).time0),
   parser() {
@@ -88,7 +88,10 @@ const provider = jsonlProvider({
         }
         else if (['tool/result', 'tool/code-dispatch', 'tool/ptc-dispatch'].includes(type)) {
           const m = object(d.message)
-          ingest.emit('tool_result', { ...optional('callId', string(m.toolCallId) ?? string(d.callId) ?? string(d.subCallId)), ...optional('toolName', string(d.name)), result: d, isError: m.isError === true || d.isError === true }, envelope, evidence)
+          const results = array(m.content).map(object).filter(p => p.type === 'tool-result')
+          const callId = string(m.toolCallId) ?? string(object(m.source).callId) ?? string(d.callId) ?? string(d.subCallId)
+          for (const result of results.length ? results : [{}])
+            ingest.emit('tool_result', { ...optional('callId', string(result.toolCallId) ?? callId), ...optional('toolName', string(d.name)), result: d, isError: result.isError === true || m.isError === true || d.isError === true }, envelope, evidence)
         }
         else if (['turn/start', 'turn/end', 'step/start', 'step/end', 'request/header', 'compaction/start', 'compaction/summary', 'compaction/end', 'session-log-deepseek/delivery-accepted'].includes(type)) {
           ingest.emit('system', { sourceType: type, payload: native }, envelope, evidence)

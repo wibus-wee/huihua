@@ -5,11 +5,12 @@ import { SessionError } from '../contracts/diagnostic.ts'
 import { ioError } from './paths.ts'
 import { decodeValue } from './sqlite.ts'
 
-export async function readJson(
+async function readBytes(
   path: string,
   limit: number,
   prefix = false,
   signal?: AbortSignal,
+  kind = 'JSON',
 ) {
   signal?.throwIfAborted()
   let file
@@ -24,7 +25,7 @@ export async function readJson(
     if (!prefix && size > limit) {
       throw new SessionError(
         'CorruptedSession',
-        `JSON record exceeds ${limit} bytes`,
+        `${kind} record exceeds ${limit} bytes`,
       )
     }
     const data = Buffer.alloc(Math.min(size, limit))
@@ -41,9 +42,23 @@ export async function readJson(
         break
       offset += bytesRead
     }
-    return decodeValue(data.subarray(0, offset))
+    return data.subarray(0, offset)
   }
   finally {
     await file.close()
+  }
+}
+export async function readJson(path: string, limit: number, prefix = false, signal?: AbortSignal) {
+  return decodeValue(await readBytes(path, limit, prefix, signal))
+}
+/** Bounded UTF-8 artifact acquisition shares the JSON file lifecycle without parsing its prose. */
+export async function readText(path: string, limit: number, signal?: AbortSignal) {
+  const bytes = await readBytes(path, limit, false, signal, 'Text')
+  try {
+    const text = new TextDecoder('utf8', { fatal: true }).decode(bytes)
+    return { native: text, text }
+  }
+  catch {
+    return { native: { native_bytes: [...bytes] }, bytes: [...bytes], malformed: true }
   }
 }

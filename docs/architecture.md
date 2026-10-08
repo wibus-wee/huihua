@@ -183,8 +183,8 @@ native records (16 MiB default, including a JSONL newline).
 
 OpenSession.readMode describes the selected source's iteration strategy.
 incremental delivers records as read; buffered may collect selected rows for ordering or a complete snapshot before delivering them.
-JSONL, compressed JSONL, Morph journal segments and historical OpenCode filesystem reads are incremental.
-Cursor IDE, OpenCode, Antigravity, Hermes, Devin and OpenClaw SQLite reads, JSON snapshots, and the registry's read-only SPI fallback, are buffered.
+JSONL (including Antigravity CLI transcripts and Grok histories), compressed JSONL, Morph journal segments and historical OpenCode filesystem reads are incremental.
+Cursor IDE, OpenCode, Antigravity, Hermes, Devin and OpenClaw SQLite reads, JSON snapshots, Antigravity Markdown artifacts, and the registry's read-only SPI fallback, are buffered.
 Both modes remain lazy and open a fresh source for each replay; neither promises a fixed memory ceiling.
 snapshot collects the full session in either mode.
 Providers own this declaration; the registry does not infer it from provider IDs or file extensions.
@@ -214,6 +214,12 @@ WAL; no index or live-store cache is created.
 Cursor ordering and OpenCode SQL sorting can buffer
 a selected session's rows, so database adapters do not promise JSONL's bounded streaming memory.
 Virtual, generated-column, encrypted and WITHOUT ROWID stores are explicitly unsupported.
+The existing schema lexer treats SQLite line/block comments as whitespace outside quoted tokens.
+Quoted identifiers and string defaults retain comment-like bytes, parentheses and keyword spellings.
+Only unquoted syntax can trigger generated-column/WITHOUT ROWID rejection.
+OpenCode's message/part reader traverses each table once per selected session, groups only selected parts, and retains selected-session orphans with diagnostics.
+It keeps native message time/ID and existing part-ID ordering; the message-ID set distinguishes foreign messages from actual orphans.
+This removes per-message rescans without introducing an index, caching a live store or changing row-store acquisition for other providers.
 
 The minimal third-party SPI requires detect/scan/read; defineProvider preserves the adapter's
 type.
@@ -300,14 +306,20 @@ The same-worker selected/callback benchmark isolates delivery mode while before/
 The session contract owns optional `OpenSession.consumeUsage(consumer)`; shared ingestion owns delivery and each supporting provider owns the native context attached to its existing Usage event.
 This is an extension of the same parser, not another provider parser or an incomplete RawRecord projection.
 It delivers only Usage events, parentSessionId patches and all existing diagnostics, with the same sequences, UTF-8/JSON validation, limits, identity checks, tool tracking, cancellation and EOF behavior.
-Usage events additionally carry `providerMetadata.native_usage_context`: Claude supplies same-record `model`, `message_id` and `request_id`; Codex supplies same-record `model` (response identity remains in its native usage payload).
+Usage events additionally carry `providerMetadata.native_usage_context`: Claude supplies same-record `model`, `message_id` and `request_id`; Codex supplies explicit usage-row model or the model in a compatible recorded turn_context, with model_origin and the originating context (response identity remains in its native usage payload).
+Codex owns that attribution in its existing per-replay parser factory, so full, selective, callback and direct-fact reads agree.
+An explicit usage model wins; a conflicting turn ID cannot inherit context.
+Session/task starts, new turn contexts (including missing models), turn completion/abort and malformed records reset the window.
+A date filter never skips context validation or changes attribution; context does not cross sources or replays.
 Missing facts stay absent; context does not establish token arithmetic, deduplication or billing.
 The shared ingestion cursor retains native data needed by the mapper, but only constructs a complete RawRecord and its text/byte evidence fields when records are requested.
 The Usage CLI prefers this optional capability and otherwise uses consume/select/stream with complete records.
 Only Claude and Codex advertise it; other providers must establish all required model, identity and branch facts before opting in.
 
 Alternatives were dropping records without moving their required facts to the provider (loses model and duplicate diagnostics), changing default canonical events (breaks static goldens), or adding a private CLI parser (duplicates format ownership).
-Existing stream/select/consume/snapshot serialization and agent-session/v1 remain unchanged; only the opt-in usage method adds these context metadata keys.
+The public methods and agent-session/v1 schema remain compatible.
+Codex Usage metadata gains additive provenance when attribution needs a recorded turn context, consistently across delivery modes; default events with only same-record facts retain their original metadata, while evidence-free delivery includes those facts explicitly; native records, sequences and accounting scopes remain preserved.
+Static v1 semantic baselines remain immutable.
 The report schema and token rules remain unchanged, and no dependency is added.
 JSON.parse still validates and decodes a complete row: evidence-free consumption does not claim selective JSON decoding.
 Maintained selective JSON codecs must be measured before adoption; smaller objects alone do not establish a faster complete report.
@@ -457,25 +469,25 @@ The composition root registers providers; each provider also has an independent 
 The public schema remains agent-session/v1 and existing provider mappings remain compatible.
 New provider IDs and source formats are additive; consumers should continue accepting custom provider IDs and unknown events.
 
-| Provider    | Source and discovery                                                                                  | Mapping boundary                                                                                     |
-| ----------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| claude      | Combined CLAUDE_CONFIG_DIRS/CLAUDE_CONFIG_DIR, conventional/XDG and .claude* projects; Desktop/Cowork | Native Claude JSONL; no inference of workspace or lineage from directory names                       |
-| cursor      | IDE global/workspace state.vscdb; .cursor/projects agent-transcripts; .cursor/chats and acp-sessions  | IDE rows and confirmed persisted text graph; private steps and unreferenced blobs remain evidence    |
-| oar         | Explicit voyage/3 or RawEvent JSONL; no default directory                                             | Recorded OAR projections for any harness; complete wrappers/native payloads retained                 |
-| acp         | Explicit JSON-RPC or bare SessionNotification JSONL; no default directory                             | Stable v1/v2 updates; no universal ACP export archive or live connection                             |
-| kimi        | KIMI_CODE_HOME/sessions or ~/.kimi-code/sessions; each agents/*/wire.jsonl                            | Confirmed flat durable wire records and companion state.json; no Python kimi-cli or ZIP decoder      |
-| grok        | GROK_HOME/sessions or ~/.grok/sessions; updates.jsonl                                                 | Standard ACP updates and summary.json; unmapped xAI extensions remain unknown                        |
-| antigravity | AGY_CONVERSATIONS_DIR or ~/.gemini/antigravity-cli/conversations; *.db                                | Partial observed CLI steps schema; no guarantee for Google's separate ACP-server/IDE store           |
-| morph       | MISTER_MORPH_FILE_STATE_DIR or ~/.morph; stats/topics_projection.json and journal/events.*.jsonl      | Current topic/task journal; repeated snapshots retained; custom config paths use explicit roots      |
-| copilot     | ~/.copilot/session-state; flat JSONL and events.jsonl                                                 | Native messages, mirrored tool requests/execution and usage; no quota accounting                     |
-| hermes      | HERMES_HOME or ~/.hermes; state.db and historical sessions                                            | All selected SQLite rows, JSON snapshots and JSONL captures/exports; no routing/index ingestion      |
-| openclaw    | OPENCLAW_STATE_DIR/agents or ~/.openclaw/agents and legacy ~/.clawdbot/agents                         | Selected session_windows/transcript_events, Zstandard payloads and legacy JSONL; no cold restoration |
-| qwen        | Existing QWEN_HOME/projects or ~/.qwen/projects; certified chats[/archive] JSONL                      | Native Google parts, usage and system subtypes; telemetry excluded, malformed data never repaired    |
-| devin       | Absolute XDG_DATA_HOME or ~/.local/share; devin/cli/sessions.db                                       | All selected message nodes; native chain order and branch markers; no inferred usage                 |
-| fx          | ~/.fx/sessions; session.json and checkpoint.json                                                      | Manifest-3/checkpoint-1 history snapshots; post-checkpoint event tail diagnosed                      |
-| cline       | ~/.cline/data/sessions; <id>.json and adjacent <id>.messages.json                                     | Version-1 CLI/Desktop messages, metrics and surface; external paths never followed                   |
-| deepseek    | DSH_HOME/sessions or ~/.dsh/sessions; session[.vN].jsonl[.zstd]                                       | Highest immutable generation, known v0–v4 facts; no migration or surface replay                      |
-| droid       | ~/.factory/sessions and ~/.factory/projects; JSONL                                                    | Legacy stored messages and stream-json captures; no current private-store certification              |
+| Provider    | Source and discovery                                                                                  | Mapping boundary                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| claude      | Combined CLAUDE_CONFIG_DIRS/CLAUDE_CONFIG_DIR, conventional/XDG and .claude* projects; Desktop/Cowork | Native Claude JSONL; no inference of workspace or lineage from directory names                                       |
+| cursor      | IDE global/workspace state.vscdb; .cursor/projects agent-transcripts; .cursor/chats and acp-sessions  | IDE rows and confirmed persisted text graph; private steps and unreferenced blobs remain evidence                    |
+| oar         | Explicit voyage/3 or RawEvent JSONL; no default directory                                             | Recorded OAR projections for any harness; complete wrappers/native payloads retained                                 |
+| acp         | Explicit JSON-RPC or bare SessionNotification JSONL; no default directory                             | Stable v1/v2 updates; no universal ACP export archive or live connection                                             |
+| kimi        | KIMI_CODE_HOME/sessions or ~/.kimi-code/sessions; each agents/*/wire.jsonl                            | Confirmed flat durable wire records and companion state.json; no Python kimi-cli or ZIP decoder                      |
+| grok        | GROK_HOME/sessions or ~/.grok/sessions; updates.jsonl or chat_history.jsonl                           | ACP journal or explicit chat-history facts, summary and native subagent metadata; unknown extensions preserved       |
+| antigravity | AGY_CONVERSATIONS_DIR or ~/.gemini/antigravity-cli/conversations; CLI/IDE brain directories           | Observed CLI SQLite steps, brain transcript JSONL and bounded Markdown artifacts; private schema coverage is partial |
+| morph       | MISTER_MORPH_FILE_STATE_DIR or ~/.morph; stats/topics_projection.json and journal/events.*.jsonl      | Current topic/task journal; repeated snapshots retained; custom config paths use explicit roots                      |
+| copilot     | ~/.copilot/session-state; flat JSONL and events.jsonl                                                 | Native messages, mirrored tool requests/execution and usage; no quota accounting                                     |
+| hermes      | HERMES_HOME or ~/.hermes; state.db and historical sessions                                            | All selected SQLite rows, JSON snapshots and JSONL captures/exports; no routing/index ingestion                      |
+| openclaw    | OPENCLAW_STATE_DIR/agents or ~/.openclaw/agents and legacy ~/.clawdbot/agents                         | Selected session_windows/transcript_events, Zstandard payloads and legacy JSONL; no cold restoration                 |
+| qwen        | Existing QWEN_HOME/projects or ~/.qwen/projects; certified chats[/archive] JSONL                      | Native Google parts, usage and system subtypes; telemetry excluded, malformed data never repaired                    |
+| devin       | Absolute XDG_DATA_HOME or ~/.local/share; devin/cli/sessions.db                                       | All selected message nodes; native chain order and branch markers; no inferred usage                                 |
+| fx          | ~/.fx/sessions; session.json and checkpoint.json                                                      | Manifest-3/checkpoint-1 snapshots and optional display.json; post-checkpoint event tail diagnosed                    |
+| cline       | CLINE_DATA_DIR/sessions or ~/.cline/data/sessions; <id>.json and adjacent <id>.messages.json          | Version-1 CLI/Desktop messages, metrics and surface; external paths never followed                                   |
+| deepseek    | DSH_HOME/sessions or ~/.dsh/sessions; session[.vN].jsonl[.zstd]                                       | Highest immutable generation, known v0–v4 facts; no migration or surface replay                                      |
+| droid       | ~/.factory/sessions and ~/.factory/projects; JSONL                                                    | Legacy stored messages and stream-json captures; no current private-store certification                              |
 
 Together with Claude, Codex, Cursor and Pi, these cover readable native formats for OAR's current harness inventory, including community Morph.
 Coverage is defined by the table and adjacent research, not by harness name alone.
@@ -502,12 +514,23 @@ A voyage header without an end marker receives a truncation diagnostic on comple
 Early return does not inspect an unread suffix.
 RawEvent-only captures have a labeled source identity when no authoritative voyage header exists.
 
-Kimi and Grok may supply adjacent metadata files through the shared JSONL adapter's metadataFiles hook.
+Claude Desktop, Kimi and Grok may supply adjacent metadata files through the shared JSONL adapter's metadataFiles hook.
+The hook may resolve paths asynchronously; the adapter remains the sole owner of native layout and associations.
 Scan reads bounded metadata prefixes; open reads each complete companion within maxRecordBytes, preserves its native value/text and actual path, then reads the wire.
 The companion is a metadata prelude, not an invented historical event in the transcript's chronology.
 Missing companions do not fabricate workspace or identity; malformed companions remain unknown evidence.
 Supplied JSONL never opens companion files, even when its provenance label looks like a real local path.
 Kimi agent files remain separate refs; no timestamp sort invents a global order among independent streams.
+ID-less state metadata supplies title, workspace and timestamps independently of source identity.
+Loop content/tool facts are normalized directly; step.end and agent.message.appended remain system evidence to avoid adding mirrored usage or conversation projections.
+Grok directory discovery prefers updates.jsonl when present and otherwise accepts chat_history.jsonl; an exact history file root overrides that preference.
+The Grok metadata hook searches sibling subagent sidecars only when a recognized native transcript has an existing adjacent summary.json.
+Portable imports without that native pair acquire only adjacent metadata; their parent directory is not searched as a session collection.
+The shared bounded reader retains ownership of companion evidence and reports denied summaries at their actual source paths.
+Only recorded sidecar parent IDs establish lineage; directory ancestry and summary models never supply historical facts.
+Antigravity CLI JSONL uses the same framer and mapper lifecycle.
+Native truncation fields produce diagnostics without synthesized tool identities.
+The additive antigravity_markdown source format identifies one complete bounded artifact, retained as raw text and system evidence; prose, links and filesystem timestamps do not become conversation or workspace facts.
 
 Morph's `morph_journal` source is a state directory with locator.id selecting a topic.
 Scan uses bounded topics_projection.json; a larger projection fails the supplied limit instead of scanning the complete journal.
@@ -518,7 +541,8 @@ Direct acquired Morph JSONL represents the recorded capture, with topic attribut
 
 JSON snapshot acquisition belongs to shared/json-store.ts; Cline, fx and historical Hermes own file selection and mapping.
 The helper reuses readJson and Ingestion, retains each complete file as one raw record, and reports buffered mode.
-Scan reads only the discovery JSON file within headerBytes; oversized snapshots fail explicitly rather than scanning their embedded transcript without a bound.
+Scan reads the discovery JSON file and provider-selected metadata companions within headerBytes; oversized snapshots fail explicitly rather than scanning their embedded transcript without a bound.
+Optional companions retain their actual paths and missing companions supply no facts. fx selects display.json for explicit title metadata, while checkpoint preferences remain session evidence rather than response models.
 Companion native identities must agree even when the caller labels the result with another ID.
 Manifest paths never authorize following arbitrary embedded filesystem paths.
 A streaming JSON parser is an alternative for larger snapshots, but these adapters need complete native-object evidence and the existing bounded reader fits the documented limit; no parallel JSON parser is introduced.
@@ -583,13 +607,20 @@ These checks are not descriptor-bound protection against adversarial path replac
 SQLite fingerprint/WAL validation and no atomic snapshot claim.
 User stores are never copied or written.
 Chat and ACP are additive cursor_sqlite locator.storage values; modern and legacy IDE locators retain their behavior.
-Grok updates.jsonl, Kimi physical streams and Antigravity CLI evidence surfaces remain unchanged.
+Cursor acquisition does not dispatch Grok, Kimi or Antigravity evidence through its mapper.
 
 Provider mapping belongs to the adapter and shared format helpers; a runtime library or live protocol client is an alternative acquisition layer outside this package's local read-only scope.
 No OAR, ACP SDK or harness runtime dependency is installed.
 All existing JSONL providers retain the shared bounded line framer and ingestion pipeline.
 Per-stream parser factories add capture-local validation state and reset on every replay; they do not cache or merge transcript history.
 The bounded OpenCode JSON-file reader is reused as shared/json-file.ts for metadata, rather than creating a parallel parser.
+Its private byte reader owns limit, cancellation and descriptor closure for both readJson and internal readText; readText validates UTF-8 and preserves invalid bytes without parsing Markdown.
+These companion and artifact hooks are internal extensions; third-party provider SPI requirements are unchanged.
+A streaming JSON/Markdown framework is unnecessary for complete bounded artifact evidence; parsing prose into transcript events would add unsupported semantics.
+For SQL comments, a maintained general parser such as node-sql-parser (pure JS, Apache-2.0, SQLite AST support) was considered.
+An AST would not replace this reader's SQLite physical record/default-value decoding, and integrating another schema interpretation would add a second grammar owner.
+Extending the existing narrow quote-aware lexer for comment whitespace and unquoted syntax meets the required persisted-DDL behavior without another parser framework or dependency.
+Unsupported schema families continue to fail explicitly; this is not a general SQL execution parser.
 
 `@bufbuild/protobuf@2.16.0` supplies Antigravity's standard BinaryReader through its public /wire entrypoint.
 It is pure JavaScript, has no runtime transitive dependencies or install lifecycle scripts, and uses Apache-2.0 plus BSD-3-Clause licenses.
@@ -663,6 +694,7 @@ The selective fallback includes records for attribution and omits unselected mes
 The report sums validated nonnegative safe-integer token counters into inclusive local-calendar daily rows, model breakdowns and session totals.
 Null means a component is unavailable; numeric partial totals sum only known components and are labeled partial.
 Claude's cache counters are additional to input/output; Codex cached input and reasoning output are subsets and are never added twice.
+Kimi native inputOther/output/inputCacheRead/inputCacheCreation are four additive generation components for both turn and session usageScope, including compaction; step.end mirrors are not added.
 Other provider-specific equations and unsupported shapes are listed in `usage-report.md`.
 Repeated evidence is not deleted: repeated response identities and fork/replay uncertainty invalidate completeness while preserving the reported native-record sum.
 Cumulative checkpoints without safe per-request allocation are excluded from additive totals with diagnostics.
@@ -754,3 +786,12 @@ was rejected.
 This adds no dependency, runtime export, provider behavior or serialized schema.
 Executable policy prevents importing production ingestion helpers into the oracle; mutation tests
 verify that silent output loss fails even when the old shape summary is unchanged.
+
+The Kimi live lane uses the same simulator request/exchange helpers in
+`tools/producer-compat-runtime.ts` and a small Kimi-specific writer oracle.
+It tests the checkout through public session entry points and preserves independent
+native evidence before asserting normalized replies.
+The shared helper avoids duplicated protocol construction; no production layer imports it.
+The alternative of treating unknown/raw preservation as a successful text-read verdict
+is rejected: the live assertions require the supported assistant-message semantics.
+Tools policy checks the Kimi oracle isolation and the workflow's non-optional failure status.

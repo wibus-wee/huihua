@@ -330,16 +330,39 @@ async function* readDatabase(ref: SessionRef, options: ReadOptions) {
     }
     if (db.tables.has('message')) {
       const cols = db.columns('message')
+      const allIds = new Set<string>()
+      const messages: Row[] = []
+      for await (const row of db.rows('message')) {
+        options.signal?.throwIfAborted()
+        if (typeof row.id === 'string')
+          allIds.add(row.id)
+        if (row.session_id === id)
+          messages.push(row)
+      }
+      messages.sort(compare(cols.includes('time_created') ? ['time_created', 'id'] : ['id']))
+      const selectedIds = new Set(messages.map(row => string(row.id) ?? ''))
+      const parts = new Map<string, Row[]>()
+      const orphans: Row[] = []
+      if (db.columns('part').includes('message_id')) {
+        // Buffer only this read's selected parts; unrelated sessions never enter the groups.
+        for await (const row of db.rows('part')) {
+          options.signal?.throwIfAborted()
+          if (typeof row.message_id === 'string' && selectedIds.has(row.message_id)) {
+            const group = parts.get(row.message_id) ?? []
+            group.push(row)
+            parts.set(row.message_id, group)
+          }
+          if (row.session_id === id && !allIds.has(String(row.message_id)))
+            orphans.push(row)
+        }
+        for (const group of parts.values()) group.sort(compare(['id']))
+        orphans.sort(compare(['id']))
+      }
       if (!cols.includes('session_id')) {
         ingest.diagnostic('PartialParse', 'message table lacks session_id')
       }
       else {
-        for (const row of await associated(
-          db,
-          'message',
-          id,
-          cols.includes('time_created') ? ['time_created', 'id'] : ['id'],
-        )) {
+        for (const row of messages) {
           const decoded = decodeValue(row.data)
           const info = object(decoded.native)
           const messageId = string(row.id) ?? ''
@@ -369,13 +392,7 @@ async function* readDatabase(ref: SessionRef, options: ReadOptions) {
             db.tables.has('part')
             && db.columns('part').includes('message_id')
           ) {
-            for (const part of await associated(
-              db,
-              'part',
-              messageId,
-              ['id'],
-              'message_id',
-            )) {
+            for (const part of parts.get(messageId) ?? []) {
               const decoded = decodeValue(part.data)
               emitRow(
                 ingest,
@@ -404,17 +421,11 @@ async function* readDatabase(ref: SessionRef, options: ReadOptions) {
           }
         }
       }
-      // Association with a message anywhere in the store is evidence; do not invent orphans.
-      const allIds = new Set<string>()
-      for await (const row of db.rows('message')) {
-        if (typeof row.id === 'string')
-          allIds.add(row.id)
-      }
       if (
         db.columns('part').includes('message_id')
         && db.columns('part').includes('session_id')
       ) {
-        for (const row of await associated(db, 'part', id, ['id'])) {
+        for (const row of orphans) {
           if (!allIds.has(String(row.message_id))) {
             const decoded = decodeValue(row.data)
             ingest.diagnostic(

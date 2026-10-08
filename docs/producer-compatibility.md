@@ -165,3 +165,28 @@ Missing progress after setup failure or interruption cannot produce a successful
 Detailed reports and synthetic evidence remain in the run artifact.
 This presentation is CI-only
 and does not change the library API or compatibility baseline.
+
+## Kimi live lane
+
+The independent `kimi` job pins Kimi Code 2.1.1 for PR/push runs; scheduled canaries
+resolve its latest npm release.
+It tests the PR checkout, not a downloaded Huihua release.
+Kimi runs with a fresh HOME, telemetry/title generation disabled and a synthetic
+loopback Anthropic provider, then persists a first turn and a resumed reply.
+No tool or subagent is requested by the simulator.
+
+The harness independently inventories wire.jsonl and state.json, verifies scan identity,
+and compares raw native values before checking the two persisted assistant messages
+against read, snapshot, record streaming and event streaming.
+The reply oracle reads `agent.message.appended.message.message` directly from disk;
+missing, changed, reordered or duplicate normalized replies fail.
+It is scenario-local, not a full Kimi parser or a baseline for all Kimi shapes.
+There is no expected-failure allowance or continue-on-error: a compatibility defect makes
+this job red while the ordinary quality suite can still pass.
+Summary and artifacts run even on failure, preserving exact stage and source evidence.
+
+The published Huihua 0.4.0 reproduced zero normalized assistant messages for two
+native Kimi replies on 2026-10-08; raw values were preserved as unknown evidence.
+The live lane guards this behavior without changing the provider implementation.
+Run locally with SIMULATOR_DIR, KIMI_BIN and optionally COMPAT_REPORT set, then
+`pnpm test:producer-compat:kimi`.

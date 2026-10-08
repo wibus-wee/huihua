@@ -56,5 +56,9 @@ Other turn endings and unknown roles remain Unknown; role/message content keeps 
 it is compatibility evidence, not a certified Cursor release sample.
 The shared ingestion pipeline retains original JSONL text, complete native records and event associations.
 
+The [pinned CLI compatibility fixture](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/Resources/Fixtures/stage0/agents/cursor/schema_drift.jsonl) records tool_use/tool-use/tool_call/tool-call and tool_result/tool-result blocks.
+The CLI mapper normalizes their explicit names, IDs, arguments, results and errors without changing native blocks or extending IDE graph interpretation.
+These aliases are empirical compatibility evidence, not a public Cursor transcript schema.
+
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.

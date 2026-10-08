@@ -1,14 +1,21 @@
 # Independent provider compatibility corpus
 
-These 22 artifacts are unmodified copies from [Agent Sessions revision b7893c7](https://github.com/jazzyalex/agent-sessions/tree/b7893c772b0014918211f1c45a5ab58add229703).
+These 34 artifacts are unmodified copies from Agent Sessions.
+The original 22 use [revision b7893c7](https://github.com/jazzyalex/agent-sessions/tree/b7893c772b0014918211f1c45a5ab58add229703); 12 additional audit inputs use [revision 6fa9a73](https://github.com/jazzyalex/agent-sessions/tree/6fa9a73f489d37f655873871e5e6a5cf6975d1ff).
+In sources.json, a file's optional commit overrides the top-level commit; existing artifacts and hashes remain unchanged.
 [sources.json](sources.json) records the exact upstream path and SHA-256 of every artifact;
 [LICENSE](LICENSE) retains the upstream MIT notice.
 The copies are fixed test inputs, never generated output or a source of runtime dependencies.
 
 | Provider | Inputs | Huihua assertions |
 | --- | --- | --- |
+| Kimi | [Wire](kimi/assistant_tools.jsonl), [ID-less state](kimi/assistant_tools.state.json) | Complete records, loop content/tools/errors, metadata and exact four-component usage arithmetic |
+| Codex | [Historical tools](codex/large.jsonl), [schema drift](codex/schema_drift.jsonl) | Historical chat/function aliases, raw evidence and explicit usage scope |
+| Cursor | [CLI schema drift](cursor/schema_drift.jsonl) | Native tool alias IDs, names, arguments and failed results |
+| Grok | [Chat history](grok/chat_history.jsonl), [summary](grok/summary.json), [child history](grok/subagent/chat_history.jsonl) and summary | Chat/reasoning/native tool results, explicit metadata and unknown variants |
+| Antigravity | [CLI transcript](antigravity/cli_small.jsonl), [schema drift](antigravity/cli_schema_drift.jsonl) | Step facts, reasoning/tools, explicit truncation diagnostics, no invented tool IDs |
 | Copilot | [JSONL](copilot/small.jsonl) | Native record order, mirrored call arguments, standalone reasoning |
-| Hermes | [Snapshot](hermes/large.json) | Native identity, workspace spelling, reasoning, tools and unknown roles |
+| Hermes | [Snapshot](hermes/large.json), [schema drift](hermes/schema_drift.json) | Native identity, workspace spelling, reasoning, tools, unknown roles and explicit finish_reason failure |
 | OpenClaw | [Legacy JSONL](openclaw/small.jsonl) | Pi message parts, message IDs, tool IDs and usage |
 | Qwen | [JSONL](qwen/session.jsonl) | Google tool parts, reasoning and unmodified hook context |
 | Devin | [Logical row payloads](devin/small.json) | Flat object arguments, message IDs, reasoning and native payloads in a temporary SQL store |
@@ -19,6 +26,7 @@ The copies are fixed test inputs, never generated output or a source of runtime 
 
 [tests/provider-imports.test.ts](../../tests/provider-imports.test.ts) owns the hash checks and public-API assertions.
 Its focused Droid, Qwen and Copilot cases also exercise field variants from upstream tests and official contracts.
+Additional metadata/discovery and usage assertions are in [behavior.test.ts](../../tests/behavior.test.ts) and [usage.test.ts](../../tests/usage.test.ts).
 Additional Hermes/OpenClaw SQLite cases remain in the local synthetic corpus and use their documented official schemas.
 
 The upstream inputs have different evidence strengths.

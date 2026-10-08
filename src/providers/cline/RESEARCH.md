@@ -16,13 +16,17 @@ Imported histories can retain a different source provider in provenance, which d
 
 ## Huihua decisions
 
-Discover ~/.cline/data/sessions/<id>/<id>.json.
+Discover the selected data directory's sessions/<id>/<id>.json.
 Read the adjacent <id>.messages.json, ignoring exported messages_path and importedFrom paths.
 Require version 1 and matching native identities across companions, even when the caller supplies a display ID.
 Missing companions fail; malformed evidence remains unknown.
 Each complete JSON file is one record and all embedded messages refer to it.
 Preserve repeated IDs, reasoning, embedded tool results, per-message modelInfo/metrics and source surface.
 Legacy VS Code api_conversation_history.json and runtime hooks are separate formats outside this adapter.
+
+The official [CLI reference](https://github.com/cline/cline/blob/main/docs/cli/cli-reference.mdx) defines CLINE_DATA_DIR as the base data directory replacing ~/.cline/data.
+Explicit roots win; otherwise a nonempty CLINE_DATA_DIR selects its sessions directory without falling back to another profile when missing or empty.
+An explicit homeDir excludes process environment roots.
 
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.

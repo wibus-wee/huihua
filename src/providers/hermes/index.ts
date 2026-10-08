@@ -28,13 +28,24 @@ function snapshot(ingest: Ingestion, native: unknown) {
   if (Array.isArray(v.messages)) {
     ingest.emit('system', { sourceType: 'hermes_snapshot', payload: native })
     for (const message of v.messages)
-      chatMessageEvents(ingest, message)
+      messageEvents(ingest, message)
   }
   else if (v.role !== undefined) {
-    chatMessageEvents(ingest, native)
+    messageEvents(ingest, native)
   }
   else {
     ingest.unknown('hermes_record', native)
+  }
+}
+function messageEvents(ingest: Ingestion, native: unknown, envelope: unknown = native, evidence: Readonly<Record<string, unknown>> = {}) {
+  const message = object(native)
+  if (message.role === 'tool' && message.finish_reason === 'error') {
+    ingest.emit('tool_result', { ...optional('callId', string(message.tool_call_id) ?? string(message.toolCallId)), ...optional('toolName', string(message.tool_name) ?? string(message.toolName) ?? string(message.name)), result: native, isError: true }, envelope, evidence)
+    if ('usage' in message || 'metrics' in message)
+      ingest.emit('usage', { usage: message.usage ?? message.metrics }, envelope, evidence)
+  }
+  else {
+    chatMessageEvents(ingest, native, envelope, evidence)
   }
 }
 const json = jsonStoreProvider({ id: 'hermes', format: 'hermes_json', roots, accepts: path => path.endsWith('.json') && !['sessions.json', 'index.json'].includes(basename(path)), metadata, parse: snapshot })
@@ -69,7 +80,7 @@ const sqlite = sqliteStoreProvider({
         ingest.unknown('hermes_message', binarySafe(row), 'invalid Hermes structured message JSON')
         continue
       }
-      chatMessageEvents(ingest, { ...row, content, tool_calls: array(tools) }, { ...row, id: String(row.id), timestamp: seconds(row.timestamp)?.value }, { ...optional('active', row.active), ...optional('compacted', row.compacted) })
+      messageEvents(ingest, { ...row, content, tool_calls: array(tools) }, { ...row, id: String(row.id), timestamp: seconds(row.timestamp)?.value }, { ...optional('active', row.active), ...optional('compacted', row.compacted) })
     }
   },
 })

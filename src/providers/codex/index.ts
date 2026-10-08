@@ -47,7 +47,7 @@ export const codexProvider = jsonlProvider({
         ),
         ...optional(
           'parentSessionId',
-          wantsParent ? string(p.parent_thread_id) ?? string(p.forked_from_id) : undefined,
+          wantsParent ? string(p.parent_thread_id) ?? string(p.forked_from_id) ?? string(object(object(object(p.source).subagent).thread_spawn).parent_thread_id) : undefined,
         ),
         ...optional('metadata', wantsMetadata
           ? {
@@ -71,173 +71,221 @@ export const codexProvider = jsonlProvider({
     }
     return facts
   },
-  parse(ingest, native) {
-    const v = object(native)
-    const p = object(v.payload)
-    const type = string(v.type) ?? 'unknown'
-    const subtype = string(p.type) ?? 'unknown'
-    if (
-      type === 'session_meta'
-      || type === 'turn_context'
-      || type === 'compacted'
-    ) {
-      ingest.emit('system', {
-        sourceType: type,
-        payload: type === 'session_meta' ? p : native,
-      })
-      return
-    }
-    if (type === 'token_usage_record' && 'usage' in p) {
-      ingest.emit('usage', { usage: p }, undefined, ingest.usageContext
-        ? () => ({ native_usage_context: { ...optional('model', string(p.model)) } })
-        : undefined)
-      return
-    }
-    if (type === 'response_item') {
-      if (subtype === 'message') {
-        const role = string(p.role)
-        if (role === 'user' || role === 'assistant')
-          messageEvents(ingest, role, p.content ?? null, string(p.model))
-        else if (role === 'system' || role === 'developer')
-          ingest.emit('system', { sourceType: 'response_message', payload: p })
-        else ingest.unknown(subtype, p)
-      }
-      else if (subtype === 'reasoning') {
-        ingest.emit('reasoning', {
-          ...optional('text', joinedText(p.content)),
-          ...optional('summary', joinedText(p.summary)),
-          ...optional('encrypted', p.encrypted_content ?? undefined),
-        })
-      }
-      else if (subtype === 'function_call' || subtype === 'custom_tool_call') {
-        if (typeof p.name !== 'string') {
-          ingest.unknown(subtype, p)
-          return
-        }
-        let args: unknown = p.arguments ?? p.input ?? null
-        if (typeof args === 'string') {
-          try {
-            args = JSON.parse(args) as unknown
+  parser() {
+    let turnContext: Record<string, unknown> | undefined
+    const context = (payload: Record<string, unknown>, envelope: Record<string, unknown>, evidenceFree: boolean) => {
+      const explicit = string(payload.model)
+      const recordedTurn = string(payload.turn_id)
+      const compatible = turnContext !== undefined && (recordedTurn === undefined || turnContext.turn_id === undefined || recordedTurn === turnContext.turn_id)
+      const inherited = explicit === undefined && compatible && typeof turnContext?.model === 'string'
+      return { ...optional('native_usage_context', evidenceFree || inherited
+        ? {
+            ...optional('model', explicit ?? (compatible ? string(turnContext?.model) : undefined)),
+            ...optional('model_origin', explicit === undefined ? compatible && typeof turnContext?.model === 'string' ? 'turn_context' : undefined : 'usage_record'),
+            ...optional('turn_context', explicit === undefined && compatible && typeof turnContext?.model === 'string' ? turnContext : undefined),
           }
-          catch {
-            ingest.diagnostic(
-              'PartialParse',
-              'tool arguments are not valid JSON',
-            )
-          }
-        }
-        ingest.emit('tool_call', {
-          ...optional('callId', string(p.call_id)),
-          toolName: p.name,
-          arguments: args,
-        })
+        : undefined), ...optional('usage_scope', ['turn.completed', 'turn_completed', 'turn-completed'].includes(String(payload.type ?? envelope.type)) ? 'turn_summary' : undefined) }
+    }
+    return { malformed() {
+      turnContext = undefined
+    }, parse(ingest, native) {
+      const v = object(native)
+      const p = object(v.payload ?? native)
+      const type = string(v.type) ?? 'unknown'
+      const subtype = string(p.type) ?? 'unknown'
+      if (type === 'session_meta' || (type === 'event_msg' && subtype === 'task_started'))
+        turnContext = undefined
+      if (type === 'turn_context')
+        turnContext = { ...optional('model', string(p.model)), ...optional('turn_id', string(p.turn_id)), ...optional('timestamp', timestamp(v.timestamp)) }
+      if (['turn.completed', 'turn_completed', 'turn-completed', 'token_count'].includes(type)) {
+        ingest.emit('usage', { usage: p }, undefined, () => context(p, v, ingest.usageContext))
+        if (type !== 'token_count')
+          turnContext = undefined
+        return
       }
-      else if (
-        subtype === 'function_call_output'
-        || subtype === 'custom_tool_call_output'
+      if (type === 'event_msg' && ['task_complete', 'turn_aborted'].includes(subtype)) {
+        turnContext = undefined
+        ingest.emit('system', { sourceType: subtype, payload: native })
+        return
+      }
+      if (
+        type === 'session_meta'
+        || type === 'turn_context'
+        || type === 'compacted'
       ) {
-        ingest.emit('tool_result', {
-          ...optional('callId', string(p.call_id)),
-          ...optional('toolName', string(p.name)),
-          result: p.output ?? null,
-          isError: p.is_error === true,
+        ingest.emit('system', {
+          sourceType: type,
+          payload: type === 'session_meta' ? p : native,
         })
+        return
       }
-      else if (subtype === 'local_shell_call') {
-        ingest.emit('command', { command: p.action ?? null })
+      if (type === 'token_usage_record' && 'usage' in p) {
+        ingest.emit('usage', { usage: p }, undefined, () => context(p, v, ingest.usageContext))
+        return
+      }
+      if (type === 'response_item') {
+        if (subtype === 'message') {
+          const role = string(p.role)
+          if (role === 'user' || role === 'assistant')
+            messageEvents(ingest, role, p.content ?? null, string(p.model))
+          else if (role === 'system' || role === 'developer')
+            ingest.emit('system', { sourceType: 'response_message', payload: p })
+          else ingest.unknown(subtype, p)
+        }
+        else if (subtype === 'reasoning') {
+          ingest.emit('reasoning', {
+            ...optional('text', joinedText(p.content)),
+            ...optional('summary', joinedText(p.summary)),
+            ...optional('encrypted', p.encrypted_content ?? undefined),
+          })
+        }
+        else if (subtype === 'function_call' || subtype === 'custom_tool_call' || subtype === 'tool_call') {
+          const name = string(p.name) ?? string(object(p.function).name)
+          if (name === undefined) {
+            ingest.unknown(subtype, p)
+            return
+          }
+          let args: unknown = p.arguments ?? p.input ?? null
+          if (typeof args === 'string') {
+            try {
+              args = JSON.parse(args) as unknown
+            }
+            catch {
+              ingest.diagnostic(
+                'PartialParse',
+                'tool arguments are not valid JSON',
+              )
+            }
+          }
+          ingest.emit('tool_call', {
+            ...optional('callId', string(p.call_id) ?? string(p.id)),
+            toolName: name,
+            arguments: args,
+          })
+        }
+        else if (
+          subtype === 'function_call_output'
+          || subtype === 'custom_tool_call_output'
+          || subtype === 'tool_result'
+        ) {
+          ingest.emit('tool_result', {
+            ...optional('callId', string(p.call_id)),
+            ...optional('toolName', string(p.name)),
+            result: p.output ?? p.result ?? null,
+            isError: p.is_error === true,
+          })
+        }
+        else if (subtype === 'local_shell_call') {
+          ingest.emit('command', { command: p.action ?? null })
+        }
+        else {
+          ingest.unknown(subtype, p)
+        }
+        return
+      }
+      if (type === 'event_msg') {
+        if (subtype === 'user_message' || subtype === 'agent_message') {
+          messageEvents(
+            ingest,
+            subtype === 'user_message' ? 'user' : 'assistant',
+            p.message ?? null,
+            string(p.model),
+          )
+        }
+        else if (subtype === 'agent_reasoning') {
+          ingest.emit('reasoning', { ...optional('text', string(p.text)) })
+        }
+        else if (subtype === 'token_count') {
+          ingest.emit('usage', { usage: p }, undefined, () => context(p, v, ingest.usageContext))
+        }
+        else if (['turn.completed', 'turn_completed', 'turn-completed'].includes(subtype)) {
+          ingest.emit('usage', { usage: p }, undefined, () => context(p, v, ingest.usageContext))
+          turnContext = undefined
+        }
+        else if (subtype === 'error') {
+          ingest.emit('error', {
+            ...optional('message', string(p.message)),
+            details: p,
+          })
+        }
+        else if (
+          subtype === 'exec_approval_request'
+          || subtype === 'apply_patch_approval_request'
+        ) {
+          ingest.emit('permission_request', {
+            ...optional('requestId', string(p.call_id)),
+            request: p,
+          })
+        }
+        else if (subtype === 'collab_agent_spawn_begin') {
+          ingest.emit('system', { sourceType: subtype, payload: p })
+        }
+        else if (
+          [
+            'collab_agent_spawn_end',
+            'collab_agent_interaction_begin',
+            'collab_agent_interaction_end',
+            'collab_close_end',
+            'collab_resume_end',
+          ].includes(subtype)
+        ) {
+          const id = string(p.new_thread_id) ?? string(p.receiver_thread_id)
+          if (id === undefined) {
+            ingest.unknown(subtype, p)
+            return
+          }
+          const status = object(p.status)
+          const kind
+            = 'completed' in status
+              ? 'completed'
+              : 'errored' in status
+                ? 'failed'
+                : subtype === 'collab_agent_spawn_end'
+                  ? 'spawn'
+                  : subtype === 'collab_resume_end'
+                    ? 'started'
+                    : subtype.startsWith('collab_agent_interaction')
+                      ? 'message'
+                      : undefined
+          if (kind === undefined) {
+            ingest.unknown(subtype, p)
+            return
+          }
+          ingest.emit('subagent', {
+            agentId: id,
+            ...optional(
+              'parentAgentId',
+              subtype === 'collab_agent_spawn_end'
+                ? string(p.sender_thread_id)
+                : undefined,
+            ),
+            kind,
+            ...optional(
+              'name',
+              string(p.new_agent_nickname) ?? string(p.receiver_agent_nickname),
+            ),
+            metadata: p,
+          })
+        }
+        else {
+          ingest.unknown(subtype, p)
+        }
+        return
+      }
+      const role = string(v.role)
+      if (role === 'user' || role === 'assistant') {
+        messageEvents(ingest, role, v.content ?? v.message ?? null, string(v.model), { ...v, timestamp: v.timestamp ?? v.created_at })
+      }
+      else if ((type === 'function_call' || type === 'tool_call') && typeof (v.name ?? object(v.function).name) === 'string') {
+        ingest.emit('tool_call', { ...optional('callId', string(v.call_id) ?? string(v.id)), toolName: String(v.name ?? object(v.function).name), arguments: v.arguments ?? object(v.function).arguments ?? null }, { ...v, timestamp: v.timestamp ?? v.created_at })
+      }
+      else if (type === 'function_result' || type === 'tool_result') {
+        ingest.emit('tool_result', { ...optional('callId', string(v.call_id)), ...optional('toolName', string(v.name)), result: v.result ?? v.output ?? null, isError: v.is_error === true }, { ...v, timestamp: v.timestamp ?? v.created_at })
       }
       else {
-        ingest.unknown(subtype, p)
+        ingest.unknown(type, native)
       }
-      return
-    }
-    if (type === 'event_msg') {
-      if (subtype === 'user_message' || subtype === 'agent_message') {
-        messageEvents(
-          ingest,
-          subtype === 'user_message' ? 'user' : 'assistant',
-          p.message ?? null,
-          string(p.model),
-        )
-      }
-      else if (subtype === 'agent_reasoning') {
-        ingest.emit('reasoning', { ...optional('text', string(p.text)) })
-      }
-      else if (subtype === 'token_count') {
-        ingest.emit('usage', { usage: p }, undefined, ingest.usageContext
-          ? () => ({ native_usage_context: { ...optional('model', string(p.model)) } })
-          : undefined)
-      }
-      else if (subtype === 'error') {
-        ingest.emit('error', {
-          ...optional('message', string(p.message)),
-          details: p,
-        })
-      }
-      else if (
-        subtype === 'exec_approval_request'
-        || subtype === 'apply_patch_approval_request'
-      ) {
-        ingest.emit('permission_request', {
-          ...optional('requestId', string(p.call_id)),
-          request: p,
-        })
-      }
-      else if (subtype === 'collab_agent_spawn_begin') {
-        ingest.emit('system', { sourceType: subtype, payload: p })
-      }
-      else if (
-        [
-          'collab_agent_spawn_end',
-          'collab_agent_interaction_begin',
-          'collab_agent_interaction_end',
-          'collab_close_end',
-          'collab_resume_end',
-        ].includes(subtype)
-      ) {
-        const id = string(p.new_thread_id) ?? string(p.receiver_thread_id)
-        if (id === undefined) {
-          ingest.unknown(subtype, p)
-          return
-        }
-        const status = object(p.status)
-        const kind
-          = 'completed' in status
-            ? 'completed'
-            : 'errored' in status
-              ? 'failed'
-              : subtype === 'collab_agent_spawn_end'
-                ? 'spawn'
-                : subtype === 'collab_resume_end'
-                  ? 'started'
-                  : subtype.startsWith('collab_agent_interaction')
-                    ? 'message'
-                    : undefined
-        if (kind === undefined) {
-          ingest.unknown(subtype, p)
-          return
-        }
-        ingest.emit('subagent', {
-          agentId: id,
-          ...optional(
-            'parentAgentId',
-            subtype === 'collab_agent_spawn_end'
-              ? string(p.sender_thread_id)
-              : undefined,
-          ),
-          kind,
-          ...optional(
-            'name',
-            string(p.new_agent_nickname) ?? string(p.receiver_agent_nickname),
-          ),
-          metadata: p,
-        })
-      }
-      else {
-        ingest.unknown(subtype, p)
-      }
-      return
-    }
-    ingest.unknown(type, native)
+    } }
   },
+  parse() {},
 })

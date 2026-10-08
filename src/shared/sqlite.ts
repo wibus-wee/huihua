@@ -51,15 +51,56 @@ function unsigned(value: bigint): number {
     fail('oversized SQLite value')
   return Number(value)
 }
-function definitions(sql: string): string[] {
-  const start = sql.indexOf('(')
-  const end = sql.lastIndexOf(')')
+function definitions(sql: string): { parts: string[], syntax: string } {
+  let cleaned = ''
+  let syntax = ''
+  let quote = ''
+  for (let i = 0; i < sql.length; i++) {
+    const c = sql[i]!
+    if (quote) {
+      cleaned += c
+      syntax += ' '
+      if (c === quote) {
+        if (quote !== ']' && sql[i + 1] === quote) {
+          cleaned += sql[++i]!
+          syntax += ' '
+        }
+        else {
+          quote = ''
+        }
+      }
+    }
+    else if (c === '-' && sql[i + 1] === '-') {
+      cleaned += ' '
+      syntax += ' '
+      while (i + 1 < sql.length && sql[i + 1] !== '\n') i++
+    }
+    else if (c === '/' && sql[i + 1] === '*') {
+      cleaned += ' '
+      syntax += ' '
+      const end = sql.indexOf('*/', i + 2)
+      i = end < 0 ? sql.length : end + 1
+    }
+    else {
+      cleaned += c
+      if (c === '"' || c === '\'' || c === '`' || c === '[') {
+        quote = c === '[' ? ']' : c
+        syntax += ' '
+      }
+      else {
+        syntax += c
+      }
+    }
+  }
+  sql = cleaned
+  const start = syntax.indexOf('(')
+  const end = syntax.lastIndexOf(')')
   if (start < 0 || end < start)
     fail('invalid SQLite table definition')
   const out: string[] = []
   let begin = start + 1
   let depth = 0
-  let quote = ''
+  quote = ''
   for (let i = begin; i < end; i++) {
     const c = sql[i]!
     if (quote) {
@@ -85,7 +126,7 @@ function definitions(sql: string): string[] {
     }
   }
   out.push(sql.slice(begin, end).trim())
-  return out
+  return { parts: out, syntax }
 }
 function columnDefault(
   definition: string,
@@ -208,7 +249,9 @@ function schema(sql: string, root: number): Table {
   const columns: string[] = []
   const defaults: ({ value: unknown } | { unsupported: string })[] = []
   let integerKey: number | undefined
-  const parts = definitions(sql)
+  const definition = definitions(sql)
+  const parts = definition.parts
+  sql = definition.syntax
   for (const part of parts) {
     if (/^(?:CONSTRAINT|PRIMARY|UNIQUE|CHECK|FOREIGN)\b/i.test(part))
       continue

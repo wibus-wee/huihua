@@ -1,7 +1,7 @@
 {
   "name": "huihua",
   "type": "module",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "packageManager": "pnpm@12.4.2",
   "description": "Read-only local session evidence for Coding Agents, in pure TypeScript",
   "author": "wibus-wee",
@@ -138,7 +138,8 @@
     "lint:fix": "eslint . --fix --max-warnings=0",
     "knip": "knip",
     "prepack": "pnpm run build",
-    "test:producer-compat": "node tools/producer-compat.ts"
+    "test:producer-compat": "node tools/producer-compat.ts",
+    "test:producer-compat:kimi": "node tools/producer-compat-kimi.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.16.0",

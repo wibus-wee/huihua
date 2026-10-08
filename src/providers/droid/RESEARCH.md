@@ -28,6 +28,10 @@ Also discover legacy ~/.factory/projects recordings.
 Do not strip system-reminder text or infer failures from output prose.
 Companion settings, current remote sessions and newer private schemas are not certified.
 
+The [pinned reference parser](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/DroidSessionParser.swift) confirms workingDirectory, camel toolResult events and nested toolResult roles.
+The existing mapper accepts those aliases, restores toolResult after role case normalization, and preserves native call IDs and explicit error flags.
+Current settings are never used to fill historical model/workspace facts.
+
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.

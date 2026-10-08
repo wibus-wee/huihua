@@ -5,7 +5,7 @@ import process from 'node:process'
 import { chatMessageEvents } from '../../shared/ingestion.ts'
 import { binarySafe } from '../../shared/sqlite.ts'
 import { sqliteStoreProvider } from '../../shared/sqlite-store.ts'
-import { object, optional, parseNative, string, timestamp } from '../../shared/value.ts'
+import { array, object, optional, parseNative, string, timestamp } from '../../shared/value.ts'
 
 const seconds = (value: unknown) => typeof value === 'number' ? timestamp(Math.round(value * 1000)) : undefined
 export const devinProvider = sqliteStoreProvider({
@@ -88,6 +88,12 @@ export const devinProvider = sqliteStoreProvider({
       }
       const envelope = { id: string(object(message).message_id) ?? (typeof row.node_id === 'number' || typeof row.node_id === 'bigint' ? String(row.node_id) : row.node_id), timestamp: seconds(row.created_at)?.value }
       chatMessageEvents(ingest, message, envelope, { tool_scope: validChain ? scope(row) : `ambiguous_node:${position}`, node_id: binarySafe(row.node_id), parent_node_id: binarySafe(row.parent_node_id), ...optional('on_main_chain', validChain ? chain.has(row) : undefined) })
+      if (object(message).role === 'user') {
+        for (const image of array(object(message).images)) {
+          const media = object(image)
+          ingest.emit('user_message', { content: [{ type: 'image', data: { ...optional('data', media.base64_data), metadata: media } }] }, envelope)
+        }
+      }
     }
   },
 })
