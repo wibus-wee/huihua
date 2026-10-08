@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import process from 'node:process'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import type { Session } from '../src/index.ts'
 import { sessions } from '../src/index.ts'
-import { activeProviders, manifest } from '../tools/producer-compat/catalog.ts'
+import { activeProviders, manifest, selectProviders } from '../tools/producer-compat/catalog.ts'
 import { assertDiscovery, assertNativeRead, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiReplies } from '../tools/producer-compat/kimi.ts'
@@ -174,4 +177,59 @@ await test('provider manifest covers the registry without turning blocked or par
   const report = renderDailyReport([], '2026-10-08', 'https://github.com/wibus-wee/huihua/actions', 'test')
   assert.match(report, /cursor: NOT CERTIFIED|cursor\*\*: NOT CERTIFIED/)
   assert.match(report, new RegExp(`0/${activeProviders.length * 2} covered lanes passed`))
+})
+
+await test('path scopes and manual labels never shrink required provider coverage', () => {
+  const all = activeProviders.map(provider => provider.id)
+  assert.deepEqual(selectProviders(['docs/guide.md', 'README.md', 'src/providers/fx/RESEARCH.md']).providers, [])
+  assert.deepEqual(selectProviders(['packages/usage/src/cli.ts']).providers, [])
+  assert.deepEqual(selectProviders(['src/providers/pi/index.ts']).providers, ['pi'])
+  assert.deepEqual(selectProviders(['fixtures/compatibility/qwen/new.jsonl', 'tools/producer-compat/baselines/claude.json']).providers, ['claude', 'qwen'])
+  assert.deepEqual(selectProviders(['src/providers/pi/index.ts', 'src/providers/qwen/index.ts']).providers, ['pi', 'qwen'])
+  for (const path of ['src/shared/jsonl.ts', 'src/contracts/event.ts', 'src/registry.ts', 'tools/producer-compat/manifest.json', 'tools/producer-compat/live.ts', 'pnpm-lock.yaml', 'new-unknown-reader.ts']) {
+    assert.deepEqual(selectProviders([path]).providers, all, path)
+  }
+  assert.deepEqual(selectProviders(['src/providers/pi/index.ts'], ['ci:provider:qwen', 'ci:none']).providers, ['pi', 'qwen'])
+  assert.deepEqual(selectProviders(['docs/guide.md'], ['ci:all']).providers, all)
+  assert.deepEqual(selectProviders(['docs/guide.md'], ['ci:provider:typo']).providers, all)
+  assert.deepEqual(selectProviders([], [], true).providers, all)
+  const blocked = selectProviders(['src/providers/cursor/index.ts'])
+  assert.deepEqual(blocked.providers, [])
+  assert.deepEqual(blocked.unavailable, ['cursor'])
+  assert(blocked.scopeLabels.includes('scope:provider:cursor'))
+})
+
+await test('real git comparison handles doc-only changes, cross-provider renames and missing bases', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'huihua-scope-test-'))
+  const catalog = fileURLToPath(new URL('../tools/producer-compat/catalog.ts', import.meta.url))
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  const commit = () => {
+    git('add', '.')
+    git('-c', 'user.name=Synthetic Test', '-c', 'user.email=synthetic@example.invalid', 'commit', '-qm', 'synthetic change')
+    return git('rev-parse', 'HEAD')
+  }
+  const selected = async (before: string, after: string) => {
+    const eventPath = join(directory, 'event.json')
+    await writeFile(eventPath, JSON.stringify({ before, after }))
+    const output = execFileSync(process.execPath, [catalog, 'matrix'], { cwd: directory, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', GITHUB_EVENT_NAME: 'push', GITHUB_EVENT_PATH: eventPath } })
+    return (JSON.parse(output) as { id: string }[]).map(provider => provider.id)
+  }
+  try {
+    git('init', '-q')
+    await mkdir(join(directory, 'src/providers/pi'), { recursive: true })
+    await writeFile(join(directory, 'src/providers/pi/index.ts'), '// synthetic\n')
+    await writeFile(join(directory, 'README.md'), 'Before\n')
+    const first = commit()
+    await writeFile(join(directory, 'README.md'), 'After\n')
+    const docs = commit()
+    assert.deepEqual(await selected(first, docs), [])
+    // event.json is test transport, not a repository change.
+    await rm(join(directory, 'event.json'))
+    await mkdir(join(directory, 'src/providers/qwen'), { recursive: true })
+    await rename(join(directory, 'src/providers/pi/index.ts'), join(directory, 'src/providers/qwen/index.ts'))
+    const renamed = commit()
+    assert.deepEqual(await selected(docs, renamed), ['pi', 'qwen'])
+    assert.deepEqual(await selected('0'.repeat(40), renamed), activeProviders.map(provider => provider.id))
+  }
+  finally { await rm(directory, { recursive: true, force: true }) }
 })

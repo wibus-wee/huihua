@@ -15,13 +15,145 @@ export function providerManifest(id: string) {
   return result
 }
 
+export interface ProviderSelection {
+  providers: string[]
+  scopeLabels: string[]
+  reasons: string[]
+  unavailable: string[]
+  full: boolean
+}
+
+/** Path scopes select lanes. Manual labels may only add coverage, never remove it. */
+export function selectProviders(paths: readonly string[], labels: readonly string[] = [], full = false): ProviderSelection {
+  const selected = new Set<string>()
+  const scopeLabels = new Set<string>()
+  const reasons = new Set<string>()
+  let all = full
+  if (full)
+    reasons.add('Scheduled/manual run: full native-provider matrix')
+  const quality = manifest.selection.qualityOnly
+  for (const path of paths) {
+    if (quality.files.includes(path) || quality.prefixes.some(prefix => path.startsWith(prefix)) || quality.suffixes.some(suffix => path.endsWith(suffix))) {
+      scopeLabels.add(path.startsWith('packages/usage/') ? 'scope:usage' : 'scope:docs-or-quality')
+      reasons.add(`${path}: regular quality checks only`)
+      continue
+    }
+    const matches = manifest.providers.filter(provider => provider.paths.files.includes(path) || provider.paths.prefixes.some(prefix => path.startsWith(prefix)))
+    if (matches.length) {
+      for (const provider of matches) {
+        selected.add(provider.id)
+        scopeLabels.add(provider.scopeLabel)
+        reasons.add(`${path}: ${provider.id}`)
+      }
+    }
+    else {
+      all = true
+      scopeLabels.add('scope:shared-or-unknown')
+      reasons.add(`${path}: shared infrastructure or unclassified change; run all`)
+    }
+  }
+  for (const label of labels) {
+    if (label === manifest.selection.manualAllLabel) {
+      all = true
+      reasons.add(`${label}: explicitly expand to all native providers`)
+    }
+    else if (label.startsWith(manifest.selection.manualProviderPrefix)) {
+      const id = label.slice(manifest.selection.manualProviderPrefix.length)
+      if (manifest.providers.some(provider => provider.id === id)) {
+        selected.add(id)
+        scopeLabels.add(providerManifest(id).scopeLabel)
+        reasons.add(`${label}: explicitly add ${id}`)
+      }
+      else {
+        all = true
+        reasons.add(`${label}: unknown provider override; conservatively run all`)
+      }
+    }
+  }
+  if (all)
+    activeProviders.forEach(provider => selected.add(provider.id))
+  if (!selected.size)
+    reasons.add('No native-reader impact; keep normal quality checks, skip real CLI installation')
+  return {
+    providers: activeProviders.filter(provider => selected.has(provider.id)).map(provider => provider.id),
+    scopeLabels: [...scopeLabels].sort(),
+    reasons: [...reasons],
+    unavailable: manifest.providers.filter(provider => selected.has(provider.id) && !provider.ci).map(provider => provider.id),
+    full: all,
+  }
+}
+
+async function matrixSelection(): Promise<ProviderSelection> {
+  const eventName = process.env.GITHUB_EVENT_NAME
+  if (eventName !== 'pull_request' && eventName !== 'push')
+    return selectProviders([], [], true)
+  try {
+    assert(process.env.GITHUB_EVENT_PATH !== undefined)
+    const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH, 'utf8')) as {
+      before?: string
+      after?: string
+      pull_request?: { number: number, base: { sha: string }, head: { sha: string }, labels: { name: string }[] }
+    }
+    const pr = event.pull_request
+    const base = pr?.base.sha ?? event.before
+    const head = pr?.head.sha ?? event.after
+    assert(base !== undefined && head !== undefined && /^[a-f\d]{40}$/.test(base) && /^[a-f\d]{40}$/.test(head) && !/^0+$/.test(base), 'No reliable comparison base')
+    // --no-renames keeps both the deleted source path and added destination path.
+    const paths = execFileSync('git', ['diff', '--name-only', '-z', '--no-renames', pr ? `${base}...${head}` : `${base}..${head}`], { encoding: 'utf8' }).split('\0').filter(Boolean)
+    let labels = pr?.labels.map(label => label.name) ?? []
+    if (pr !== undefined && process.env.GITHUB_TOKEN !== undefined) {
+      const repository = process.env.GITHUB_REPOSITORY ?? ''
+      assert(/^[\w.-]+\/[\w.-]+$/.test(repository))
+      assert(Number.isSafeInteger(pr.number) && pr.number > 0)
+      const response = await fetch(`https://api.github.com/repos/${repository}/pulls/${pr.number}`, { headers: { authorization: `Bearer ${process.env.GITHUB_TOKEN}`, accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(15000) })
+      assert(response.ok, `Cannot refresh manual CI labels: ${response.status}`)
+      const current = await response.json() as { labels: { name: string }[] }
+      assert(Array.isArray(current.labels) && current.labels.every(label => typeof label.name === 'string'))
+      labels = current.labels.map(label => label.name)
+    }
+    return selectProviders(paths, labels)
+  }
+  catch (error) {
+    const selected = selectProviders([], [], true)
+    selected.reasons.unshift(`Change detection unavailable: ${String(error)}. Fail open to full coverage, never skip.`)
+    return selected
+  }
+}
+
+function selectionSummary(selection: ProviderSelection): string {
+  const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('`', '').replace(/[\r\n]+/g, ' ')
+  return [
+    '## Native provider check selection',
+    '',
+    `Selected ${selection.providers.length}/${activeProviders.length} runnable providers: ${selection.providers.join(', ') || 'none'}.`,
+    `Scope labels: ${selection.scopeLabels.map(escape).join(', ') || 'full scheduled/manual coverage'}.`,
+    ...(selection.unavailable.length ? [`Not certified despite affected scope: ${selection.unavailable.join(', ')}. See manifest blockers; skipping these does not establish compatibility.`] : []),
+    '',
+    '<details><summary>Why these checks run</summary>',
+    '',
+    ...selection.reasons.slice(0, 100).map(reason => `- ${escape(reason)}`),
+    ...(selection.reasons.length > 100 ? [`- ${selection.reasons.length - 100} additional reasons omitted from this summary.`] : []),
+    '',
+    '</details>',
+    '',
+    'Paths are authoritative. Manual ci:all / ci:provider:ID labels only expand coverage and are read again on PR rerun or push. Adding a label alone does not launch another run. Scope labels here are classifications, not automatically written PR labels.',
+    '',
+  ].join('\n')
+}
+
 async function main(): Promise<void> {
   const mode = process.argv[2]
   if (mode === 'matrix') {
-    const value = JSON.stringify(activeProviders)
-    if (process.env.GITHUB_OUTPUT !== undefined)
-      await appendFile(process.env.GITHUB_OUTPUT, `providers=${value}\n`)
-    else console.log(value)
+    const selection = await matrixSelection()
+    const value = JSON.stringify(activeProviders.filter(provider => selection.providers.includes(provider.id)))
+    if (process.env.GITHUB_OUTPUT !== undefined) {
+      await appendFile(process.env.GITHUB_OUTPUT, `providers=${value}\nhas_providers=${selection.providers.length > 0}\n`)
+    }
+    else {
+      console.log(value)
+    }
+    if (process.env.GITHUB_STEP_SUMMARY !== undefined)
+      await appendFile(process.env.GITHUB_STEP_SUMMARY, selectionSummary(selection))
     return
   }
   assert.equal(mode, 'install')

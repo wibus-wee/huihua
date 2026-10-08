@@ -370,3 +370,42 @@ A config/rule permission decision is not
 assumed to be human approval.
 No external LLM is called, and no review can accept
 a baseline or change the public event contract automatically.
+
+## Change-scoped PR checks
+
+The same manifest maps source/fixture paths to provider scope labels and those
+scopes to runnable lanes.
+The catalog summary lists selected providers, scope
+labels, selection reasons, and affected providers without a certified producer.
+These scope labels are internal classifications shown in the summary; the job
+has no permission to write labels onto a PR.
+
+- A provider's code, native fixtures, or dedicated oracle/baseline selects that
+  provider.
+  A rename across providers selects both the old and new paths.
+- Documentation, provider RESEARCH files, and the usage consumer run regular
+  quality checks without installing native CLIs.
+- Shared ingestion/contracts/registry, shared harness or manifest, dependency
+  changes, and any unclassified path conservatively select every runnable lane.
+- Scheduled and manual runs keep the full pinned/latest matrix, independently
+  of repository paths, to detect upstream producer changes.
+- Manual `ci:all` or `ci:provider:ID` PR labels can only expand the selection.
+  They are read fresh when a PR check runs or is rerun.
+  Adding a label alone does
+  not start a new workflow; rerun the check after applying an override.
+  There is
+  no skip label that can hide a required lane.
+
+Native checks run on PRs and main-branch pushes, avoiding duplicate real-CLI runs
+for both a feature-branch push and its PR update.
+The selector uses the real Git comparison with full checkout history and
+`--no-renames`, and treats missing comparison data or failed label reads as full
+coverage.
+An empty matrix is intentionally skipped, not an Actions matrix error.
+The stable `producer compatibility result` job fails on selector failure,
+selected-lane failure, or cancellation; it succeeds on a justified empty
+selection without claiming any missing native-reader coverage.
+Quality CI keeps
+running separately.
+Live failures such as fx remain red whenever their scope is
+selected; routing never changes an assertion or accepts a baseline.

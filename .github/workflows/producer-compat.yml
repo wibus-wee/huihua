@@ -1,6 +1,7 @@
 name: producer compatibility
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -19,20 +20,28 @@ permissions:
 jobs:
   catalog:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       providers: ${{ steps.matrix.outputs.providers }}
+      has_providers: ${{ steps.matrix.outputs.has_providers }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - id: matrix
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node tools/producer-compat/catalog.ts matrix
 
   compatibility:
     needs: [catalog]
+    if: ${{ needs.catalog.outputs.has_providers == 'true' }}
     name: ${{ matrix.provider.id }} (${{ matrix.lane }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -97,6 +106,26 @@ jobs:
           name: compat-result-${{ matrix.provider.id }}-${{ matrix.lane }}
           path: ${{ env.COMPAT_RESULT_PATH }}
           retention-days: 14
+
+  compatibility-result:
+    name: producer compatibility result
+    if: always()
+    needs: [catalog, compatibility]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful selection and every selected lane
+        env:
+          CATALOG_RESULT: ${{ needs.catalog.result }}
+          HAS_PROVIDERS: ${{ needs.catalog.outputs.has_providers }}
+          MATRIX_RESULT: ${{ needs.compatibility.result }}
+        run: |
+          test "$CATALOG_RESULT" = success
+          if [ "$HAS_PROVIDERS" = false ]; then
+            echo 'No runnable native-provider lane is selected; see catalog scope and coverage gaps. Regular quality checks still apply.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            test "$HAS_PROVIDERS" = true
+            test "$MATRIX_RESULT" = success
+          fi
 
   daily-report:
     if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}

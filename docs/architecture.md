@@ -865,3 +865,15 @@ completeness from raw preservation.
 Provider-specific gaps stay visible.
 Runtime
 contracts, product parsers, production dependencies and package exports are unchanged.
+
+The compatibility catalog also owns conservative change-scope routing.
+Paths
+map to provider scope labels in the manifest; scheduled/manual runs remain full.
+Documentation and consumer-only changes need no native producer installation.
+Unclassified paths or unavailable comparison data select all runnable lanes.
+Manual PR labels only expand scopes and are read with a read-only token.
+A stable
+aggregate check distinguishes justified empty selection from failure or
+cancellation.
+Scope routing does not change the product coverage model or make
+an uncertified provider green.

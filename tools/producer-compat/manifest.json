@@ -35,6 +35,18 @@
         "version": "0.25.0",
         "binary": "qwen",
         "source": "https://github.com/QwenLM/qwen-code"
+      },
+      "scopeLabel": "scope:provider:acp",
+      "paths": {
+        "prefixes": [
+          "src/providers/acp/",
+          "fixtures/acp/",
+          "fixtures/compatibility/acp/"
+        ],
+        "files": [
+          "tools/producer-compat/acp.ts",
+          "tools/producer-compat/baselines/acp.json"
+        ]
       }
     },
     {
@@ -46,7 +58,19 @@
       "journey": "Not certified",
       "gaps": [
         "Native desktop authentication and local store are required; ACP recordings do not certify the Antigravity native SQLite reader."
-      ]
+      ],
+      "scopeLabel": "scope:provider:antigravity",
+      "paths": {
+        "prefixes": [
+          "src/providers/antigravity/",
+          "fixtures/antigravity/",
+          "fixtures/compatibility/antigravity/"
+        ],
+        "files": [
+          "tools/producer-compat/antigravity.ts",
+          "tools/producer-compat/baselines/antigravity.json"
+        ]
+      }
     },
     {
       "id": "claude",
@@ -72,7 +96,19 @@
       "journey": "Text \u00b7 Read tool \u00b7 resume \u00b7 native baseline",
       "gaps": [],
       "artifact": "synthetic-producer-compatibility",
-      "evidence": "/tmp/huihua-producer-*/"
+      "evidence": "/tmp/huihua-producer-*/",
+      "scopeLabel": "scope:provider:claude",
+      "paths": {
+        "prefixes": [
+          "src/providers/claude/",
+          "fixtures/claude/",
+          "fixtures/compatibility/claude/"
+        ],
+        "files": [
+          "tools/producer-compat/claude.ts",
+          "tools/producer-compat/baselines/claude.json"
+        ]
+      }
     },
     {
       "id": "cline",
@@ -100,7 +136,19 @@
         "Cline 3.0.70 --id forces interactive mode and drops the prompt; --json resume is rejected. Only first-turn storage is certified."
       ],
       "artifact": "synthetic-cline-compatibility",
-      "evidence": "{0}/huihua-live-cline-*/"
+      "evidence": "{0}/huihua-live-cline-*/",
+      "scopeLabel": "scope:provider:cline",
+      "paths": {
+        "prefixes": [
+          "src/providers/cline/",
+          "fixtures/cline/",
+          "fixtures/compatibility/cline/"
+        ],
+        "files": [
+          "tools/producer-compat/cline.ts",
+          "tools/producer-compat/baselines/cline.json"
+        ]
+      }
     },
     {
       "id": "codex",
@@ -126,7 +174,19 @@
       "journey": "Text \u00b7 exec_command tool \u00b7 resume \u00b7 native baseline",
       "gaps": [],
       "artifact": "synthetic-codex-compatibility",
-      "evidence": "{0}/huihua-codex-*/*.json\n{0}/huihua-codex-*/*.jsonl\n{0}/huihua-codex-*/*.stderr\n{0}/huihua-codex-*/*.log\n{0}/huihua-codex-*/*.txt\n{0}/huihua-codex-*/workspace/synthetic.txt\n{0}/huihua-codex-*/home/.codex/sessions/**/*.jsonl"
+      "evidence": "{0}/huihua-codex-*/*.json\n{0}/huihua-codex-*/*.jsonl\n{0}/huihua-codex-*/*.stderr\n{0}/huihua-codex-*/*.log\n{0}/huihua-codex-*/*.txt\n{0}/huihua-codex-*/workspace/synthetic.txt\n{0}/huihua-codex-*/home/.codex/sessions/**/*.jsonl",
+      "scopeLabel": "scope:provider:codex",
+      "paths": {
+        "prefixes": [
+          "src/providers/codex/",
+          "fixtures/codex/",
+          "fixtures/compatibility/codex/"
+        ],
+        "files": [
+          "tools/producer-compat/codex.ts",
+          "tools/producer-compat/baselines/codex.json"
+        ]
+      }
     },
     {
       "id": "copilot",
@@ -153,7 +213,19 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-copilot-compatibility",
-      "evidence": "{0}/huihua-live-copilot-*/"
+      "evidence": "{0}/huihua-live-copilot-*/",
+      "scopeLabel": "scope:provider:copilot",
+      "paths": {
+        "prefixes": [
+          "src/providers/copilot/",
+          "fixtures/copilot/",
+          "fixtures/compatibility/copilot/"
+        ],
+        "files": [
+          "tools/producer-compat/copilot.ts",
+          "tools/producer-compat/baselines/copilot.json"
+        ]
+      }
     },
     {
       "id": "cursor",
@@ -164,7 +236,19 @@
       "journey": "Not certified",
       "gaps": [
         "Headless native CLI requires Cursor authentication; no approved account or verified loopback custom-model route."
-      ]
+      ],
+      "scopeLabel": "scope:provider:cursor",
+      "paths": {
+        "prefixes": [
+          "src/providers/cursor/",
+          "fixtures/cursor/",
+          "fixtures/compatibility/cursor/"
+        ],
+        "files": [
+          "tools/producer-compat/cursor.ts",
+          "tools/producer-compat/baselines/cursor.json"
+        ]
+      }
     },
     {
       "id": "deepseek",
@@ -191,7 +275,19 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-deepseek-compatibility",
-      "evidence": "{0}/huihua-live-deepseek-*/"
+      "evidence": "{0}/huihua-live-deepseek-*/",
+      "scopeLabel": "scope:provider:deepseek",
+      "paths": {
+        "prefixes": [
+          "src/providers/deepseek/",
+          "fixtures/deepseek/",
+          "fixtures/compatibility/deepseek/"
+        ],
+        "files": [
+          "tools/producer-compat/deepseek.ts",
+          "tools/producer-compat/baselines/deepseek.json"
+        ]
+      }
     },
     {
       "id": "devin",
@@ -202,7 +298,19 @@
       "journey": "Not certified",
       "gaps": [
         "Native CLI account login/hosted inference is not available in the isolated loopback check."
-      ]
+      ],
+      "scopeLabel": "scope:provider:devin",
+      "paths": {
+        "prefixes": [
+          "src/providers/devin/",
+          "fixtures/devin/",
+          "fixtures/compatibility/devin/"
+        ],
+        "files": [
+          "tools/producer-compat/devin.ts",
+          "tools/producer-compat/baselines/devin.json"
+        ]
+      }
     },
     {
       "id": "droid",
@@ -229,7 +337,19 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-droid-compatibility",
-      "evidence": "{0}/huihua-live-droid-*/"
+      "evidence": "{0}/huihua-live-droid-*/",
+      "scopeLabel": "scope:provider:droid",
+      "paths": {
+        "prefixes": [
+          "src/providers/droid/",
+          "fixtures/droid/",
+          "fixtures/compatibility/droid/"
+        ],
+        "files": [
+          "tools/producer-compat/droid.ts",
+          "tools/producer-compat/baselines/droid.json"
+        ]
+      }
     },
     {
       "id": "fx",
@@ -259,7 +379,19 @@
         "Observed fx 0.0.13 schema_version 4/events.jsonl: Huihua read throws UnsupportedSchema. This lane must remain red until fixed."
       ],
       "artifact": "synthetic-fx-compatibility",
-      "evidence": "{0}/huihua-live-fx-*/"
+      "evidence": "{0}/huihua-live-fx-*/",
+      "scopeLabel": "scope:provider:fx",
+      "paths": {
+        "prefixes": [
+          "src/providers/fx/",
+          "fixtures/fx/",
+          "fixtures/compatibility/fx/"
+        ],
+        "files": [
+          "tools/producer-compat/fx.ts",
+          "tools/producer-compat/baselines/fx.json"
+        ]
+      }
     },
     {
       "id": "grok",
@@ -288,7 +420,19 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-grok-compatibility",
-      "evidence": "{0}/huihua-live-grok-*/"
+      "evidence": "{0}/huihua-live-grok-*/",
+      "scopeLabel": "scope:provider:grok",
+      "paths": {
+        "prefixes": [
+          "src/providers/grok/",
+          "fixtures/grok/",
+          "fixtures/compatibility/grok/"
+        ],
+        "files": [
+          "tools/producer-compat/grok.ts",
+          "tools/producer-compat/baselines/grok.json"
+        ]
+      }
     },
     {
       "id": "hermes",
@@ -316,6 +460,18 @@
         "source": "https://github.com/NousResearch/hermes-agent",
         "python": "3.14",
         "uv": "0.12.19"
+      },
+      "scopeLabel": "scope:provider:hermes",
+      "paths": {
+        "prefixes": [
+          "src/providers/hermes/",
+          "fixtures/hermes/",
+          "fixtures/compatibility/hermes/"
+        ],
+        "files": [
+          "tools/producer-compat/hermes.ts",
+          "tools/producer-compat/baselines/hermes.json"
+        ]
       }
     },
     {
@@ -342,7 +498,19 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-kimi-compatibility",
-      "evidence": "/tmp/huihua-kimi-*/"
+      "evidence": "/tmp/huihua-kimi-*/",
+      "scopeLabel": "scope:provider:kimi",
+      "paths": {
+        "prefixes": [
+          "src/providers/kimi/",
+          "fixtures/kimi/",
+          "fixtures/compatibility/kimi/"
+        ],
+        "files": [
+          "tools/producer-compat/kimi.ts",
+          "tools/producer-compat/baselines/kimi.json"
+        ]
+      }
     },
     {
       "id": "morph",
@@ -353,7 +521,19 @@
       "journey": "Not certified",
       "gaps": [
         "morph 0.3.46 run does not write durable topics. Terminal-chat probes did not issue a model request within the bounded PTY run. A working native chat/journal producer is still required."
-      ]
+      ],
+      "scopeLabel": "scope:provider:morph",
+      "paths": {
+        "prefixes": [
+          "src/providers/morph/",
+          "fixtures/morph/",
+          "fixtures/compatibility/morph/"
+        ],
+        "files": [
+          "tools/producer-compat/morph.ts",
+          "tools/producer-compat/baselines/morph.json"
+        ]
+      }
     },
     {
       "id": "oar",
@@ -380,6 +560,18 @@
         "version": "0.40.0",
         "binary": "dist/index.js",
         "source": "https://github.com/botiverse/oar"
+      },
+      "scopeLabel": "scope:provider:oar",
+      "paths": {
+        "prefixes": [
+          "src/providers/oar/",
+          "fixtures/oar/",
+          "fixtures/compatibility/oar/"
+        ],
+        "files": [
+          "tools/producer-compat/oar.ts",
+          "tools/producer-compat/baselines/oar.json"
+        ]
       }
     },
     {
@@ -407,7 +599,19 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-openclaw-compatibility",
-      "evidence": "{0}/huihua-live-openclaw-*/"
+      "evidence": "{0}/huihua-live-openclaw-*/",
+      "scopeLabel": "scope:provider:openclaw",
+      "paths": {
+        "prefixes": [
+          "src/providers/openclaw/",
+          "fixtures/openclaw/",
+          "fixtures/compatibility/openclaw/"
+        ],
+        "files": [
+          "tools/producer-compat/openclaw.ts",
+          "tools/producer-compat/baselines/openclaw.json"
+        ]
+      }
     },
     {
       "id": "opencode",
@@ -434,7 +638,19 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-opencode-compatibility",
-      "evidence": "{0}/huihua-live-opencode-*/"
+      "evidence": "{0}/huihua-live-opencode-*/",
+      "scopeLabel": "scope:provider:opencode",
+      "paths": {
+        "prefixes": [
+          "src/providers/opencode/",
+          "fixtures/opencode/",
+          "fixtures/compatibility/opencode/"
+        ],
+        "files": [
+          "tools/producer-compat/opencode.ts",
+          "tools/producer-compat/baselines/opencode.json"
+        ]
+      }
     },
     {
       "id": "pi",
@@ -461,7 +677,19 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-pi-compatibility",
-      "evidence": "{0}/huihua-live-pi-*/"
+      "evidence": "{0}/huihua-live-pi-*/",
+      "scopeLabel": "scope:provider:pi",
+      "paths": {
+        "prefixes": [
+          "src/providers/pi/",
+          "fixtures/pi/",
+          "fixtures/compatibility/pi/"
+        ],
+        "files": [
+          "tools/producer-compat/pi.ts",
+          "tools/producer-compat/baselines/pi.json"
+        ]
+      }
     },
     {
       "id": "qwen",
@@ -488,7 +716,40 @@
         "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-qwen-compatibility",
-      "evidence": "{0}/huihua-live-qwen-*/"
+      "evidence": "{0}/huihua-live-qwen-*/",
+      "scopeLabel": "scope:provider:qwen",
+      "paths": {
+        "prefixes": [
+          "src/providers/qwen/",
+          "fixtures/qwen/",
+          "fixtures/compatibility/qwen/"
+        ],
+        "files": [
+          "tools/producer-compat/qwen.ts",
+          "tools/producer-compat/baselines/qwen.json"
+        ]
+      }
     }
-  ]
+  ],
+  "selection": {
+    "fallback": "all",
+    "manualAllLabel": "ci:all",
+    "manualProviderPrefix": "ci:provider:",
+    "qualityOnly": {
+      "prefixes": [
+        "docs/",
+        "packages/usage/"
+      ],
+      "files": [
+        "README.md",
+        "README.zh-CN.md",
+        "LICENSE",
+        "AGENTS.md",
+        ".github/workflows/quality.yml"
+      ],
+      "suffixes": [
+        "/RESEARCH.md"
+      ]
+    }
+  }
 }
