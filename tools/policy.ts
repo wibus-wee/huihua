@@ -68,6 +68,12 @@ export async function policy(): Promise<void> {
   assert(kimiHarness.includes('assertKimiReplies(rows, session.events)'))
   assert(producerWorkflow.includes('test:producer-compat:kimi'))
   assert(!producerWorkflow.includes('continue-on-error'))
+  const codexAudit = await readFile('tools/producer-compat-codex-audit.ts', 'utf8')
+  assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(codexAudit))
+  const codexHarness = await readFile('tools/producer-compat-codex.ts', 'utf8')
+  assert(codexHarness.includes('homeDir: home'))
+  assert(codexHarness.includes('assertCodexRead(store, session)'))
+  assert(producerWorkflow.includes('test:producer-compat:codex'))
 
   const workspacePackages = parseAllDocuments(await readFile('pnpm-workspace.yaml', 'utf8'))[0]!.toJS() as { packages: string[] }
   assert.deepEqual(workspacePackages.packages, ['packages/*'], 'the standalone usage CLI is the only workspace package')

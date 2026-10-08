@@ -190,3 +190,22 @@ native Kimi replies on 2026-10-08; raw values were preserved as unknown evidence
 The live lane guards this behavior without changing the provider implementation.
 Run locally with SIMULATOR_DIR, KIMI_BIN and optionally COMPAT_REPORT set, then
 `pnpm test:producer-compat:kimi`.
+
+## Codex live lane
+
+The Codex job pins CLI 0.161.0 and uses the OpenAI Responses simulator, a fresh
+HOME/CODEX_HOME and workspace-write sandbox.
+It requests only a deterministic read of a synthetic file, then resumes the same
+thread for a second reply.
+It never delegates repository work or uses real model credentials.
+The oracle independently inventories native rollout JSONL, compares every raw row,
+checks same-record messages and tool call/result IDs, and requires both reply sentinels.
+Codex's mirrored event_msg and response_item evidence is not silently deduplicated.
+
+The native shape/unknown/diagnostic baseline must be reviewed against a real writer run.
+A missing baseline is a failing review gate, not an expected-failure exemption.
+Startup errors are reported separately and never counted as parser failures or passes.
+Synthetic output and failure evidence are uploaded even when a stage fails.
+The development cloud's 0.161.0 pilot failed before model requests because the
+app-server sandbox rejected its socket directory; GitHub runner verification is required.
+No sandbox restriction is disabled to work around that host failure.

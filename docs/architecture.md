@@ -795,3 +795,9 @@ The shared helper avoids duplicated protocol construction; no production layer i
 The alternative of treating unknown/raw preservation as a successful text-read verdict
 is rejected: the live assertions require the supported assistant-message semantics.
 Tools policy checks the Kimi oracle isolation and the workflow's non-optional failure status.
+
+The Codex live lane is test-only and uses OpenAI Responses instead of Anthropic Messages.
+Its source-row oracle owns no production parser and uses the existing native-field drift
+collector and reviewed-baseline comparison.
+Startup, acquisition, semantics and drift remain separate verdict stages.
+The tools policy checks that the new lane remains isolated and cannot silently pass failures.

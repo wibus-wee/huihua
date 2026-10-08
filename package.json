@@ -139,7 +139,8 @@
     "knip": "knip",
     "prepack": "pnpm run build",
     "test:producer-compat": "node tools/producer-compat.ts",
-    "test:producer-compat:kimi": "node tools/producer-compat-kimi.ts"
+    "test:producer-compat:kimi": "node tools/producer-compat-kimi.ts",
+    "test:producer-compat:codex": "node tools/producer-compat-codex.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.16.0",

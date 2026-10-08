@@ -12,7 +12,7 @@ catch (error) {
   if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT'))
     throw error
 }
-const summary = renderCompatibilitySummary(progress, process.env.COMPAT_OUTCOME ?? 'unknown', process.env.COMPAT_PROVIDER === 'kimi' ? 'kimi' : 'claude')
+const summary = renderCompatibilitySummary(progress, process.env.COMPAT_OUTCOME ?? 'unknown', process.env.COMPAT_PROVIDER === 'codex' ? 'codex' : process.env.COMPAT_PROVIDER === 'kimi' ? 'kimi' : 'claude')
 if (process.env.GITHUB_STEP_SUMMARY !== undefined && process.env.GITHUB_STEP_SUMMARY !== '')
   await appendFile(process.env.GITHUB_STEP_SUMMARY, summary)
 else
