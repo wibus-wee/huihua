@@ -37,6 +37,33 @@ export interface DriftSummary {
   optionalGroupedFieldPaths?: string[]
 }
 
+export interface NativeDrift {
+  added: string[]
+  removed: string[]
+}
+
+export class NativeDriftError extends Error {
+  readonly drift: NativeDrift
+
+  constructor(message: string, drift: NativeDrift) {
+    super(message)
+    this.drift = drift
+    this.name = 'NativeDriftError'
+  }
+}
+
+function assertNativePaths(actual: string[], baseline: string[], optional: string[], label: string): void {
+  const ignored = new Set(optional)
+  const observed = new Set(actual.filter(path => !ignored.has(path)))
+  const expected = new Set(baseline.filter(path => !ignored.has(path)))
+  const drift = {
+    added: [...observed].filter(path => !expected.has(path)).sort(),
+    removed: [...expected].filter(path => !observed.has(path)).sort(),
+  }
+  if (drift.added.length || drift.removed.length)
+    throw new NativeDriftError(label, drift)
+}
+
 export function assertNoProducerDrift(actual: DriftSummary, baseline: DriftSummary): void {
   for (const [kind, count] of Object.entries(actual.unknown))
     assert(count <= (baseline.unknown[kind] ?? 0), `unknown native record growth: ${kind}=${count}`)
@@ -44,11 +71,9 @@ export function assertNoProducerDrift(actual: DriftSummary, baseline: DriftSumma
   if (actual.groupedFieldPaths !== undefined || baseline.groupedFieldPaths !== undefined) {
     assert(actual.groupedFieldPaths, 'missing independent per-record-type native observations')
     assert(baseline.groupedFieldPaths, 'missing reviewed per-record-type native baseline')
-    const optionalGrouped = new Set(baseline.optionalGroupedFieldPaths ?? [])
-    assert.deepEqual(actual.groupedFieldPaths.filter(path => !optionalGrouped.has(path)), baseline.groupedFieldPaths.filter(path => !optionalGrouped.has(path)), 'native per-record-type field/type drift')
+    assertNativePaths(actual.groupedFieldPaths, baseline.groupedFieldPaths, baseline.optionalGroupedFieldPaths ?? [], 'native per-record-type field/type drift')
   }
-  const optional = new Set(baseline.optionalFieldPaths ?? [])
-  assert.deepEqual(actual.fieldPaths.filter(path => !optional.has(path)), baseline.fieldPaths.filter(path => !optional.has(path)), 'native field/type drift; inspect report before updating baseline')
+  assertNativePaths(actual.fieldPaths, baseline.fieldPaths, baseline.optionalFieldPaths ?? [], 'native field/type drift; inspect report before updating baseline')
 }
 
 export interface NativeStore {

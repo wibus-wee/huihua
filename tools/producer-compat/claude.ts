@@ -10,7 +10,7 @@ import type { ScanResult, Session, SessionEvent } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
-import { assertNoProducerDrift, exchange, json, nativeFieldPaths, required, startSimulator } from './runtime.ts'
+import { assertNoProducerDrift, exchange, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
 // Independent test oracle, deliberately not Huihua's walker, framer or mapper.
 // Only the isolated producer's JSONL is inspected. No user stores are read or repaired.
@@ -301,6 +301,8 @@ async function main(): Promise<void> {
   }
   catch (error) {
     progress.error = String(error)
+    if (error instanceof NativeDriftError)
+      progress.drift = error.drift
     await writeFile(`${output}.failure.json`, JSON.stringify({ stage, artifacts: root, error: String(error) }, null, 2))
     console.error(JSON.stringify({ stage, artifacts: root, error: String(error) }))
     process.exitCode = 1
