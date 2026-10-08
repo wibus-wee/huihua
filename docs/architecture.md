@@ -763,7 +763,7 @@ private-schema compatibility, abstraction reuse and whether new API belongs in t
 
 ### Live producer compatibility infrastructure
 
-[Producer compatibility](producer-compatibility.md) is owned by tools/producer-compat.ts and its
+[Producer compatibility](producer-compatibility.md) is owned by tools/producer-compat/claude.ts and its
 separate workflow.
 It executes an isolated external producer against a pinned loopback simulator,
 then uses Huihua's public session entry points.
@@ -775,7 +775,7 @@ outside src and the runtime dependency graph.
 The baseline is a reviewed observation of synthetic
 native records, not a provider parsing rule or automatic golden update.
 
-The test-only `tools/producer-compat-audit.ts` owns an independent disk inventory and assertions,
+The test-only `tools/producer-compat/claude.ts` owns an independent disk inventory and assertions,
 not a public acquisition path.
 Node fs, TextDecoder and JSON.parse independently check native
 row evidence; scenario-local semantic assertions verify the exercised Claude contract.
@@ -788,7 +788,7 @@ Executable policy prevents importing production ingestion helpers into the oracl
 verify that silent output loss fails even when the old shape summary is unchanged.
 
 The Kimi live lane uses the same simulator request/exchange helpers in
-`tools/producer-compat-runtime.ts` and a small Kimi-specific writer oracle.
+`tools/producer-compat/runtime.ts` and a small Kimi-specific writer oracle.
 It tests the checkout through public session entry points and preserves independent
 native evidence before asserting normalized replies.
 The shared helper avoids duplicated protocol construction; no production layer imports it.
@@ -803,9 +803,27 @@ Startup, acquisition, semantics and drift remain separate verdict stages.
 The tools policy checks that the new lane remains isolated and cannot silently pass failures.
 
 Daily compatibility reporting is CI-only orchestration in the tools layer.
-`producer-compat-daily.ts` owns pure verdict/rendering/deduplication rules;
-`producer-compat-publish.ts` owns bounded GitHub issue communication.
+`tools/producer-compat/report.ts` owns pure verdict/rendering/deduplication rules;
+`tools/producer-compat/publish.ts` owns bounded GitHub issue communication.
 The default-branch publisher consumes validated result JSON with no package installation
 or artifact code execution, and write permissions never reach producer jobs.
 Runtime dependencies, ingestion APIs and provider behavior are unchanged.
-Machine checks and focused tests enforce failure visibility and report preservation.
+Workflow policy checks enforce failure visibility; the publisher validates result artifacts and preserves human-authored issue sections.
+
+### Compatibility tooling layout
+
+`tools/producer-compat/` owns this test-only integration suite.
+Each provider scenario owns its
+native oracle and CLI journey in one file; importing it does not launch a producer. `runtime.ts`
+contains only shared simulator helpers, native shape comparison and drift assertions.
+`baselines/` contains reviewed Claude/Codex native baselines. `report.ts` owns both job summaries
+and the daily dashboard; `publish.ts` is the separate, permission-bounded GitHub writer.
+This replaces flat per-helper modules and one-test-file-per-script, without changing the public
+library or the serialized result format.
+A single counterexample suite protects omissions and
+wrong associations; actual CLI journeys provide the integration coverage.
+Report layout is
+reviewed from rendered Markdown rather than maintained through string-matching unit tests.
+The daily dashboard presents attention items first, three provider rows with pinned/latest columns,
+visible coverage gaps and collapsible evidence.
+No missing subcheck is inferred as passing.

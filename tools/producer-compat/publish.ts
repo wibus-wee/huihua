@@ -3,8 +3,8 @@ import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import process from 'node:process'
 
-import type { LaneResult } from './producer-compat-daily.ts'
-import { anomalyKey, completeMatrix, providers, renderDailyReport, replaceReportSection, reportMarker } from './producer-compat-daily.ts'
+import type { LaneResult } from './report.ts'
+import { anomalyKey, completeMatrix, providers, renderDailyReport, replaceReportSection, reportMarker } from './report.ts'
 
 interface Issue { number: number, body: string | null, state: string, pull_request?: unknown }
 interface Comment { id: number, body: string, user: { login: string, type: string } }

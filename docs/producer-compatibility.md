@@ -10,7 +10,7 @@ It does not replace historical fixtures or claim all-provider compatibility.
 
 ## Ownership and isolation
 
-`tools/producer-compat.ts` owns process execution, loopback requests and scenario assertions.
+`tools/producer-compat/claude.ts` owns process execution, loopback requests and scenario assertions.
 Huihua production code remains read-only and has no new dependencies or runtime-control API.
 Huihua is exercised only through public session entry points; the harness never fabricates or repairs
 the live stores.
@@ -29,7 +29,7 @@ The CLI reports synthetic model-cost estimates; no paid model endpoint is config
 
 ## Checks and evidence
 
-`tools/producer-compat-audit.ts` independently walks the isolated HOME with Node fs and decodes
+`tools/producer-compat/claude.ts` independently walks the isolated HOME with Node fs and decodes
 JSONL with TextDecoder and JSON.parse.
 It does not import Huihua's walker, line framer, provider,
 or mapper.
@@ -259,8 +259,13 @@ It never accepts a baseline automatically or patches product code.
 
 The publisher supports read-only preview with COMPAT_PUBLISH unset; production writes
 require schedule/workflow_dispatch on the default branch plus an explicit publish flag.
-Tests cover classifications, missing/stale/duplicate results, managed text preservation,
-deduplication and Markdown/mention escaping.
+The reporter classifies missing/stale/duplicate results, preserves managed text boundaries,
+deduplicates incidents and escapes Markdown/mentions.
+Layout is reviewed through a read-only
+preview, not a separate unit-test suite for each reporting script.
+The dashboard leads with actionable exceptions, then three provider rows with pinned/latest
+columns, explicit coverage gaps and collapsible evidence.
+Native counts are evidence, not a score.
 
 Evidence upload is part of daily completeness: successful parser checks with failed
 artifact delivery produce an incomplete lane, not a daily PASS.

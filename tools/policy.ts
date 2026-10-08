@@ -48,11 +48,11 @@ async function sourceFiles(root = 'src'): Promise<string[]> {
   return output
 }
 export async function policy(): Promise<void> {
-  const producerHarness = await readFile('tools/producer-compat.ts', 'utf8')
-  assert(producerHarness.includes('from \'../src/index.ts\''))
+  const producerHarness = await readFile('tools/producer-compat/claude.ts', 'utf8')
+  assert(producerHarness.includes('from \'../../src/index.ts\''))
   assert(producerHarness.includes('homeDir: home'))
   assert(producerHarness.includes('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: \'1\''))
-  const producerAudit = await readFile('tools/producer-compat-audit.ts', 'utf8')
+  const producerAudit = await readFile('tools/producer-compat/claude.ts', 'utf8')
   assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(producerAudit))
   assert(producerHarness.includes('await inventoryNativeStores(home)'))
   assert(producerHarness.includes('assertDiscovery(stores, scan'))
@@ -61,9 +61,9 @@ export async function policy(): Promise<void> {
   assert(producerWorkflow.includes('5bdf08c6d0c48c1b9a12a287ff9d135844e07d52'))
   assert(producerWorkflow.includes('contents: read'))
 
-  const kimiAudit = await readFile('tools/producer-compat-kimi-audit.ts', 'utf8')
+  const kimiAudit = await readFile('tools/producer-compat/kimi.ts', 'utf8')
   assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(kimiAudit))
-  const kimiHarness = await readFile('tools/producer-compat-kimi.ts', 'utf8')
+  const kimiHarness = await readFile('tools/producer-compat/kimi.ts', 'utf8')
   assert(kimiHarness.includes('homeDir: home'))
   assert(kimiHarness.includes('assertKimiReplies(rows, session.events)'))
   assert(producerWorkflow.includes('test:producer-compat:kimi'))
@@ -72,9 +72,9 @@ export async function policy(): Promise<void> {
     assert(producerJobs[provider]!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
   assert(producerWorkflow.includes('issues: write'))
   assert(producerWorkflow.includes('github.ref == format(\'refs/heads/{0}\', github.event.repository.default_branch)'))
-  const codexAudit = await readFile('tools/producer-compat-codex-audit.ts', 'utf8')
+  const codexAudit = await readFile('tools/producer-compat/codex.ts', 'utf8')
   assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(codexAudit))
-  const codexHarness = await readFile('tools/producer-compat-codex.ts', 'utf8')
+  const codexHarness = await readFile('tools/producer-compat/codex.ts', 'utf8')
   assert(codexHarness.includes('homeDir: home'))
   assert(codexHarness.includes('assertCodexRead(store, session)'))
   assert(producerWorkflow.includes('test:producer-compat:codex'))
