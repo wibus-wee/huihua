@@ -31,11 +31,18 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/producers" --no-save "@anthropic-ai/claude-code@$VERSION"
           echo "Claude Code $VERSION" >> "$GITHUB_STEP_SUMMARY"
       - name: Produce native store and verify Huihua
+        id: verify
         env:
           SIMULATOR_DIR: ${{ runner.temp }}/simulator
           CLAUDE_BIN: ${{ runner.temp }}/producers/node_modules/.bin/claude
           COMPAT_REPORT: ${{ runner.temp }}/producer-compat-report.json
         run: pnpm test:producer-compat
+      - name: Publish reading compatibility summary
+        if: always()
+        env:
+          COMPAT_REPORT: ${{ runner.temp }}/producer-compat-report.json
+          COMPAT_OUTCOME: ${{ steps.verify.outcome }}
+        run: node tools/producer-compat-report.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

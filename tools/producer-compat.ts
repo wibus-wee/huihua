@@ -11,6 +11,7 @@ import { sessions } from '../src/index.ts'
 import type { DriftSummary } from './producer-compat-assertions.ts'
 import { assertNoProducerDrift } from './producer-compat-assertions.ts'
 import { assertDiscovery, assertNativeRead, inventoryNativeStores, nativeFieldPaths } from './producer-compat-audit.ts'
+import type { CompatibilityProgress } from './producer-compat-summary.ts'
 
 // Test infrastructure only: the production library never executes a producer.
 const simulatorDir = resolve(required('SIMULATOR_DIR'))
@@ -52,6 +53,7 @@ const secondPrompt = 'HUIHUA_SECOND_SESSION'
 const secondText = 'HUIHUA_SECOND_RESPONSE'
 const output = resolve(process.env.COMPAT_REPORT ?? 'producer-compat-report.json')
 let stage = 'simulator-startup'
+const progress: CompatibilityProgress = { stage, completed: [] }
 try {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -87,24 +89,37 @@ try {
   stage = 'native-inventory'
   const stores = await inventoryNativeStores(home)
   await writeFile(join(root, 'native-inventory.json'), JSON.stringify(stores, null, 2))
-  stage = 'huihua-discovery-audit'
+  progress.auditedSessions = stores.length
+  progress.auditedRecords = stores.reduce((sum, store) => sum + store.rows.length, 0)
+  stage = 'scan'
   const scan = await sessions.scan({ providers: ['claude'], homeDir: home })
   assertDiscovery(stores, scan, [sessionId, secondSessionId])
-  stage = 'huihua-read-audit'
-  for (const store of stores) {
-    const discovered = scan.refs.find(ref => ref.source.path === store.path)!
-    const read = await sessions.read(discovered)
-    assertNativeRead(store, read)
-    const handle = await sessions.open(discovered)
-    assertNativeRead(store, await handle.snapshot())
-    const records = []
-    for await (const record of handle.records()) records.push(record)
-    assertNativeRead(store, { ...read, records })
-    const events = []
-    for await (const event of handle.events()) events.push(event)
-    assertNativeRead(store, { ...read, events })
+  progress.completed.push('scan')
+  stage = 'read'
+  for (const kind of ['read', 'snapshot', 'records', 'events']) {
+    stage = kind
+    for (const store of stores) {
+      const discovered = scan.refs.find(ref => ref.source.path === store.path)!
+      const read = await sessions.read(discovered)
+      const handle = await sessions.open(discovered)
+      if (kind === 'read')
+        assertNativeRead(store, read)
+      if (kind === 'snapshot')
+        assertNativeRead(store, await handle.snapshot())
+      if (kind === 'records') {
+        const records = []
+        for await (const record of handle.records()) records.push(record)
+        assertNativeRead(store, { ...read, records })
+      }
+      if (kind === 'events') {
+        const events = []
+        for await (const event of handle.events()) events.push(event)
+        assertNativeRead(store, { ...read, events })
+      }
+    }
+    progress.completed.push(kind)
   }
-  stage = 'scenario-coverage'
+  stage = 'scenario'
   const secondNative = stores.find(store => store.id === secondSessionId)!
   assert(secondNative.rows.some(row => JSON.stringify(row.native).includes(secondPrompt)), 'second prompt was not persisted')
   assert(secondNative.rows.some(row => JSON.stringify(row.native).includes(secondText)), 'second response was not persisted')
@@ -129,6 +144,7 @@ try {
   assert(result?.type === 'tool_result' && !result.data.isError)
   assert(JSON.stringify(result.data.result).includes(toolText))
   assert(call.sequence < result.sequence, 'tool result must follow its call')
+  progress.completed.push('scenario')
   const unknown: Record<string, number> = {}
   for (const event of session.events) {
     if (event.type === 'unknown')
@@ -140,14 +156,17 @@ try {
   const report = { provider: 'claude', auditedSessions: stores.length, auditedRecords: stores.reduce((sum, store) => sum + store.rows.length, 0), sessionId, records: session.records.length, events: session.events.length, unknown, structured, diagnostics: session.diagnostics, fieldPaths, groupedFieldPaths, inventory: stores.map(store => ({ path: store.path, id: store.id, records: store.rows.length })) }
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`)
   await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
-  stage = 'compatibility-baseline'
+  stage = 'baseline'
   const baseline = JSON.parse(await readFile(new URL('./producer-compat-baseline.json', import.meta.url), 'utf8')) as DriftSummary
   assertNoProducerDrift(report, baseline)
   assert.equal(session.diagnostics.length, Object.values(unknown).reduce((sum, count) => sum + count, 0), 'unexpected diagnostics beyond known unknown records')
   assert(session.diagnostics.every(diagnostic => diagnostic.code === 'PartialParse' && diagnostic.message.startsWith('unrecognized native record ')))
+  progress.completed.push('baseline')
+  stage = 'passed'
   console.log(JSON.stringify({ stage: 'passed', report: output, artifacts: root, unknown, structured }))
 }
 catch (error) {
+  progress.error = String(error)
   await writeFile(join(root, 'simulator.log'), serverLog)
   await writeFile(`${output}.failure.json`, JSON.stringify({ stage, artifacts: root, error: String(error) }, null, 2))
   console.error(JSON.stringify({ stage, artifacts: root, error: String(error) }))
@@ -155,6 +174,8 @@ catch (error) {
 }
 finally {
   server.kill('SIGINT')
+  progress.stage = stage
+  await writeFile(`${output}.progress.json`, JSON.stringify(progress, null, 2))
 }
 
 function required(name: string): string {

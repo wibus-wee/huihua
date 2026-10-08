@@ -152,3 +152,16 @@ records the failed stage and exact assertion, preserving any structural report a
 Native inventory and request ledger remain in synthetic artifacts.
 Exact assertions identify the
 session, file and physical row; deep equality differences identify changed fields or values.
+
+## GitHub Actions summary
+
+The always-run summary step displays independently inventoried session and raw-row counts,
+plus separate scan, read, snapshot, record-stream, event-stream, scenario and baseline results.
+A check passes only after every native source has passed that check.
+Failed and unrun checks
+remain distinct; producer/setup failures do not imply a Huihua parser failure.
+The progress sidecar retains completed checks and the failing stage/assertion.
+Missing progress after setup failure or interruption cannot produce a successful summary.
+Detailed reports and synthetic evidence remain in the run artifact.
+This presentation is CI-only
+and does not change the library API or compatibility baseline.
