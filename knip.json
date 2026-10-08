@@ -2,7 +2,9 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
     "tests/*.test.ts",
-    "tools/compressed-fixture.ts"
+    "tools/compressed-fixture.ts",
+    "tools/producer-compat/report.ts",
+    "tools/producer-compat/publish.ts"
   ],
   "project": [
     "src/**/*.ts",

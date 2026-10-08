@@ -137,7 +137,10 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix --max-warnings=0",
     "knip": "knip",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm run build",
+    "test:producer-compat": "node tools/producer-compat/claude.ts",
+    "test:producer-compat:kimi": "node tools/producer-compat/kimi.ts",
+    "test:producer-compat:codex": "node tools/producer-compat/codex.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.16.0",

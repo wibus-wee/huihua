@@ -48,6 +48,36 @@ async function sourceFiles(root = 'src'): Promise<string[]> {
   return output
 }
 export async function policy(): Promise<void> {
+  const producerHarness = await readFile('tools/producer-compat/claude.ts', 'utf8')
+  assert(producerHarness.includes('from \'../../src/index.ts\''))
+  assert(producerHarness.includes('homeDir: home'))
+  assert(producerHarness.includes('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: \'1\''))
+  const producerAudit = await readFile('tools/producer-compat/claude.ts', 'utf8')
+  assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(producerAudit))
+  assert(producerHarness.includes('await inventoryNativeStores(home)'))
+  assert(producerHarness.includes('assertDiscovery(stores, scan'))
+  assert(producerHarness.includes('assertNativeRead(store, read)'))
+  const producerWorkflow = await readFile('.github/workflows/producer-compat.yml', 'utf8')
+  assert(producerWorkflow.includes('5bdf08c6d0c48c1b9a12a287ff9d135844e07d52'))
+  assert(producerWorkflow.includes('contents: read'))
+
+  const kimiAudit = await readFile('tools/producer-compat/kimi.ts', 'utf8')
+  assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(kimiAudit))
+  const kimiHarness = await readFile('tools/producer-compat/kimi.ts', 'utf8')
+  assert(kimiHarness.includes('homeDir: home'))
+  assert(kimiHarness.includes('assertKimiReplies(rows, session.events)'))
+  const producerJobs = (parseAllDocuments(producerWorkflow)[0]!.toJS() as { jobs: Record<string, { steps: { 'continue-on-error'?: boolean, 'name'?: string }[], strategy?: { matrix: { provider: { id: string }[] } } }> }).jobs
+  assert.deepEqual(producerJobs.compatibility!.strategy!.matrix.provider.map(provider => provider.id), ['claude', 'kimi', 'codex'])
+  assert(producerJobs.compatibility!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
+  assert(producerWorkflow.includes('needs: [compatibility]'))
+  assert(producerWorkflow.includes('issues: write'))
+  assert(producerWorkflow.includes('github.ref == format(\'refs/heads/{0}\', github.event.repository.default_branch)'))
+  const codexAudit = await readFile('tools/producer-compat/codex.ts', 'utf8')
+  assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(codexAudit))
+  const codexHarness = await readFile('tools/producer-compat/codex.ts', 'utf8')
+  assert(codexHarness.includes('homeDir: home'))
+  assert(codexHarness.includes('assertCodexRead(store, session)'))
+
   const workspacePackages = parseAllDocuments(await readFile('pnpm-workspace.yaml', 'utf8'))[0]!.toJS() as { packages: string[] }
   assert.deepEqual(workspacePackages.packages, ['packages/*'], 'the standalone usage CLI is the only workspace package')
   const usagePackage = JSON.parse(await readFile('packages/usage/package.json', 'utf8')) as {

@@ -1,0 +1,158 @@
+name: producer compatibility
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      both_versions:
+        description: Run pinned and latest CLI versions
+        type: boolean
+        default: true
+      publish_issues:
+        description: Publish daily tracking and anomaly issues (default branch only)
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 5 * * *'
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    name: ${{ matrix.provider.id }} (${{ matrix.lane }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: ${{ fromJSON((github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.both_versions)) && '["pinned","latest"]' || '["pinned"]') }}
+        provider:
+          - id: claude
+            package: '@anthropic-ai/claude-code'
+            version: 2.1.292
+            binary: claude
+            artifact: synthetic-producer-compatibility
+            evidence: /tmp/huihua-producer-*/
+          - id: kimi
+            package: '@moonshot-ai/kimi-code'
+            version: 2.1.1
+            binary: kimi
+            artifact: synthetic-kimi-compatibility
+            evidence: /tmp/huihua-kimi-*/
+          - id: codex
+            package: '@openai/codex'
+            version: 0.161.0
+            binary: codex
+            artifact: synthetic-codex-compatibility
+            evidence: |
+              {0}/huihua-codex-*/*.json
+              {0}/huihua-codex-*/*.jsonl
+              {0}/huihua-codex-*/*.stderr
+              {0}/huihua-codex-*/*.log
+              {0}/huihua-codex-*/workspace/synthetic.txt
+              {0}/huihua-codex-*/home/.codex/sessions/**/*.jsonl
+    env:
+      COMPAT_PROVIDER: ${{ matrix.provider.id }}
+      COMPAT_LANE: ${{ matrix.lane }}
+      PRODUCER_BINARY: ${{ matrix.provider.binary }}
+    steps:
+      - name: Set shared run paths
+        run: |
+          echo "SIMULATOR_DIR=$RUNNER_TEMP/simulator" >> "$GITHUB_ENV"
+          echo "PRODUCER_BIN=$RUNNER_TEMP/producers/node_modules/.bin/$PRODUCER_BINARY" >> "$GITHUB_ENV"
+          echo "COMPAT_REPORT=$RUNNER_TEMP/$COMPAT_PROVIDER-compat-report.json" >> "$GITHUB_ENV"
+          echo "COMPAT_RESULT_PATH=$RUNNER_TEMP/result-$COMPAT_PROVIDER-$COMPAT_LANE.json" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install pinned simulator and real producer
+        env:
+          CANARY: ${{ matrix.lane == 'latest' }}
+          PACKAGE: ${{ matrix.provider.package }}
+          VERSION: ${{ matrix.provider.version }}
+        run: |
+          git clone https://github.com/wibus-wee/model-api-simulator.git "$SIMULATOR_DIR"
+          git -C "$SIMULATOR_DIR" checkout --detach 5bdf08c6d0c48c1b9a12a287ff9d135844e07d52
+          (cd "$SIMULATOR_DIR" && npm exec --yes --package=pnpm@11.24.0 -- pnpm install --frozen-lockfile)
+          if [ "$CANARY" = true ]; then VERSION=$(npm view "$PACKAGE" version); fi
+          npm install --prefix "$RUNNER_TEMP/producers" --no-save "$PACKAGE@$VERSION"
+          echo "COMPAT_CLI_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "$COMPAT_PROVIDER $VERSION" >> "$GITHUB_STEP_SUMMARY"
+      - name: Produce native store and verify Huihua
+        id: verify
+        env:
+          CODEX_COMPAT_UNSANDBOXED: ${{ matrix.provider.id == 'codex' && '1' || '0' }}
+        run: node "tools/producer-compat/$COMPAT_PROVIDER.ts"
+      - uses: actions/upload-artifact@v4
+        id: evidence
+        if: always()
+        with:
+          name: ${{ matrix.provider.artifact }}-${{ matrix.lane }}
+          path: |
+            ${{ env.COMPAT_REPORT }}*
+            ${{ format(matrix.provider.evidence, runner.temp) }}
+          retention-days: 7
+          include-hidden-files: true
+      - name: Publish reading compatibility summary
+        if: always()
+        env:
+          COMPAT_EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
+          COMPAT_OUTCOME: ${{ steps.verify.outcome }}
+        run: node tools/producer-compat/report.ts
+      - name: Upload structured lane result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compat-result-${{ matrix.provider.id }}-${{ matrix.lane }}
+          path: ${{ env.COMPAT_RESULT_PATH }}
+          retention-days: 14
+
+  daily-report:
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    needs: [compatibility]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: producer-compatibility-issue-publisher
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: mkdir -p "$RUNNER_TEMP/compat-results"
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: compat-result-*
+          path: ${{ runner.temp }}/compat-results
+          merge-multiple: true
+      - name: Prepare daily report (read-only)
+        env:
+          COMPAT_RESULTS_DIR: ${{ runner.temp }}/compat-results
+          COMPAT_DAILY_REPORT: ${{ runner.temp }}/daily-compatibility.md
+        run: node tools/producer-compat/publish.ts
+      - name: Update tracking issue and deduplicated anomalies
+        if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.event_name == 'schedule' || (inputs.publish_issues && inputs.both_versions)) }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPAT_PUBLISH: 'true'
+          COMPAT_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          COMPAT_RESULTS_DIR: ${{ runner.temp }}/compat-results
+          COMPAT_DAILY_REPORT: ${{ runner.temp }}/daily-compatibility.md
+        run: node tools/producer-compat/publish.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daily-compatibility-report
+          path: ${{ runner.temp }}/daily-compatibility.md
+          retention-days: 30
