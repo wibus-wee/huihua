@@ -98,7 +98,7 @@ Then run:
 
 ```sh
 SIMULATOR_DIR=/absolute/path/to/model-api-simulator \
-CLAUDE_BIN=/absolute/path/to/producer/node_modules/.bin/claude \
+PRODUCER_BIN=/absolute/path/to/producer/node_modules/.bin/claude \
 COMPAT_REPORT=/tmp/producer-compat-report.json \
 pnpm test:producer-compat
 ```
@@ -188,7 +188,7 @@ Summary and artifacts run even on failure, preserving exact stage and source evi
 The published Huihua 0.4.0 reproduced zero normalized assistant messages for two
 native Kimi replies on 2026-10-08; raw values were preserved as unknown evidence.
 The live lane guards this behavior without changing the provider implementation.
-Run locally with SIMULATOR_DIR, KIMI_BIN and optionally COMPAT_REPORT set, then
+Run locally with SIMULATOR_DIR, PRODUCER_BIN and optionally COMPAT_REPORT set, then
 `pnpm test:producer-compat:kimi`.
 
 ## Codex live lane

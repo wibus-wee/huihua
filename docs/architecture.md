@@ -827,3 +827,11 @@ reviewed from rendered Markdown rather than maintained through string-matching u
 The daily dashboard presents attention items first, three provider rows with pinned/latest columns,
 visible coverage gaps and collapsible evidence.
 No missing subcheck is inferred as passing.
+
+The workflow owns a single provider-by-version-lane matrix job; package, pinned version,
+binary and artifact identity are provider data rather than duplicated jobs.
+A separate reporter depends on the entire matrix and remains the only writer.
+Codex retains its narrow evidence allowlist and synthetic-job-only sandbox override.
+The shared simulator lifecycle owns startup, readiness, logs and bounded shutdown;
+provider config, model protocol, tool scenario and native assertions remain provider-owned.
+This reuses the existing runtime module instead of adding a composite Action or plugin framework.

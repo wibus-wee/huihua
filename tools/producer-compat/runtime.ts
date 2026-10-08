@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import process from 'node:process'
+import { setTimeout as delay } from 'node:timers/promises'
 
 export function required(name: string): string {
   const value = process.env[name]
@@ -69,4 +73,47 @@ export function nativeFieldPaths(stores: NativeStore[], grouped = true): string[
     for (const row of store.rows) visit(row.native, grouped ? `${JSON.stringify(row.native.type ?? null)}:$` : '$')
   }
   return [...paths].sort()
+}
+
+// Shared infrastructure only; provider protocols and reading assertions stay in their scenarios.
+export function startSimulator(directory: string, port: number) {
+  const server = spawn(process.execPath, ['--import', join(directory, 'node_modules/tsx/dist/loader.mjs'), join(directory, 'run.ts'), String(port)], { stdio: ['ignore', 'pipe', 'pipe'] })
+  let log = ''
+  let spawnError: Error | undefined
+  server.on('error', (error) => {
+    spawnError = error
+  })
+  server.stdout.on('data', (chunk) => {
+    log += String(chunk)
+  })
+  server.stderr.on('data', (chunk) => {
+    log += String(chunk)
+  })
+  const closed = new Promise<void>(resolve => server.once('close', () => resolve()))
+  return {
+    async ready(): Promise<void> {
+      for (let attempt = 0; ; attempt++) {
+        if (spawnError)
+          throw spawnError
+        try {
+          await json(`http://127.0.0.1:${port + 1}/_simulator/requests`)
+          return
+        }
+        catch (error) {
+          if (attempt >= 40 || server.exitCode !== null || server.signalCode !== null)
+            throw error
+          await delay(100)
+        }
+      }
+    },
+    async stop(logPath: string): Promise<void> {
+      server.kill('SIGINT')
+      await Promise.race([closed, delay(1000)])
+      if (server.exitCode === null && server.signalCode === null) {
+        server.kill('SIGKILL')
+        await closed
+      }
+      await writeFile(logPath, log)
+    },
+  }
 }

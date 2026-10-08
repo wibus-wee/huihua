@@ -17,13 +17,46 @@ on:
 permissions:
   contents: read
 jobs:
-  claude:
+  compatibility:
+    name: ${{ matrix.provider.id }} (${{ matrix.lane }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         lane: ${{ fromJSON((github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.both_versions)) && '["pinned","latest"]' || '["pinned"]') }}
+        provider:
+          - id: claude
+            package: '@anthropic-ai/claude-code'
+            version: 2.1.292
+            binary: claude
+            artifact: synthetic-producer-compatibility
+            evidence: /tmp/huihua-producer-*/
+          - id: kimi
+            package: '@moonshot-ai/kimi-code'
+            version: 2.1.1
+            binary: kimi
+            artifact: synthetic-kimi-compatibility
+            evidence: /tmp/huihua-kimi-*/
+          - id: codex
+            package: '@openai/codex'
+            version: 0.161.0
+            binary: codex
+            artifact: synthetic-codex-compatibility
+            evidence: |
+              {0}/huihua-codex-*/*.json
+              {0}/huihua-codex-*/*.jsonl
+              {0}/huihua-codex-*/*.stderr
+              {0}/huihua-codex-*/*.log
+              {0}/huihua-codex-*/workspace/synthetic.txt
+              {0}/huihua-codex-*/home/.codex/sessions/**/*.jsonl
+    env:
+      SIMULATOR_DIR: ${{ runner.temp }}/simulator
+      PRODUCER_BIN: ${{ runner.temp }}/producers/node_modules/.bin/${{ matrix.provider.binary }}
+      COMPAT_PROVIDER: ${{ matrix.provider.id }}
+      COMPAT_LANE: ${{ matrix.lane }}
+      COMPAT_REPORT: ${{ runner.temp }}/${{ matrix.provider.id }}-compat-report.json
+      COMPAT_RESULT_PATH: ${{ runner.temp }}/result-${{ matrix.provider.id }}-${{ matrix.lane }}.json
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,40 +70,34 @@ jobs:
       - name: Install pinned simulator and real producer
         env:
           CANARY: ${{ matrix.lane == 'latest' }}
+          PACKAGE: ${{ matrix.provider.package }}
+          VERSION: ${{ matrix.provider.version }}
         run: |
-          git clone https://github.com/wibus-wee/model-api-simulator.git "$RUNNER_TEMP/simulator"
-          git -C "$RUNNER_TEMP/simulator" checkout --detach 5bdf08c6d0c48c1b9a12a287ff9d135844e07d52
-          (cd "$RUNNER_TEMP/simulator" && npm exec --yes --package=pnpm@11.24.0 -- pnpm install --frozen-lockfile)
-          VERSION=2.1.292
-          if [ "$CANARY" = true ]; then VERSION=$(npm view @anthropic-ai/claude-code version); fi
-          npm install --prefix "$RUNNER_TEMP/producers" --no-save "@anthropic-ai/claude-code@$VERSION"
+          git clone https://github.com/wibus-wee/model-api-simulator.git "$SIMULATOR_DIR"
+          git -C "$SIMULATOR_DIR" checkout --detach 5bdf08c6d0c48c1b9a12a287ff9d135844e07d52
+          (cd "$SIMULATOR_DIR" && npm exec --yes --package=pnpm@11.24.0 -- pnpm install --frozen-lockfile)
+          if [ "$CANARY" = true ]; then VERSION=$(npm view "$PACKAGE" version); fi
+          npm install --prefix "$RUNNER_TEMP/producers" --no-save "$PACKAGE@$VERSION"
           echo "COMPAT_CLI_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Claude Code $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "$COMPAT_PROVIDER $VERSION" >> "$GITHUB_STEP_SUMMARY"
       - name: Produce native store and verify Huihua
         id: verify
         env:
-          SIMULATOR_DIR: ${{ runner.temp }}/simulator
-          CLAUDE_BIN: ${{ runner.temp }}/producers/node_modules/.bin/claude
-          COMPAT_REPORT: ${{ runner.temp }}/producer-compat-report.json
-        run: pnpm test:producer-compat
+          CODEX_COMPAT_UNSANDBOXED: ${{ matrix.provider.id == 'codex' && '1' || '0' }}
+        run: node "tools/producer-compat/$COMPAT_PROVIDER.ts"
       - uses: actions/upload-artifact@v4
         id: evidence
         if: always()
         with:
-          name: synthetic-producer-compatibility-${{ matrix.lane }}
+          name: ${{ matrix.provider.artifact }}-${{ matrix.lane }}
           path: |
-            ${{ runner.temp }}/producer-compat-report.json*
-            /tmp/huihua-producer-*/
+            ${{ env.COMPAT_REPORT }}*
+            ${{ format(matrix.provider.evidence, runner.temp) }}
           retention-days: 7
           include-hidden-files: true
-
       - name: Publish reading compatibility summary
         if: always()
         env:
-          COMPAT_REPORT: ${{ runner.temp }}/producer-compat-report.json
-          COMPAT_PROVIDER: claude
-          COMPAT_LANE: ${{ matrix.lane }}
-          COMPAT_RESULT_PATH: ${{ runner.temp }}/result-claude-${{ matrix.lane }}.json
           COMPAT_EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
           COMPAT_OUTCOME: ${{ steps.verify.outcome }}
         run: node tools/producer-compat/report.ts
@@ -78,149 +105,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compat-result-claude-${{ matrix.lane }}
-          path: ${{ runner.temp }}/result-claude-${{ matrix.lane }}.json
-          retention-days: 14
-
-  kimi:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        lane: ${{ fromJSON((github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.both_versions)) && '["pinned","latest"]' || '["pinned"]') }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Install pinned simulator and real producer
-        env:
-          CANARY: ${{ matrix.lane == 'latest' }}
-        run: |
-          git clone https://github.com/wibus-wee/model-api-simulator.git "$RUNNER_TEMP/simulator"
-          git -C "$RUNNER_TEMP/simulator" checkout --detach 5bdf08c6d0c48c1b9a12a287ff9d135844e07d52
-          (cd "$RUNNER_TEMP/simulator" && npm exec --yes --package=pnpm@11.24.0 -- pnpm install --frozen-lockfile)
-          VERSION=2.1.1
-          if [ "$CANARY" = true ]; then VERSION=$(npm view @moonshot-ai/kimi-code version); fi
-          npm install --prefix "$RUNNER_TEMP/producers" --no-save "@moonshot-ai/kimi-code@$VERSION"
-          echo "COMPAT_CLI_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Kimi Code $VERSION" >> "$GITHUB_STEP_SUMMARY"
-      - name: Produce native store and verify Huihua
-        id: verify
-        env:
-          SIMULATOR_DIR: ${{ runner.temp }}/simulator
-          KIMI_BIN: ${{ runner.temp }}/producers/node_modules/.bin/kimi
-          COMPAT_REPORT: ${{ runner.temp }}/kimi-compat-report.json
-        run: pnpm test:producer-compat:kimi
-      - uses: actions/upload-artifact@v4
-        id: evidence
-        if: always()
-        with:
-          name: synthetic-kimi-compatibility-${{ matrix.lane }}
-          path: |
-            ${{ runner.temp }}/kimi-compat-report.json*
-            /tmp/huihua-kimi-*/
-          retention-days: 7
-          include-hidden-files: true
-
-      - name: Publish reading compatibility summary
-        if: always()
-        env:
-          COMPAT_REPORT: ${{ runner.temp }}/kimi-compat-report.json
-          COMPAT_PROVIDER: kimi
-          COMPAT_LANE: ${{ matrix.lane }}
-          COMPAT_RESULT_PATH: ${{ runner.temp }}/result-kimi-${{ matrix.lane }}.json
-          COMPAT_EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
-          COMPAT_OUTCOME: ${{ steps.verify.outcome }}
-        run: node tools/producer-compat/report.ts
-      - name: Upload structured lane result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compat-result-kimi-${{ matrix.lane }}
-          path: ${{ runner.temp }}/result-kimi-${{ matrix.lane }}.json
-          retention-days: 14
-
-  codex:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        lane: ${{ fromJSON((github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.both_versions)) && '["pinned","latest"]' || '["pinned"]') }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Install pinned simulator and real producer
-        env:
-          CANARY: ${{ matrix.lane == 'latest' }}
-        run: |
-          git clone https://github.com/wibus-wee/model-api-simulator.git "$RUNNER_TEMP/simulator"
-          git -C "$RUNNER_TEMP/simulator" checkout --detach 5bdf08c6d0c48c1b9a12a287ff9d135844e07d52
-          (cd "$RUNNER_TEMP/simulator" && npm exec --yes --package=pnpm@11.24.0 -- pnpm install --frozen-lockfile)
-          VERSION=0.161.0
-          if [ "$CANARY" = true ]; then VERSION=$(npm view @openai/codex version); fi
-          npm install --prefix "$RUNNER_TEMP/producers" --no-save "@openai/codex@$VERSION"
-          echo "COMPAT_CLI_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "Codex CLI $VERSION" >> "$GITHUB_STEP_SUMMARY"
-      - name: Produce native store and verify Huihua
-        id: verify
-        env:
-          SIMULATOR_DIR: ${{ runner.temp }}/simulator
-          CODEX_BIN: ${{ runner.temp }}/producers/node_modules/.bin/codex
-          CODEX_COMPAT_UNSANDBOXED: '1'
-          COMPAT_REPORT: ${{ runner.temp }}/codex-compat-report.json
-        run: pnpm test:producer-compat:codex
-      - uses: actions/upload-artifact@v4
-        id: evidence
-        if: always()
-        with:
-          name: synthetic-codex-compatibility-${{ matrix.lane }}
-          path: |
-            ${{ runner.temp }}/codex-compat-report.json*
-            ${{ runner.temp }}/huihua-codex-*/*.json
-            ${{ runner.temp }}/huihua-codex-*/*.jsonl
-            ${{ runner.temp }}/huihua-codex-*/*.stderr
-            ${{ runner.temp }}/huihua-codex-*/*.log
-            ${{ runner.temp }}/huihua-codex-*/workspace/synthetic.txt
-            ${{ runner.temp }}/huihua-codex-*/home/.codex/sessions/**/*.jsonl
-          retention-days: 7
-          include-hidden-files: true
-
-      - name: Publish reading compatibility summary
-        if: always()
-        env:
-          COMPAT_REPORT: ${{ runner.temp }}/codex-compat-report.json
-          COMPAT_PROVIDER: codex
-          COMPAT_LANE: ${{ matrix.lane }}
-          COMPAT_RESULT_PATH: ${{ runner.temp }}/result-codex-${{ matrix.lane }}.json
-          COMPAT_EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
-          COMPAT_OUTCOME: ${{ steps.verify.outcome }}
-        run: node tools/producer-compat/report.ts
-      - name: Upload structured lane result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compat-result-codex-${{ matrix.lane }}
-          path: ${{ runner.temp }}/result-codex-${{ matrix.lane }}.json
+          name: compat-result-${{ matrix.provider.id }}-${{ matrix.lane }}
+          path: ${{ env.COMPAT_RESULT_PATH }}
           retention-days: 14
 
   daily-report:
     if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-    needs: [claude, kimi, codex]
+    needs: [compatibility]
     runs-on: ubuntu-latest
     permissions:
       contents: read

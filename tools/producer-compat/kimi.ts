@@ -1,15 +1,14 @@
 import assert from 'node:assert/strict'
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import process from 'node:process'
-import { setTimeout as delay } from 'node:timers/promises'
 
 import type { Session } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
-import { exchange, json, required } from './runtime.ts'
+import { exchange, json, required, startSimulator } from './runtime.ts'
 
 // Scenario-local oracle over real writer records, not Huihua's parsing output.
 export function assertKimiReplies(rows: unknown[], events: Session['events']): void {
@@ -37,7 +36,7 @@ export function assertKimiReplies(rows: unknown[], events: Session['events']): v
 }
 async function main(): Promise<void> {
   const simulatorDir = resolve(required('SIMULATOR_DIR'))
-  const kimi = resolve(required('KIMI_BIN'))
+  const kimi = resolve(required('PRODUCER_BIN'))
   const root = await mkdtemp(join(tmpdir(), 'huihua-kimi-'))
   const home = join(root, 'home')
   const config = join(home, '.kimi-code')
@@ -64,28 +63,11 @@ async function main(): Promise<void> {
   [loop_control]
   max_attempts_per_step = 1
   `)
-  const server = spawn(process.execPath, ['--import', join(simulatorDir, 'node_modules/tsx/dist/loader.mjs'), join(simulatorDir, 'run.ts'), String(port)], { stdio: ['ignore', 'pipe', 'pipe'] })
-  let serverLog = ''
-  server.stdout.on('data', (chunk) => {
-    serverLog += String(chunk)
-  })
-  server.stderr.on('data', (chunk) => {
-    serverLog += String(chunk)
-  })
+  const simulator = startSimulator(simulatorDir, port)
   const output = resolve(process.env.COMPAT_REPORT ?? 'kimi-compat-report.json')
   const progress: CompatibilityProgress = { stage: 'simulator-startup', completed: [] }
   try {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        await json(`${control}/requests`)
-        break
-      }
-      catch (error) {
-        if (attempt >= 40 || server.exitCode !== null)
-          throw error
-        await delay(100)
-      }
-    }
+    await simulator.ready()
     progress.stage = 'producer'
     const template = await json(`${base}/v1/messages`, { model: 'claude-sonnet-4-5', max_tokens: 64, messages: [{ role: 'user', content: 'synthetic template' }] })
     await json(`${control}/reset`, {})
@@ -145,8 +127,7 @@ async function main(): Promise<void> {
     process.exitCode = 1
   }
   finally {
-    server.kill('SIGINT')
-    await writeFile(join(root, 'simulator.log'), serverLog)
+    await simulator.stop(join(root, 'simulator.log'))
     await writeFile(output, JSON.stringify({ ...progress, artifacts: root }, null, 2))
     await writeFile(`${output}.progress.json`, JSON.stringify(progress, null, 2))
     console.log(JSON.stringify({ ...progress, artifacts: root }))

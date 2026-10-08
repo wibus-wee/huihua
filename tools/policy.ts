@@ -66,10 +66,10 @@ export async function policy(): Promise<void> {
   const kimiHarness = await readFile('tools/producer-compat/kimi.ts', 'utf8')
   assert(kimiHarness.includes('homeDir: home'))
   assert(kimiHarness.includes('assertKimiReplies(rows, session.events)'))
-  assert(producerWorkflow.includes('test:producer-compat:kimi'))
-  const producerJobs = (parseAllDocuments(producerWorkflow)[0]!.toJS() as { jobs: Record<string, { steps: { 'continue-on-error'?: boolean, 'name'?: string }[] }> }).jobs
-  for (const provider of ['claude', 'kimi', 'codex'])
-    assert(producerJobs[provider]!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
+  const producerJobs = (parseAllDocuments(producerWorkflow)[0]!.toJS() as { jobs: Record<string, { steps: { 'continue-on-error'?: boolean, 'name'?: string }[], strategy?: { matrix: { provider: { id: string }[] } } }> }).jobs
+  assert.deepEqual(producerJobs.compatibility!.strategy!.matrix.provider.map(provider => provider.id), ['claude', 'kimi', 'codex'])
+  assert(producerJobs.compatibility!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
+  assert(producerWorkflow.includes('needs: [compatibility]'))
   assert(producerWorkflow.includes('issues: write'))
   assert(producerWorkflow.includes('github.ref == format(\'refs/heads/{0}\', github.event.repository.default_branch)'))
   const codexAudit = await readFile('tools/producer-compat/codex.ts', 'utf8')
@@ -77,7 +77,6 @@ export async function policy(): Promise<void> {
   const codexHarness = await readFile('tools/producer-compat/codex.ts', 'utf8')
   assert(codexHarness.includes('homeDir: home'))
   assert(codexHarness.includes('assertCodexRead(store, session)'))
-  assert(producerWorkflow.includes('test:producer-compat:codex'))
 
   const workspacePackages = parseAllDocuments(await readFile('pnpm-workspace.yaml', 'utf8'))[0]!.toJS() as { packages: string[] }
   assert.deepEqual(workspacePackages.packages, ['packages/*'], 'the standalone usage CLI is the only workspace package')

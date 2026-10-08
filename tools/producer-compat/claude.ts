@@ -5,13 +5,12 @@ import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
-import { setTimeout as delay } from 'node:timers/promises'
 
 import type { ScanResult, Session, SessionEvent } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
-import { assertNoProducerDrift, exchange, json, nativeFieldPaths, required } from './runtime.ts'
+import { assertNoProducerDrift, exchange, json, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
 // Independent test oracle, deliberately not Huihua's walker, framer or mapper.
 // Only the isolated producer's JSONL is inspected. No user stores are read or repaired.
@@ -167,7 +166,7 @@ function assertClaudeFacts(native: Record<string, unknown>, events: readonly Ses
 async function main(): Promise<void> {
   // Test infrastructure only: the production library never executes a producer.
   const simulatorDir = resolve(required('SIMULATOR_DIR'))
-  const claude = resolve(required('CLAUDE_BIN'))
+  const claude = resolve(required('PRODUCER_BIN'))
   const root = await mkdtemp(join(tmpdir(), 'huihua-producer-'))
   const home = join(root, 'home')
   const workspace = join(root, 'workspace')
@@ -177,14 +176,7 @@ async function main(): Promise<void> {
   assert(Number.isSafeInteger(port) && port > 1024 && port < 65535)
   const base = `http://127.0.0.1:${port}`
   const control = `http://127.0.0.1:${port + 1}/_simulator`
-  const server = spawn(process.execPath, ['--import', join(simulatorDir, 'node_modules/tsx/dist/loader.mjs'), join(simulatorDir, 'run.ts'), String(port)], { stdio: ['ignore', 'pipe', 'pipe'] })
-  let serverLog = ''
-  server.stdout.on('data', (chunk) => {
-    serverLog += String(chunk)
-  })
-  server.stderr.on('data', (chunk) => {
-    serverLog += String(chunk)
-  })
+  const simulator = startSimulator(simulatorDir, port)
   const env = {
     PATH: process.env.PATH ?? '',
     HOME: home,
@@ -207,17 +199,7 @@ async function main(): Promise<void> {
   let stage = 'simulator-startup'
   const progress: CompatibilityProgress = { stage, completed: [] }
   try {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        await json(`${control}/requests`)
-        break
-      }
-      catch (error) {
-        if (attempt >= 40 || server.exitCode !== null)
-          throw error
-        await delay(100)
-      }
-    }
+    await simulator.ready()
     stage = 'scenario-setup'
     const template = await json(`${base}/v1/messages`, { model: 'claude-sonnet-4-5', max_tokens: 64, messages: [{ role: 'user', content: 'synthetic template' }] })
     await json(`${control}/reset`, {})
@@ -319,13 +301,12 @@ async function main(): Promise<void> {
   }
   catch (error) {
     progress.error = String(error)
-    await writeFile(join(root, 'simulator.log'), serverLog)
     await writeFile(`${output}.failure.json`, JSON.stringify({ stage, artifacts: root, error: String(error) }, null, 2))
     console.error(JSON.stringify({ stage, artifacts: root, error: String(error) }))
     process.exitCode = 1
   }
   finally {
-    server.kill('SIGINT')
+    await simulator.stop(join(root, 'simulator.log'))
     progress.stage = stage
     await writeFile(`${output}.progress.json`, JSON.stringify(progress, null, 2))
   }
