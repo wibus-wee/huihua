@@ -261,3 +261,10 @@ The publisher supports read-only preview with COMPAT_PUBLISH unset; production w
 require schedule/workflow_dispatch on the default branch plus an explicit publish flag.
 Tests cover classifications, missing/stale/duplicate results, managed text preservation,
 deduplication and Markdown/mention escaping.
+
+Evidence upload is part of daily completeness: successful parser checks with failed
+artifact delivery produce an incomplete lane, not a daily PASS.
+Codex uploads only stable reports, native rollouts and the synthetic input file;
+its background plugin-clone locks and unrelated runtime databases are excluded.
+The 2026-10-08 PR validation exposed a disappearing .git/shallow.lock during archive
+creation; narrowing evidence paths fixes that delivery race without weakening parsing checks.

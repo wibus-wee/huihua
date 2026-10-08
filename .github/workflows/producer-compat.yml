@@ -53,16 +53,8 @@ jobs:
           CLAUDE_BIN: ${{ runner.temp }}/producers/node_modules/.bin/claude
           COMPAT_REPORT: ${{ runner.temp }}/producer-compat-report.json
         run: pnpm test:producer-compat
-      - name: Publish reading compatibility summary
-        if: always()
-        env:
-          COMPAT_REPORT: ${{ runner.temp }}/producer-compat-report.json
-          COMPAT_PROVIDER: claude
-          COMPAT_LANE: ${{ matrix.lane }}
-          COMPAT_RESULT_PATH: ${{ runner.temp }}/result-claude-${{ matrix.lane }}.json
-          COMPAT_OUTCOME: ${{ steps.verify.outcome }}
-        run: node tools/producer-compat-report.ts
       - uses: actions/upload-artifact@v4
+        id: evidence
         if: always()
         with:
           name: synthetic-producer-compatibility-${{ matrix.lane }}
@@ -72,6 +64,16 @@ jobs:
           retention-days: 7
           include-hidden-files: true
 
+      - name: Publish reading compatibility summary
+        if: always()
+        env:
+          COMPAT_REPORT: ${{ runner.temp }}/producer-compat-report.json
+          COMPAT_PROVIDER: claude
+          COMPAT_LANE: ${{ matrix.lane }}
+          COMPAT_RESULT_PATH: ${{ runner.temp }}/result-claude-${{ matrix.lane }}.json
+          COMPAT_EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
+          COMPAT_OUTCOME: ${{ steps.verify.outcome }}
+        run: node tools/producer-compat-report.ts
       - name: Upload structured lane result
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,16 +118,8 @@ jobs:
           KIMI_BIN: ${{ runner.temp }}/producers/node_modules/.bin/kimi
           COMPAT_REPORT: ${{ runner.temp }}/kimi-compat-report.json
         run: pnpm test:producer-compat:kimi
-      - name: Publish reading compatibility summary
-        if: always()
-        env:
-          COMPAT_REPORT: ${{ runner.temp }}/kimi-compat-report.json
-          COMPAT_PROVIDER: kimi
-          COMPAT_LANE: ${{ matrix.lane }}
-          COMPAT_RESULT_PATH: ${{ runner.temp }}/result-kimi-${{ matrix.lane }}.json
-          COMPAT_OUTCOME: ${{ steps.verify.outcome }}
-        run: node tools/producer-compat-report.ts
       - uses: actions/upload-artifact@v4
+        id: evidence
         if: always()
         with:
           name: synthetic-kimi-compatibility-${{ matrix.lane }}
@@ -135,6 +129,16 @@ jobs:
           retention-days: 7
           include-hidden-files: true
 
+      - name: Publish reading compatibility summary
+        if: always()
+        env:
+          COMPAT_REPORT: ${{ runner.temp }}/kimi-compat-report.json
+          COMPAT_PROVIDER: kimi
+          COMPAT_LANE: ${{ matrix.lane }}
+          COMPAT_RESULT_PATH: ${{ runner.temp }}/result-kimi-${{ matrix.lane }}.json
+          COMPAT_EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
+          COMPAT_OUTCOME: ${{ steps.verify.outcome }}
+        run: node tools/producer-compat-report.ts
       - name: Upload structured lane result
         if: always()
         uses: actions/upload-artifact@v4
@@ -180,6 +184,22 @@ jobs:
           CODEX_COMPAT_UNSANDBOXED: '1'
           COMPAT_REPORT: ${{ runner.temp }}/codex-compat-report.json
         run: pnpm test:producer-compat:codex
+      - uses: actions/upload-artifact@v4
+        id: evidence
+        if: always()
+        with:
+          name: synthetic-codex-compatibility-${{ matrix.lane }}
+          path: |
+            ${{ runner.temp }}/codex-compat-report.json*
+            ${{ runner.temp }}/huihua-codex-*/*.json
+            ${{ runner.temp }}/huihua-codex-*/*.jsonl
+            ${{ runner.temp }}/huihua-codex-*/*.stderr
+            ${{ runner.temp }}/huihua-codex-*/*.log
+            ${{ runner.temp }}/huihua-codex-*/workspace/synthetic.txt
+            ${{ runner.temp }}/huihua-codex-*/home/.codex/sessions/**/*.jsonl
+          retention-days: 7
+          include-hidden-files: true
+
       - name: Publish reading compatibility summary
         if: always()
         env:
@@ -187,18 +207,9 @@ jobs:
           COMPAT_PROVIDER: codex
           COMPAT_LANE: ${{ matrix.lane }}
           COMPAT_RESULT_PATH: ${{ runner.temp }}/result-codex-${{ matrix.lane }}.json
+          COMPAT_EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
           COMPAT_OUTCOME: ${{ steps.verify.outcome }}
         run: node tools/producer-compat-report.ts
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: synthetic-codex-compatibility-${{ matrix.lane }}
-          path: |
-            ${{ runner.temp }}/codex-compat-report.json*
-            ${{ runner.temp }}/huihua-codex-*/
-          retention-days: 7
-          include-hidden-files: true
-
       - name: Upload structured lane result
         if: always()
         uses: actions/upload-artifact@v4

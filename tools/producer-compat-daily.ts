@@ -23,7 +23,9 @@ const sectionStart = '<!-- huihua-daily-results:start -->'
 const sectionEnd = '<!-- huihua-daily-results:end -->'
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('|', '&#124;').replaceAll('@', '&#64;').replace(/[\r\n]+/g, ' ')
 
-export function laneResult(provider: Provider, lane: Lane, version: string, commit: string, outcome: string, progress?: CompatibilityProgress): LaneResult {
+export function laneResult(provider: Provider, lane: Lane, version: string, commit: string, outcome: string, progress?: CompatibilityProgress, evidenceOutcome = 'success'): LaneResult {
+  if (evidenceOutcome !== 'success')
+    return { provider, lane, version, commit, outcome, stage: 'evidence-upload', verdict: 'incomplete', detail: `Synthetic evidence upload: ${evidenceOutcome}; check the artifact step.`, sessions: progress?.auditedSessions ?? null, records: progress?.auditedRecords ?? null }
   const stage = progress?.stage ?? 'setup'
   const error = progress?.error ?? ''
   const expected = provider === 'kimi' ? ['scan', 'read', 'snapshot', 'records', 'events'] : ['scan', 'read', 'snapshot', 'records', 'events', 'scenario', 'baseline']

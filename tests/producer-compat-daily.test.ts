@@ -50,3 +50,9 @@ await test('failure details cannot inject mentions, table rows or HTML into publ
   assert.doesNotMatch(report, /@everyone|<script>|secret second line/)
   assert.match(report, /&#64;everyone &lt;script&gt; &#124;/)
 })
+
+await test('passed parser checks cannot conceal missing synthetic artifacts', () => {
+  const result = laneResult('codex', 'pinned', '0.161.0', sha, 'success', success, 'failure')
+  assert.equal(result.verdict, 'incomplete')
+  assert.equal(result.stage, 'evidence-upload')
+})
