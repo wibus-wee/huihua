@@ -213,3 +213,18 @@ on 2026-10-08 after its shell read failed with bwrap loopback Operation not perm
 Both GITHUB_ACTIONS=true and CODEX_COMPAT_UNSANDBOXED=1 are required for that override;
 local runs keep workspace-write.
 No credentials, real workspace data or upstream model endpoints are used.
+
+### Codex baseline provenance
+
+Reviewed the real Codex CLI 0.161.0 run at commit b905038 on 2026-10-08:
+[calibration evidence](https://github.com/wibus-wee/huihua/actions/runs/37727960950).
+It persisted one resumed rollout with 29 rows; raw acquisition, both replies, a successful
+synthetic file read and resume passed before the deliberately missing baseline review gate.
+The reviewed baseline contains 214 ungrouped and 248 outer-record-type field paths,
+zero structured fallback blocks, and ten PartialParse diagnostics corresponding to
+known unknown evidence: task_started (2), world_state (1), item_completed (5), and
+thread_settings_applied (2).
+These are retained lifecycle/state or mirrored item records, not newly supported semantics.
+Canonical assistant replies and tool outputs are independently checked against response_item
+rows, so accepting these known unknowns does not excuse missing message content.
+There are no optional field paths, automatic updates or widened unknown limits.

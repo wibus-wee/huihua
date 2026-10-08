@@ -38,6 +38,17 @@ export function assertCodexRead(store: NativeStore, session: Session): void {
       assert.equal(event.data.callId, p.call_id, at)
       assert.deepEqual(event.data.result, p.output, at)
     }
+    if (row.native.type === 'token_usage_record' || (row.native.type === 'event_msg' && p.type === 'token_count')) {
+      assert.equal(events.length, 1, at)
+      const event = events[0]!
+      assert(event.type === 'usage', `${at}: missing usage`)
+      assert.deepEqual(event.data.usage, p, `${at}: native usage changed`)
+    }
+    for (const event of events) {
+      if (event.type === 'unknown') {
+        assert.deepEqual(event.data.payload, row.native.type === 'event_msg' ? p : row.native, `${at}: unknown evidence changed`)
+      }
+    }
   }
   for (const [index, event] of session.events.entries()) {
     assert.equal(event.sequence, index)
