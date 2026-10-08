@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { appendFile, readFile, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 
+import { activeProviders, manifest, providerManifest } from './catalog.ts'
 import type { NativeDrift } from './runtime.ts'
 
 export interface CompatibilityProgress {
@@ -23,11 +24,12 @@ const checks = [
   ['baseline', 'Native shape / unknown / diagnostics baseline'],
 ] as const
 
-export function renderCompatibilitySummary(progress: CompatibilityProgress | undefined, outcome: string, provider: 'claude' | 'kimi' | 'codex' = 'claude', lane: 'pinned' | 'latest' = 'pinned'): string {
-  const selectedChecks = provider === 'kimi' ? checks.slice(0, 5) : checks
+export function renderCompatibilitySummary(progress: CompatibilityProgress | undefined, outcome: string, provider: Provider = 'claude', lane: 'pinned' | 'latest' = 'pinned'): string {
+  const specification = providerManifest(provider)
+  const selectedChecks = checks.filter(([key]) => (specification.checks as readonly string[]).includes(key))
   const passed = outcome === 'success' && progress?.stage === 'passed' && selectedChecks.every(([key]) => progress.completed.includes(key))
   const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('|', '&#124;').replaceAll('\n', '<br>')
-  const rows = selectedChecks.map(([key, label]) => `| ${label} | ${progress?.completed.includes(key) ? 'PASS' : progress?.stage === key ? 'FAIL' : 'NOT RUN'} |`)
+  const rows = selectedChecks.map(([key, label]) => `| ${key === 'scenario' ? specification.journey : label} | ${progress?.completed.includes(key) ? 'PASS' : progress?.stage === key ? 'FAIL' : 'NOT RUN'} |`)
   return [
     '## Huihua reading compatibility',
     `Lane: ${lane}`,
@@ -44,15 +46,15 @@ export function renderCompatibilitySummary(progress: CompatibilityProgress | und
     ...(passed ? [] : [`Failed stage: ${escape(progress?.stage ?? 'setup / harness startup')}`, '', escape(progress?.error ?? 'No audit evidence for successful completion. Inspect the failed step logs.')]),
     '',
     ...renderNativeDrift(progress?.drift),
-    provider === 'codex' ? 'Scope: Codex text, synthetic file-read tool roundtrip and resume. No other providers or scenarios are covered by this lane.' : provider === 'kimi' ? 'Scope: Kimi text and resume in one native session. No tool, subagent or native-shape baseline coverage is claimed.' : 'Scope: Claude only; two independent sessions including a Read tool roundtrip and resume. PASS does not imply other providers or scenarios are covered.',
+    `Scope: ${specification.journey}. ${specification.gaps.join(' ')}`,
     '',
-    `Download ${provider === 'codex' ? 'synthetic-codex-compatibility' : provider === 'kimi' ? 'synthetic-kimi-compatibility' : 'synthetic-producer-compatibility'}-${lane} from this run’s Artifacts for JSON reports, native inventory, stores and diagnostics.`,
+    `Download ${specification.artifact}-${lane} from this run’s Artifacts for native evidence, reading assertions, installation provenance and primitive-review inputs.`,
     '',
   ].join('\n')
 }
 
-export const providers = ['claude', 'kimi', 'codex'] as const
-export type Provider = typeof providers[number]
+export const providers = activeProviders.map(provider => provider.id)
+export type Provider = string
 export type Lane = 'pinned' | 'latest'
 type Verdict = 'passed' | 'read-failure' | 'drift-review' | 'environment-blocked' | 'incomplete'
 export interface LaneResult {
@@ -78,7 +80,7 @@ export function laneResult(provider: Provider, lane: Lane, version: string, comm
     return { provider, lane, version, commit, outcome, stage: 'evidence-upload', verdict: 'incomplete', detail: `Synthetic evidence upload: ${evidenceOutcome}; check the artifact step.`, sessions: progress?.auditedSessions ?? null, records: progress?.auditedRecords ?? null }
   const stage = progress?.stage ?? 'setup'
   const error = progress?.error ?? ''
-  const expected = provider === 'kimi' ? ['scan', 'read', 'snapshot', 'records', 'events'] : ['scan', 'read', 'snapshot', 'records', 'events', 'scenario', 'baseline']
+  const expected = providerManifest(provider).checks
   const complete = outcome === 'success' && stage === 'passed' && expected.every(key => progress?.completed.includes(key))
   const infrastructure = /bwrap:|sandbox helper|socket directory|ECONN|ENOTFOUND|timed? ?out|ETIMEDOUT|authentication|unauthorized|rate.limit/i.test(error)
   const verdict: Verdict = complete ? 'passed' : infrastructure ? 'environment-blocked' : stage === 'baseline' ? 'drift-review' : ['scan', 'read', 'snapshot', 'records', 'events', 'scenario'].includes(stage) ? 'read-failure' : ['producer', 'simulator-startup', 'scenario-setup'].includes(stage) || stage.startsWith('producer-') ? 'environment-blocked' : 'incomplete'
@@ -125,15 +127,10 @@ export function renderDailyReport(results: LaneResult[], date: string, runUrl: s
     'environment-blocked': '🟡 Environment blocked',
     'incomplete': '⚪ Incomplete',
   }
-  const coverage = {
-    claude: 'Text · Read tool · resume · native baseline',
-    kimi: 'Text · resume only',
-    codex: 'Text · exec_command tool · resume · native baseline',
-  }
   const cell = (result: LaneResult) => `${label[result.verdict]}<br>${escape(result.version)}`
   const rows = providers.map((provider) => {
     const lanes = matrix.filter(result => result.provider === provider)
-    return `| ${provider} | ${cell(lanes[0]!)} | ${cell(lanes[1]!)} | ${coverage[provider]} |`
+    return `| ${provider} | ${cell(lanes[0]!)} | ${cell(lanes[1]!)} | ${escape(providerManifest(provider).journey)} |`
   })
   const actions = failures.map((result) => {
     const next = result.verdict === 'drift-review'
@@ -148,7 +145,7 @@ export function renderDailyReport(results: LaneResult[], date: string, runUrl: s
   return [
     `## Huihua Daily Compatibility · ${date} (UTC)`,
     '',
-    failures.length ? `> [!WARNING]\n> **${failures.length} lane(s) need attention · ${passed}/6 covered lanes passed.**` : '> [!NOTE]\n> **6/6 covered lanes passed.** Coverage gaps below remain untested.',
+    failures.length ? `> [!WARNING]\n> **${failures.length} lane(s) need attention · ${passed}/${matrix.length} covered lanes passed.**` : `> [!NOTE]\n> **${matrix.length}/${matrix.length} covered lanes passed.** Coverage gaps below remain untested.`,
     '',
     ...(failures.length ? ['### Needs attention', '', ...actions, '', `[Inspect this run and its synthetic evidence](${runUrl})`, ''] : []),
     '| Provider | Pinned | Latest | Exercised journey |',
@@ -156,8 +153,9 @@ export function renderDailyReport(results: LaneResult[], date: string, runUrl: s
     ...rows,
     '',
     '### Coverage gaps',
-    '- **Kimi:** no tool roundtrip or native shape/unknown/diagnostics baseline yet.',
-    '- **All providers:** cancellation, compaction, archive transitions, subagents and arbitrary historical/corrupt stores are outside these scenarios.',
+    ...manifest.providers.filter(provider => !provider.ci).map(provider => `- **${provider.id}: NOT CERTIFIED.** ${escape(provider.reason ?? '')}`),
+    ...activeProviders.filter(provider => provider.gaps.length).map(provider => `- **${provider.id}:** ${escape(provider.gaps.join(' '))}`),
+    ...manifest.commonGaps.map(gap => `- ${escape(gap)}`),
     '',
     '<details>',
     '<summary>Evidence and interpretation</summary>',
@@ -203,14 +201,14 @@ async function main(): Promise<void> {
   }
   const evidenceOutcome = process.env.COMPAT_EVIDENCE_OUTCOME
   const displayProgress = evidenceOutcome !== undefined && evidenceOutcome !== 'success' ? { ...progress, completed: progress?.completed ?? [], stage: 'evidence-upload', error: `Synthetic evidence upload: ${evidenceOutcome}` } : progress
-  const summary = renderCompatibilitySummary(displayProgress, process.env.COMPAT_OUTCOME ?? 'unknown', process.env.COMPAT_PROVIDER === 'codex' ? 'codex' : process.env.COMPAT_PROVIDER === 'kimi' ? 'kimi' : 'claude', process.env.COMPAT_LANE === 'latest' ? 'latest' : 'pinned')
+  const summary = renderCompatibilitySummary(displayProgress, process.env.COMPAT_OUTCOME ?? 'unknown', process.env.COMPAT_PROVIDER ?? 'claude', process.env.COMPAT_LANE === 'latest' ? 'latest' : 'pinned')
   if (process.env.GITHUB_STEP_SUMMARY !== undefined && process.env.GITHUB_STEP_SUMMARY !== '')
     await appendFile(process.env.GITHUB_STEP_SUMMARY, summary)
   else
     console.log(summary)
 
   if (process.env.COMPAT_RESULT_PATH !== undefined) {
-    const provider = process.env.COMPAT_PROVIDER === 'codex' ? 'codex' : process.env.COMPAT_PROVIDER === 'kimi' ? 'kimi' : 'claude'
+    const provider = process.env.COMPAT_PROVIDER ?? 'claude'
     const result = laneResult(provider, process.env.COMPAT_LANE === 'latest' ? 'latest' : 'pinned', process.env.COMPAT_CLI_VERSION ?? 'unavailable', process.env.GITHUB_SHA ?? 'local', process.env.COMPAT_OUTCOME ?? 'unknown', progress, evidenceOutcome ?? 'missing')
     await writeFile(process.env.COMPAT_RESULT_PATH, JSON.stringify(result, null, 2))
   }

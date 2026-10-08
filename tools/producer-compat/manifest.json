@@ -1,0 +1,755 @@
+{
+  "schemaVersion": 1,
+  "simulator": {
+    "repository": "https://github.com/wibus-wee/model-api-simulator",
+    "commit": "4357945b88d16a1a3155c39305ce135dc66b9510",
+    "packageManager": "pnpm@11.24.0"
+  },
+  "commonGaps": [
+    "Cancellation, compaction, archive transitions, subagents and arbitrary historical/corrupt stores are not exercised by these acquisition journeys.",
+    "Primitive review packets are generated but no external LLM review is executed."
+  ],
+  "providers": [
+    {
+      "id": "acp",
+      "ci": true,
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Live Qwen ACP recording \u00b7 first turn",
+      "gaps": [
+        "No resume/tool roundtrip/native-shape baseline. This certifies the recorded format and producer pair, not every ACP server or OAR runtime."
+      ],
+      "runner": "recording.ts",
+      "protocol": "anthropic-messages",
+      "artifact": "synthetic-acp-compatibility",
+      "evidence": "{0}/huihua-live-acp-*/",
+      "install": {
+        "kind": "npm",
+        "package": "@qwen-code/qwen-code",
+        "version": "0.25.0",
+        "binary": "qwen",
+        "source": "https://github.com/QwenLM/qwen-code"
+      },
+      "scopeLabel": "scope:provider:acp",
+      "paths": {
+        "prefixes": [
+          "src/providers/acp/",
+          "fixtures/acp/",
+          "fixtures/compatibility/acp/"
+        ],
+        "files": [
+          "tools/producer-compat/acp.ts",
+          "tools/producer-compat/baselines/acp.json"
+        ]
+      }
+    },
+    {
+      "id": "antigravity",
+      "ci": false,
+      "source": "https://antigravity.google",
+      "reason": "Native desktop authentication and local store are required; ACP recordings do not certify the Antigravity native SQLite reader.",
+      "checks": [],
+      "journey": "Not certified",
+      "gaps": [
+        "Native desktop authentication and local store are required; ACP recordings do not certify the Antigravity native SQLite reader."
+      ],
+      "scopeLabel": "scope:provider:antigravity",
+      "paths": {
+        "prefixes": [
+          "src/providers/antigravity/",
+          "fixtures/antigravity/",
+          "fixtures/compatibility/antigravity/"
+        ],
+        "files": [
+          "tools/producer-compat/antigravity.ts",
+          "tools/producer-compat/baselines/antigravity.json"
+        ]
+      }
+    },
+    {
+      "id": "claude",
+      "ci": true,
+      "runner": "claude.ts",
+      "install": {
+        "kind": "npm",
+        "package": "@anthropic-ai/claude-code",
+        "version": "2.1.292",
+        "binary": "claude",
+        "source": "https://github.com/anthropics/claude-code"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario",
+        "baseline"
+      ],
+      "journey": "Text \u00b7 Read tool \u00b7 resume \u00b7 native baseline",
+      "gaps": [],
+      "artifact": "synthetic-producer-compatibility",
+      "evidence": "/tmp/huihua-producer-*/",
+      "scopeLabel": "scope:provider:claude",
+      "paths": {
+        "prefixes": [
+          "src/providers/claude/",
+          "fixtures/claude/",
+          "fixtures/compatibility/claude/"
+        ],
+        "files": [
+          "tools/producer-compat/claude.ts",
+          "tools/producer-compat/baselines/claude.json"
+        ]
+      }
+    },
+    {
+      "id": "cline",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "npm",
+        "package": "cline",
+        "version": "3.0.70",
+        "binary": "cline",
+        "source": "https://github.com/cline/cline"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 first-turn store only",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline.",
+        "Cline 3.0.70 --id forces interactive mode and drops the prompt; --json resume is rejected. Only first-turn storage is certified."
+      ],
+      "artifact": "synthetic-cline-compatibility",
+      "evidence": "{0}/huihua-live-cline-*/",
+      "scopeLabel": "scope:provider:cline",
+      "paths": {
+        "prefixes": [
+          "src/providers/cline/",
+          "fixtures/cline/",
+          "fixtures/compatibility/cline/"
+        ],
+        "files": [
+          "tools/producer-compat/cline.ts",
+          "tools/producer-compat/baselines/cline.json"
+        ]
+      }
+    },
+    {
+      "id": "codex",
+      "ci": true,
+      "runner": "codex.ts",
+      "install": {
+        "kind": "npm",
+        "package": "@openai/codex",
+        "version": "0.161.0",
+        "binary": "codex",
+        "source": "https://github.com/openai/codex"
+      },
+      "protocol": "openai-responses",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario",
+        "baseline"
+      ],
+      "journey": "Text \u00b7 exec_command tool \u00b7 resume \u00b7 native baseline",
+      "gaps": [],
+      "artifact": "synthetic-codex-compatibility",
+      "evidence": "{0}/huihua-codex-*/*.json\n{0}/huihua-codex-*/*.jsonl\n{0}/huihua-codex-*/*.stderr\n{0}/huihua-codex-*/*.log\n{0}/huihua-codex-*/*.txt\n{0}/huihua-codex-*/workspace/synthetic.txt\n{0}/huihua-codex-*/home/.codex/sessions/**/*.jsonl",
+      "scopeLabel": "scope:provider:codex",
+      "paths": {
+        "prefixes": [
+          "src/providers/codex/",
+          "fixtures/codex/",
+          "fixtures/compatibility/codex/"
+        ],
+        "files": [
+          "tools/producer-compat/codex.ts",
+          "tools/producer-compat/baselines/codex.json"
+        ]
+      }
+    },
+    {
+      "id": "copilot",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "npm",
+        "package": "@github/copilot",
+        "version": "1.0.93",
+        "binary": "copilot",
+        "source": "https://github.com/github/copilot-cli"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-copilot-compatibility",
+      "evidence": "{0}/huihua-live-copilot-*/",
+      "scopeLabel": "scope:provider:copilot",
+      "paths": {
+        "prefixes": [
+          "src/providers/copilot/",
+          "fixtures/copilot/",
+          "fixtures/compatibility/copilot/"
+        ],
+        "files": [
+          "tools/producer-compat/copilot.ts",
+          "tools/producer-compat/baselines/copilot.json"
+        ]
+      }
+    },
+    {
+      "id": "cursor",
+      "ci": false,
+      "source": "https://cursor.com/docs/cli/github-actions",
+      "reason": "Headless native CLI requires Cursor authentication; no approved account or verified loopback custom-model route.",
+      "checks": [],
+      "journey": "Not certified",
+      "gaps": [
+        "Headless native CLI requires Cursor authentication; no approved account or verified loopback custom-model route."
+      ],
+      "scopeLabel": "scope:provider:cursor",
+      "paths": {
+        "prefixes": [
+          "src/providers/cursor/",
+          "fixtures/cursor/",
+          "fixtures/compatibility/cursor/"
+        ],
+        "files": [
+          "tools/producer-compat/cursor.ts",
+          "tools/producer-compat/baselines/cursor.json"
+        ]
+      }
+    },
+    {
+      "id": "deepseek",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "npm",
+        "package": "@deepseek-ai/dsh",
+        "version": "0.2.0-rc.2",
+        "binary": "dsh",
+        "source": "https://github.com/deepseek-ai/deepseek-harness"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-deepseek-compatibility",
+      "evidence": "{0}/huihua-live-deepseek-*/",
+      "scopeLabel": "scope:provider:deepseek",
+      "paths": {
+        "prefixes": [
+          "src/providers/deepseek/",
+          "fixtures/deepseek/",
+          "fixtures/compatibility/deepseek/"
+        ],
+        "files": [
+          "tools/producer-compat/deepseek.ts",
+          "tools/producer-compat/baselines/deepseek.json"
+        ]
+      }
+    },
+    {
+      "id": "devin",
+      "ci": false,
+      "source": "https://docs.devin.ai/cli/overview",
+      "reason": "Native CLI account login/hosted inference is not available in the isolated loopback check.",
+      "checks": [],
+      "journey": "Not certified",
+      "gaps": [
+        "Native CLI account login/hosted inference is not available in the isolated loopback check."
+      ],
+      "scopeLabel": "scope:provider:devin",
+      "paths": {
+        "prefixes": [
+          "src/providers/devin/",
+          "fixtures/devin/",
+          "fixtures/compatibility/devin/"
+        ],
+        "files": [
+          "tools/producer-compat/devin.ts",
+          "tools/producer-compat/baselines/devin.json"
+        ]
+      }
+    },
+    {
+      "id": "droid",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "npm",
+        "package": "droid",
+        "version": "0.236.0",
+        "binary": "droid",
+        "source": "https://docs.factory.com/droid-cli/quickstart"
+      },
+      "protocol": "openai-chat-completions",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-droid-compatibility",
+      "evidence": "{0}/huihua-live-droid-*/",
+      "scopeLabel": "scope:provider:droid",
+      "paths": {
+        "prefixes": [
+          "src/providers/droid/",
+          "fixtures/droid/",
+          "fixtures/compatibility/droid/"
+        ],
+        "files": [
+          "tools/producer-compat/droid.ts",
+          "tools/producer-compat/baselines/droid.json"
+        ]
+      }
+    },
+    {
+      "id": "fx",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "release",
+        "version": "0.0.13",
+        "binary": "fx",
+        "source": "https://github.com/vercel-labs/fx",
+        "url": "https://releases.fx.sh/v{version}/fx-linux-x86_64.tar.gz",
+        "latest": "https://releases.fx.sh/latest.txt",
+        "binarySha256": "00def23f9c68ef538d7d967394c3491910793461884fad0b983cb74011b9120c"
+      },
+      "protocol": "openai-chat-completions",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline.",
+        "Observed fx 0.0.13 schema_version 4/events.jsonl: Huihua read throws UnsupportedSchema. This lane must remain red until fixed."
+      ],
+      "artifact": "synthetic-fx-compatibility",
+      "evidence": "{0}/huihua-live-fx-*/",
+      "scopeLabel": "scope:provider:fx",
+      "paths": {
+        "prefixes": [
+          "src/providers/fx/",
+          "fixtures/fx/",
+          "fixtures/compatibility/fx/"
+        ],
+        "files": [
+          "tools/producer-compat/fx.ts",
+          "tools/producer-compat/baselines/fx.json"
+        ]
+      }
+    },
+    {
+      "id": "grok",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "release",
+        "version": "1.0.46",
+        "binary": "grok",
+        "source": "https://github.com/xai-org/grok-build",
+        "url": "https://x.ai/cli/grok-{version}-linux-x86_64",
+        "latest": "https://x.ai/cli/stable",
+        "binarySha256": "41626a53292324140b92556b9d42ff5542e3dcd04aff85eafb8689dd4adb44fc"
+      },
+      "protocol": "openai-chat-completions",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-grok-compatibility",
+      "evidence": "{0}/huihua-live-grok-*/",
+      "scopeLabel": "scope:provider:grok",
+      "paths": {
+        "prefixes": [
+          "src/providers/grok/",
+          "fixtures/grok/",
+          "fixtures/compatibility/grok/"
+        ],
+        "files": [
+          "tools/producer-compat/grok.ts",
+          "tools/producer-compat/baselines/grok.json"
+        ]
+      }
+    },
+    {
+      "id": "hermes",
+      "ci": true,
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "runner": "live.ts",
+      "protocol": "openai-chat-completions",
+      "artifact": "synthetic-hermes-compatibility",
+      "evidence": "{0}/huihua-live-hermes-*/",
+      "install": {
+        "kind": "python-source",
+        "version": "0240fa4a84123406a0e5e6e7262e5b772b43f0bd",
+        "binary": "hermes",
+        "source": "https://github.com/NousResearch/hermes-agent",
+        "python": "3.14",
+        "uv": "0.12.19"
+      },
+      "scopeLabel": "scope:provider:hermes",
+      "paths": {
+        "prefixes": [
+          "src/providers/hermes/",
+          "fixtures/hermes/",
+          "fixtures/compatibility/hermes/"
+        ],
+        "files": [
+          "tools/producer-compat/hermes.ts",
+          "tools/producer-compat/baselines/hermes.json"
+        ]
+      }
+    },
+    {
+      "id": "kimi",
+      "ci": true,
+      "runner": "kimi.ts",
+      "install": {
+        "kind": "npm",
+        "package": "@moonshot-ai/kimi-code",
+        "version": "2.1.1",
+        "binary": "kimi",
+        "source": "https://github.com/MoonshotAI/kimi-cli"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-kimi-compatibility",
+      "evidence": "/tmp/huihua-kimi-*/",
+      "scopeLabel": "scope:provider:kimi",
+      "paths": {
+        "prefixes": [
+          "src/providers/kimi/",
+          "fixtures/kimi/",
+          "fixtures/compatibility/kimi/"
+        ],
+        "files": [
+          "tools/producer-compat/kimi.ts",
+          "tools/producer-compat/baselines/kimi.json"
+        ]
+      }
+    },
+    {
+      "id": "morph",
+      "ci": false,
+      "source": "https://github.com/quailyquaily/mistermorph",
+      "reason": "morph 0.3.46 run does not write durable topics. Terminal-chat probes did not issue a model request within the bounded PTY run. A working native chat/journal producer is still required.",
+      "checks": [],
+      "journey": "Not certified",
+      "gaps": [
+        "morph 0.3.46 run does not write durable topics. Terminal-chat probes did not issue a model request within the bounded PTY run. A working native chat/journal producer is still required."
+      ],
+      "scopeLabel": "scope:provider:morph",
+      "paths": {
+        "prefixes": [
+          "src/providers/morph/",
+          "fixtures/morph/",
+          "fixtures/compatibility/morph/"
+        ],
+        "files": [
+          "tools/producer-compat/morph.ts",
+          "tools/producer-compat/baselines/morph.json"
+        ]
+      }
+    },
+    {
+      "id": "oar",
+      "ci": true,
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Official OAR writer \u00b7 live Pi text",
+      "gaps": [
+        "No resume/tool roundtrip/native-shape baseline. This certifies the recorded format and producer pair, not every ACP server or OAR runtime."
+      ],
+      "runner": "recording.ts",
+      "protocol": "anthropic-messages",
+      "artifact": "synthetic-oar-compatibility",
+      "evidence": "{0}/huihua-live-oar-*/",
+      "install": {
+        "kind": "npm-sdk",
+        "package": "@botiverse/oar",
+        "version": "0.40.0",
+        "binary": "dist/index.js",
+        "source": "https://github.com/botiverse/oar"
+      },
+      "scopeLabel": "scope:provider:oar",
+      "paths": {
+        "prefixes": [
+          "src/providers/oar/",
+          "fixtures/oar/",
+          "fixtures/compatibility/oar/"
+        ],
+        "files": [
+          "tools/producer-compat/oar.ts",
+          "tools/producer-compat/baselines/oar.json"
+        ]
+      }
+    },
+    {
+      "id": "openclaw",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "npm",
+        "package": "openclaw",
+        "version": "2026.9.8",
+        "binary": "openclaw",
+        "source": "https://github.com/openclaw/openclaw"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-openclaw-compatibility",
+      "evidence": "{0}/huihua-live-openclaw-*/",
+      "scopeLabel": "scope:provider:openclaw",
+      "paths": {
+        "prefixes": [
+          "src/providers/openclaw/",
+          "fixtures/openclaw/",
+          "fixtures/compatibility/openclaw/"
+        ],
+        "files": [
+          "tools/producer-compat/openclaw.ts",
+          "tools/producer-compat/baselines/openclaw.json"
+        ]
+      }
+    },
+    {
+      "id": "opencode",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "npm",
+        "package": "opencode-ai",
+        "version": "1.18.35",
+        "binary": "opencode",
+        "source": "https://github.com/anomalyco/opencode"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-opencode-compatibility",
+      "evidence": "{0}/huihua-live-opencode-*/",
+      "scopeLabel": "scope:provider:opencode",
+      "paths": {
+        "prefixes": [
+          "src/providers/opencode/",
+          "fixtures/opencode/",
+          "fixtures/compatibility/opencode/"
+        ],
+        "files": [
+          "tools/producer-compat/opencode.ts",
+          "tools/producer-compat/baselines/opencode.json"
+        ]
+      }
+    },
+    {
+      "id": "pi",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "npm",
+        "package": "@earendil-works/pi-coding-agent",
+        "version": "1.1.0",
+        "binary": "pi",
+        "source": "https://github.com/earendil-works/pi"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-pi-compatibility",
+      "evidence": "{0}/huihua-live-pi-*/",
+      "scopeLabel": "scope:provider:pi",
+      "paths": {
+        "prefixes": [
+          "src/providers/pi/",
+          "fixtures/pi/",
+          "fixtures/compatibility/pi/"
+        ],
+        "files": [
+          "tools/producer-compat/pi.ts",
+          "tools/producer-compat/baselines/pi.json"
+        ]
+      }
+    },
+    {
+      "id": "qwen",
+      "ci": true,
+      "runner": "live.ts",
+      "install": {
+        "kind": "npm",
+        "package": "@qwen-code/qwen-code",
+        "version": "0.25.0",
+        "binary": "qwen",
+        "source": "https://github.com/QwenLM/qwen-code"
+      },
+      "protocol": "anthropic-messages",
+      "checks": [
+        "scan",
+        "read",
+        "snapshot",
+        "records",
+        "events",
+        "scenario"
+      ],
+      "journey": "Text \u00b7 resume",
+      "gaps": [
+        "No tool roundtrip or reviewed native-shape baseline."
+      ],
+      "artifact": "synthetic-qwen-compatibility",
+      "evidence": "{0}/huihua-live-qwen-*/",
+      "scopeLabel": "scope:provider:qwen",
+      "paths": {
+        "prefixes": [
+          "src/providers/qwen/",
+          "fixtures/qwen/",
+          "fixtures/compatibility/qwen/"
+        ],
+        "files": [
+          "tools/producer-compat/qwen.ts",
+          "tools/producer-compat/baselines/qwen.json"
+        ]
+      }
+    }
+  ],
+  "selection": {
+    "fallback": "all",
+    "manualAllLabel": "ci:all",
+    "manualProviderPrefix": "ci:provider:",
+    "qualityOnly": {
+      "prefixes": [
+        "docs/",
+        "packages/usage/"
+      ],
+      "files": [
+        "README.md",
+        "README.zh-CN.md",
+        "LICENSE",
+        "AGENTS.md",
+        ".github/workflows/quality.yml"
+      ],
+      "suffixes": [
+        "/RESEARCH.md"
+      ]
+    }
+  }
+}

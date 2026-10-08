@@ -7,6 +7,8 @@ import { dirname, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { parseAllDocuments } from 'yaml'
 
+import { activeProviders, manifest } from './producer-compat/catalog.ts'
+
 const runtimeDependencies = new Set(['fzstd', 'xxhashjs', '@bufbuild/protobuf', 'picomatch']) // Dependency decisions: docs/architecture.md.
 const developmentDependencies = new Set([
   'typescript',
@@ -58,7 +60,9 @@ export async function policy(): Promise<void> {
   assert(producerHarness.includes('assertDiscovery(stores, scan'))
   assert(producerHarness.includes('assertNativeRead(store, read)'))
   const producerWorkflow = await readFile('.github/workflows/producer-compat.yml', 'utf8')
-  assert(producerWorkflow.includes('5bdf08c6d0c48c1b9a12a287ff9d135844e07d52'))
+  assert.match(manifest.simulator.commit, /^[a-f\d]{40}$/)
+  assert.equal(manifest.simulator.commit, '4357945b88d16a1a3155c39305ce135dc66b9510')
+  assert(producerWorkflow.includes('manifest.json'))
   assert(producerWorkflow.includes('contents: read'))
 
   const kimiAudit = await readFile('tools/producer-compat/kimi.ts', 'utf8')
@@ -66,8 +70,20 @@ export async function policy(): Promise<void> {
   const kimiHarness = await readFile('tools/producer-compat/kimi.ts', 'utf8')
   assert(kimiHarness.includes('homeDir: home'))
   assert(kimiHarness.includes('assertKimiReplies(rows, session.events)'))
-  const producerJobs = (parseAllDocuments(producerWorkflow)[0]!.toJS() as { jobs: Record<string, { steps: { 'continue-on-error'?: boolean, 'name'?: string }[], strategy?: { matrix: { provider: { id: string }[] } } }> }).jobs
-  assert.deepEqual(producerJobs.compatibility!.strategy!.matrix.provider.map(provider => provider.id), ['claude', 'kimi', 'codex'])
+  const producerJobs = (parseAllDocuments(producerWorkflow)[0]!.toJS() as { jobs: Record<string, { steps: { 'continue-on-error'?: boolean, 'name'?: string }[], strategy?: { matrix: { provider: string } } }> }).jobs
+  assert.equal(producerJobs.compatibility!.strategy!.matrix.provider, `\${{ fromJSON(needs.catalog.outputs.providers) }}`)
+  assert(activeProviders.length > 3)
+  assert.equal(manifest.selection.fallback, 'all')
+  assert(producerWorkflow.includes('has_providers'))
+  assert(producerWorkflow.includes('producer compatibility result'))
+  assert(producerWorkflow.includes('needs: [catalog, compatibility]'))
+  assert(producerWorkflow.includes('fetch-depth: 0'))
+  const selector = await readFile('tools/producer-compat/catalog.ts', 'utf8')
+  assert(selector.includes('--no-renames'))
+  assert(selector.includes('Change detection unavailable'))
+  const nativeAudit = await readFile('tools/producer-compat/native.ts', 'utf8')
+  assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(nativeAudit))
+  assert(nativeAudit.includes('from \'node:sqlite\''))
   assert(producerJobs.compatibility!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
   assert(producerWorkflow.includes('needs: [compatibility]'))
   assert(producerWorkflow.includes('issues: write'))

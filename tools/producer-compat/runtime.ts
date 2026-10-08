@@ -142,3 +142,14 @@ export function startSimulator(directory: string, port: number) {
     },
   }
 }
+
+export function chatExchange(label: string, marker: string, reply: string) {
+  const base = { id: `chatcmpl_${label}`, object: 'chat.completion.chunk', created: 1, model: 'gpt-test' }
+  return { label, request: { method: 'POST', path: '/v1/chat/completions', bodyTextIncludes: [marker] }, response: { kind: 'stream', steps: [
+    { kind: 'event', event: { ...base, choices: [{ index: 0, delta: { role: 'assistant', content: reply }, finish_reason: null }] } },
+    { kind: 'event', event: { ...base, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] } },
+    { kind: 'event', event: { ...base, choices: [], usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 } } },
+    { kind: 'event', event: '[DONE]' },
+    { kind: 'close' },
+  ] } }
+}

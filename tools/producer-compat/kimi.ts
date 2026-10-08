@@ -8,6 +8,7 @@ import process from 'node:process'
 import type { Session } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
+import { writeReviewPacket } from './review.ts'
 import { exchange, json, required, startSimulator } from './runtime.ts'
 
 // Scenario-local oracle over real writer records, not Huihua's parsing output.
@@ -114,6 +115,8 @@ async function main(): Promise<void> {
         session = { ...session, events }
       }
       await writeFile(join(root, `${kind}.json`), JSON.stringify(session, null, 2))
+      if (kind === 'read')
+        await writeReviewPacket('kimi', root, session)
       assert.deepEqual(session.records.map(record => record.native), [state, ...rows], 'Kimi raw native records changed or missing')
       assertKimiReplies(rows, session.events)
       progress.completed.push(kind)

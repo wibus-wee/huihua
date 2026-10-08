@@ -9,6 +9,7 @@ import process from 'node:process'
 import type { ScanResult, Session, SessionEvent } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
+import { writeReviewPacket } from './review.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
 import { assertNoProducerDrift, exchange, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
@@ -260,6 +261,8 @@ async function main(): Promise<void> {
     const ref = scan.refs.find(item => item.id === sessionId)
     assert(ref, 'real producer did not persist a discoverable session')
     const session = await sessions.read(ref)
+    await writeFile(join(root, 'read.json'), JSON.stringify(session, null, 2))
+    await writeReviewPacket('claude', root, session)
     const opened = await sessions.open(ref)
     const snapshot = await opened.snapshot()
     assert.deepEqual(snapshot, session)

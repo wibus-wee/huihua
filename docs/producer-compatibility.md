@@ -3,8 +3,8 @@
 This opt-in CI harness tests Huihua discovery and reading against independently inventoried,
 real producer-owned stores.
 Agent execution only prepares the input:
-Claude Code → pinned model-api-simulator → producer-owned JSONL → Huihua scan/read/open/events.
-It currently produces two independent sessions, one with a Read tool roundtrip and resume.
+Native CLI / official recorder → pinned model-api-simulator → producer-owned disk records → Huihua scan/read/open/events.
+The manifest declares the exact producer, wire protocol, journey, and remaining gaps for every registered provider.
 A successful Agent run is not a successful Huihua compatibility result.
 It does not replace historical fixtures or claim all-provider compatibility.
 
@@ -83,7 +83,7 @@ or tool semantics is a hard failure even if unknown counts do not increase.
 Baseline updates require inspecting the report and native evidence; the harness never auto-accepts them.
 Unknown events and their diagnostics are not counted as two separate unknown records.
 
-The PR/push lane pins Claude Code 2.1.292 and simulator commit 5bdf08c.
+Pinned versions and the simulator commit are owned by tools/producer-compat/manifest.json.
 The daily scheduled canary resolves the latest Claude Code version while keeping simulator/scenarios
 fixed, and records the version in the run summary.
 Producer jobs emit CI results and synthetic artifacts; the trusted daily reporter described
@@ -295,3 +295,117 @@ results into the Summary and incident report.
 Reports bound visible paths and retain the complete diff in synthetic artifacts.
 Distinct path diffs receive distinct incident fingerprints; unchanged diffs still deduplicate
 across lanes and runs.
+
+## All-provider manifest and reusable runners
+
+`tools/producer-compat/manifest.json` is the inventory of all 20 registry providers.
+A policy test rejects omissions/duplicates.
+The workflow derives its matrix from
+that file; the same entries drive installation, required checks, job summaries,
+and the daily dashboard.
+A missing result cannot make an enabled lane disappear.
+Disabled entries remain visible as NOT CERTIFIED with a concrete reason.
+
+- `catalog.ts` resolves pinned/latest installations and records exact versions,
+  executable hashes, manifest hash, source, and simulator commit in an installation manifest.
+  Native fx/Grok pinned binaries are hash-checked; Python/Hermes pins an upstream
+  commit and uses its frozen lockfile.
+  The publisher imports only data/Node-builtins,
+  installs no packages, and does not execute downloaded evidence.
+- `live.ts` shares isolated HOME/config, real first-turn/resume execution, expected
+  simulator replies, and bounded process cleanup across the CLI producers.
+- `native.ts` owns scenario-scoped independent oracles: Node filesystem/JSON,
+  Node's native SQLite reader, and the zstd executable.
+  It never imports Huihua's
+  discovery, decoder, or mapper.
+  Native rows and assistant text/record association
+  are checked across read, snapshot, streamed records, and streamed events.
+- `recording.ts` records actual Qwen ACP JSON-RPC and official OAR voyages from
+  a Pi runtime.
+  These are format+producer checks, not fabricated notifications,
+  and do not certify all ACP servers or every OAR runtime.
+  Both currently cover
+  a first turn, not process-restart resume.
+
+Cline 3.0.70's `--id` switches to interactive mode and clears the prompt, so its
+`--json` resume is rejected by the producer.
+Its first-turn lane declares that gap.
+New lanes do not inherit Claude/Codex's tool or reviewed native-baseline claims.
+The model replies are deterministic local protocol scenarios; no paid model or
+real account credential is used.
+Native tools need their own runtimes (including
+Python 3.14 for Hermes); these are test-only, not Huihua dependencies.
+
+### Verified discovery from the new live checks
+
+On 2026-10-08, fx 0.0.13 wrote a schema-version-4 `session.json` plus an
+`events.jsonl` containing both sentinel replies in one resumed conversation.
+Huihua discovered the native ID, but `read` raised `UnsupportedSchema: unsupported
+fx snapshot schema`.
+The existing reader expects schema version 3 and checkpoint
+snapshots.
+The fx lane intentionally reports this as a reading failure; no
+continue-on-error, fabricated old store, or automatically accepted baseline hides it.
+This integration change does not modify the product parser.
+
+## Primitive-review inputs
+
+Every successful read emits `primitive-review.json` and
+`primitive-review.prompt.txt`; a failed read emits a packet with native inventory
+and an explicit unavailable canonical result.
+Packets include current contract
+and mapping source with hashes, producer/version/protocol, exact record pointers,
+canonical events, diagnostics, and bounded neighbor context.
+Complete evidence
+remains in the uploaded synthetic artifacts; truncation is explicit.
+
+The prompt distinguishes metadata-only, missing existing mapping, extension of
+an existing primitive, a candidate new primitive, and insufficient evidence.
+It
+requires a concrete consumer need and source-record/pointer citations, and treats
+all native/model text as untrusted data.
+Existing unknown/raw-only records are
+included even without shape drift.
+A config/rule permission decision is not
+assumed to be human approval.
+No external LLM is called, and no review can accept
+a baseline or change the public event contract automatically.
+
+## Change-scoped PR checks
+
+The same manifest maps source/fixture paths to provider scope labels and those
+scopes to runnable lanes.
+The catalog summary lists selected providers, scope
+labels, selection reasons, and affected providers without a certified producer.
+These scope labels are internal classifications shown in the summary; the job
+has no permission to write labels onto a PR.
+
+- A provider's code, native fixtures, or dedicated oracle/baseline selects that
+  provider.
+  A rename across providers selects both the old and new paths.
+- Documentation, provider RESEARCH files, and the usage consumer run regular
+  quality checks without installing native CLIs.
+- Shared ingestion/contracts/registry, shared harness or manifest, dependency
+  changes, and any unclassified path conservatively select every runnable lane.
+- Scheduled and manual runs keep the full pinned/latest matrix, independently
+  of repository paths, to detect upstream producer changes.
+- Manual `ci:all` or `ci:provider:ID` PR labels can only expand the selection.
+  They are read fresh when a PR check runs or is rerun.
+  Adding a label alone does
+  not start a new workflow; rerun the check after applying an override.
+  There is
+  no skip label that can hide a required lane.
+
+Native checks run on PRs and main-branch pushes, avoiding duplicate real-CLI runs
+for both a feature-branch push and its PR update.
+The selector uses the real Git comparison with full checkout history and
+`--no-renames`, and treats missing comparison data or failed label reads as full
+coverage.
+An empty matrix is intentionally skipped, not an Actions matrix error.
+The stable `producer compatibility result` job fails on selector failure,
+selected-lane failure, or cancellation; it succeeds on a justified empty
+selection without claiming any missing native-reader coverage.
+Quality CI keeps
+running separately.
+Live failures such as fx remain red whenever their scope is
+selected; routing never changes an assertion or accepts a baseline.
