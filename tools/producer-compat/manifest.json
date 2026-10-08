@@ -375,8 +375,7 @@
       ],
       "journey": "Text \u00b7 resume",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline.",
-        "Observed fx 0.0.13 schema_version 4/events.jsonl: Huihua read throws UnsupportedSchema. This lane must remain red until fixed."
+        "No tool roundtrip or reviewed native-shape baseline."
       ],
       "artifact": "synthetic-fx-compatibility",
       "evidence": "{0}/huihua-live-fx-*/",

@@ -486,7 +486,7 @@ New provider IDs and source formats are additive; consumers should continue acce
 | openclaw    | OPENCLAW_STATE_DIR/agents or ~/.openclaw/agents and legacy ~/.clawdbot/agents                         | Selected session_windows/transcript_events, Zstandard payloads and legacy JSONL; no cold restoration                 |
 | qwen        | Existing QWEN_HOME/projects or ~/.qwen/projects; certified chats[/archive] JSONL                      | Native Google parts, usage and system subtypes; telemetry excluded, malformed data never repaired                    |
 | devin       | Absolute XDG_DATA_HOME or ~/.local/share; devin/cli/sessions.db                                       | All selected message nodes; native chain order and branch markers; no inferred usage                                 |
-| fx          | ~/.fx/sessions; session.json and checkpoint.json                                                      | Manifest-3/checkpoint-1 snapshots and optional display.json; post-checkpoint event tail diagnosed                    |
+| fx          | ~/.fx/sessions; session.json with events.jsonl or checkpoint.json                                     | Metadata-4/conversation-1–3 frames; legacy manifest-3/checkpoint-1 snapshots retain their partial-tail diagnostic    |
 | cline       | CLINE_DATA_DIR/sessions or ~/.cline/data/sessions; <id>.json and adjacent <id>.messages.json          | Version-1 CLI/Desktop messages, metrics and surface; external paths never followed                                   |
 | deepseek    | DSH_HOME/sessions or ~/.dsh/sessions; session[.vN].jsonl[.zstd]                                       | Highest immutable generation, known v0–v4 facts; no migration or surface replay                                      |
 | droid       | ~/.factory/sessions and ~/.factory/projects; JSONL                                                    | Legacy stored messages and stream-json captures; no current private-store certification                              |
@@ -548,6 +548,15 @@ Optional companions retain their actual paths and missing companions supply no f
 Companion native identities must agree even when the caller labels the result with another ID.
 Manifest paths never authorize following arbitrary embedded filesystem paths.
 A streaming JSON parser is an alternative for larger snapshots, but these adapters need complete native-object evidence and the existing bounded reader fits the documented limit; no parallel JSON parser is introduced.
+
+fx owns a version dispatch for schema-4 metadata plus its adjacent conversation log.
+The legacy route still uses the snapshot factory; the current route composes bounded readJson/jsonLines with Ingestion and openFrom, without widening the generic factory or adding a second framer.
+Metadata and every physical event row retain separate native evidence, timestamps and sequence associations.
+Current reads preserve unknown/future/malformed frames, repeated IDs, interruption text and tool result previews/references, without fetching artifacts or reconstructing runtime state.
+Missing logs fail; unsupported metadata versions fail; optional display metadata remains separate.
+The handle conservatively reports buffered mode because the legacy route requires complete checkpoints.
+This changes only fx format support, not the public SPI, agent-session/v1 or dependencies.
+The owning RESEARCH.md pins the upstream writer and real CLI capture; provider-imports regressions and tools/policy.ts enforce the acquisition and legacy-compatibility boundary.
 
 Selected row-store acquisition belongs to shared/sqlite-store.ts; Hermes, Devin and OpenClaw own native tables, metadata, ordering and message mapping.
 The helper validates required columns, requires locator.id, preserves the selected metadata row and buffers selected transcript rows.
