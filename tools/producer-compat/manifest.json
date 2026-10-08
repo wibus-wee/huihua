@@ -737,6 +737,7 @@
     "qualityOnly": {
       "prefixes": [
         "docs/",
+        "tests/",
         "packages/usage/"
       ],
       "files": [
@@ -744,6 +745,7 @@
         "README.zh-CN.md",
         "LICENSE",
         "AGENTS.md",
+        "tools/policy.ts",
         ".github/workflows/quality.yml"
       ],
       "suffixes": [

@@ -383,9 +383,14 @@ has no permission to write labels onto a PR.
 - A provider's code, native fixtures, or dedicated oracle/baseline selects that
   provider.
   A rename across providers selects both the old and new paths.
-- Documentation, provider RESEARCH files, and the usage consumer run regular
+- Documentation, provider RESEARCH files, tests, tools/policy.ts and the usage consumer run regular
   quality checks without installing native CLIs.
-- Shared ingestion/contracts/registry, shared harness or manifest, dependency
+- Manifest changes compare parsed base/head JSON: changed provider entries select
+  those providers; formatting and provider order alone select none.
+  PR comparisons use the same merge base as the path diff, not an independently advanced main.
+  Global fields, inventory, availability or path-routing changes require every lane.
+  Missing, malformed or unsupported comparison data also require every lane.
+- Shared ingestion/contracts/registry, shared harness/selector, dependency
   changes, and any unclassified path conservatively select every runnable lane.
 - Scheduled and manual runs keep the full pinned/latest matrix, independently
   of repository paths, to detect upstream producer changes.
@@ -407,5 +412,8 @@ selected-lane failure, or cancellation; it succeeds on a justified empty
 selection without claiming any missing native-reader coverage.
 Quality CI keeps
 running separately.
+The captured fx fix (PR #22) is a regression case: its parser, fixtures, shared
+test file, policy assertions and fx-only manifest gap update now select only fx.
+A PR changing the selector itself still selects all lanes to validate that shared infrastructure.
 Live failures remain red whenever their scope is
 selected; routing never changes an assertion or accepts a baseline.

@@ -183,6 +183,7 @@ await test('path scopes and manual labels never shrink required provider coverag
   const all = activeProviders.map(provider => provider.id)
   assert.deepEqual(selectProviders(['docs/guide.md', 'README.md', 'src/providers/fx/RESEARCH.md']).providers, [])
   assert.deepEqual(selectProviders(['packages/usage/src/cli.ts']).providers, [])
+  assert.deepEqual(selectProviders(['tests/provider-imports.test.ts', 'tools/policy.ts']).providers, [])
   assert.deepEqual(selectProviders(['src/providers/pi/index.ts']).providers, ['pi'])
   assert.deepEqual(selectProviders(['fixtures/compatibility/qwen/new.jsonl', 'tools/producer-compat/baselines/claude.json']).providers, ['claude', 'qwen'])
   assert.deepEqual(selectProviders(['src/providers/pi/index.ts', 'src/providers/qwen/index.ts']).providers, ['pi', 'qwen'])
@@ -199,6 +200,34 @@ await test('path scopes and manual labels never shrink required provider coverag
   assert(blocked.scopeLabels.includes('scope:provider:cursor'))
 })
 
+await test('provider-local manifest differences select only affected native checks', () => {
+  const path = 'tools/producer-compat/manifest.json'
+  const changed = structuredClone(manifest)
+  changed.providers.find(provider => provider.id === 'fx')!.gaps = ['resolved failure; tool coverage remains incomplete']
+  const changes = { before: manifest, after: changed }
+  const select = (delta: typeof changes) => selectProviders([path], [], false, delta)
+  assert.deepEqual(select(changes).providers, ['fx'])
+  assert.deepEqual(selectProviders([path], ['ci:provider:qwen'], false, changes).providers, ['fx', 'qwen'])
+  assert.deepEqual(selectProviders(['src/providers/fx/index.ts', 'fixtures/fx/current/events.jsonl', 'tests/provider-imports.test.ts', 'tools/policy.ts', path], [], false, changes).providers, ['fx'])
+  assert.deepEqual(select({ before: manifest, after: structuredClone(manifest) }).providers, [])
+  const global = structuredClone(manifest)
+  global.simulator.commit = '0'.repeat(40)
+  assert.equal(select({ before: manifest, after: global }).full, true)
+  const routing = structuredClone(manifest)
+  routing.providers.find(provider => provider.id === 'fx')!.paths.prefixes.push('other/')
+  assert.equal(select({ before: manifest, after: routing }).full, true)
+  const inventory = structuredClone(manifest)
+  inventory.providers.pop()
+  assert.equal(select({ before: manifest, after: inventory }).full, true)
+  assert.equal(selectProviders([path], [], false, { before: null, after: manifest }).full, true)
+  const two = structuredClone(changed)
+  two.providers.find(provider => provider.id === 'pi')!.install!.version = 'synthetic-version'
+  assert.deepEqual(select({ before: manifest, after: two }).providers, ['fx', 'pi'])
+  const blocked = structuredClone(manifest)
+  blocked.providers.find(provider => provider.id === 'cursor')!.reason = 'synthetic changed blocker'
+  assert.deepEqual(select({ before: manifest, after: blocked }).unavailable, ['cursor'])
+})
+
 await test('real git comparison handles doc-only changes, cross-provider renames and missing bases', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'huihua-scope-test-'))
   const catalog = fileURLToPath(new URL('../tools/producer-compat/catalog.ts', import.meta.url))
@@ -208,14 +237,17 @@ await test('real git comparison handles doc-only changes, cross-provider renames
     git('-c', 'user.name=Synthetic Test', '-c', 'user.email=synthetic@example.invalid', 'commit', '-qm', 'synthetic change')
     return git('rev-parse', 'HEAD')
   }
-  const selected = async (before: string, after: string) => {
+  const selected = async (before: string, after: string, pr = false) => {
     const eventPath = join(directory, 'event.json')
-    await writeFile(eventPath, JSON.stringify({ before, after }))
-    const output = execFileSync(process.execPath, [catalog, 'matrix'], { cwd: directory, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', GITHUB_EVENT_NAME: 'push', GITHUB_EVENT_PATH: eventPath } })
+    await writeFile(eventPath, JSON.stringify(pr ? { pull_request: { number: 1, base: { sha: before }, head: { sha: after }, labels: [] } } : { before, after }))
+    const output = execFileSync(process.execPath, [catalog, 'matrix'], { cwd: directory, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', GITHUB_EVENT_NAME: pr ? 'pull_request' : 'push', GITHUB_EVENT_PATH: eventPath } })
     return (JSON.parse(output) as { id: string }[]).map(provider => provider.id)
   }
   try {
     git('init', '-q')
+    await mkdir(join(directory, 'tools/producer-compat'), { recursive: true })
+    const manifestPath = join(directory, 'tools/producer-compat/manifest.json')
+    await writeFile(manifestPath, JSON.stringify(manifest))
     await mkdir(join(directory, 'src/providers/pi'), { recursive: true })
     await writeFile(join(directory, 'src/providers/pi/index.ts'), '// synthetic\n')
     await writeFile(join(directory, 'README.md'), 'Before\n')
@@ -230,6 +262,34 @@ await test('real git comparison handles doc-only changes, cross-provider renames
     const renamed = commit()
     assert.deepEqual(await selected(docs, renamed), ['pi', 'qwen'])
     assert.deepEqual(await selected('0'.repeat(40), renamed), activeProviders.map(provider => provider.id))
+    await rm(join(directory, 'event.json'))
+    const fx = structuredClone(manifest)
+    fx.providers.find(provider => provider.id === 'fx')!.gaps = ['remaining tool coverage gap']
+    await writeFile(manifestPath, JSON.stringify(fx))
+    await mkdir(join(directory, 'src/providers/fx'), { recursive: true })
+    await mkdir(join(directory, 'tests'))
+    await writeFile(join(directory, 'src/providers/fx/index.ts'), '// fx fix\n')
+    await writeFile(join(directory, 'tests/provider-imports.test.ts'), '// fx regression\n')
+    await writeFile(join(directory, 'tools/policy.ts'), '// fx policy\n')
+    const fxCommit = commit()
+    assert.deepEqual(await selected(renamed, fxCommit), ['fx'])
+    await rm(join(directory, 'event.json'))
+    fx.simulator.commit = '1'.repeat(40)
+    await writeFile(manifestPath, JSON.stringify(fx))
+    const global = commit()
+    assert.deepEqual(await selected(fxCommit, global), activeProviders.map(provider => provider.id))
+    await rm(join(directory, 'event.json'))
+    await writeFile(manifestPath, '{broken')
+    const malformed = commit()
+    assert.deepEqual(await selected(global, malformed), activeProviders.map(provider => provider.id))
+    await rm(join(directory, 'event.json'))
+    git('checkout', '-qb', 'base-side', renamed)
+    const advanced = structuredClone(manifest)
+    advanced.providers.find(provider => provider.id === 'pi')!.install!.version = 'synthetic-new-base'
+    await writeFile(manifestPath, JSON.stringify(advanced))
+    const advancedBase = commit()
+    // Main advanced independently; its Pi change is not part of the fx PR diff.
+    assert.deepEqual(await selected(advancedBase, fxCommit, true), ['fx'])
   }
   finally { await rm(directory, { recursive: true, force: true }) }
 })
