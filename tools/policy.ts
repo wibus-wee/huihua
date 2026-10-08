@@ -67,7 +67,11 @@ export async function policy(): Promise<void> {
   assert(kimiHarness.includes('homeDir: home'))
   assert(kimiHarness.includes('assertKimiReplies(rows, session.events)'))
   assert(producerWorkflow.includes('test:producer-compat:kimi'))
-  assert(!producerWorkflow.includes('continue-on-error'))
+  const producerJobs = (parseAllDocuments(producerWorkflow)[0]!.toJS() as { jobs: Record<string, { steps: { 'continue-on-error'?: boolean, 'name'?: string }[] }> }).jobs
+  for (const provider of ['claude', 'kimi', 'codex'])
+    assert(producerJobs[provider]!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
+  assert(producerWorkflow.includes('issues: write'))
+  assert(producerWorkflow.includes('github.ref == format(\'refs/heads/{0}\', github.event.repository.default_branch)'))
   const codexAudit = await readFile('tools/producer-compat-codex-audit.ts', 'utf8')
   assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(codexAudit))
   const codexHarness = await readFile('tools/producer-compat-codex.ts', 'utf8')

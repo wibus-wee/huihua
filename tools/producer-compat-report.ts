@@ -1,6 +1,7 @@
-import { appendFile, readFile } from 'node:fs/promises'
+import { appendFile, readFile, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 
+import { laneResult } from './producer-compat-daily.ts'
 import type { CompatibilityProgress } from './producer-compat-summary.ts'
 import { renderCompatibilitySummary } from './producer-compat-summary.ts'
 
@@ -12,8 +13,14 @@ catch (error) {
   if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT'))
     throw error
 }
-const summary = renderCompatibilitySummary(progress, process.env.COMPAT_OUTCOME ?? 'unknown', process.env.COMPAT_PROVIDER === 'codex' ? 'codex' : process.env.COMPAT_PROVIDER === 'kimi' ? 'kimi' : 'claude')
+const summary = renderCompatibilitySummary(progress, process.env.COMPAT_OUTCOME ?? 'unknown', process.env.COMPAT_PROVIDER === 'codex' ? 'codex' : process.env.COMPAT_PROVIDER === 'kimi' ? 'kimi' : 'claude', process.env.COMPAT_LANE === 'latest' ? 'latest' : 'pinned')
 if (process.env.GITHUB_STEP_SUMMARY !== undefined && process.env.GITHUB_STEP_SUMMARY !== '')
   await appendFile(process.env.GITHUB_STEP_SUMMARY, summary)
 else
   console.log(summary)
+
+if (process.env.COMPAT_RESULT_PATH !== undefined) {
+  const provider = process.env.COMPAT_PROVIDER === 'codex' ? 'codex' : process.env.COMPAT_PROVIDER === 'kimi' ? 'kimi' : 'claude'
+  const result = laneResult(provider, process.env.COMPAT_LANE === 'latest' ? 'latest' : 'pinned', process.env.COMPAT_CLI_VERSION ?? 'unavailable', process.env.GITHUB_SHA ?? 'local', process.env.COMPAT_OUTCOME ?? 'unknown', progress)
+  await writeFile(process.env.COMPAT_RESULT_PATH, JSON.stringify(result, null, 2))
+}

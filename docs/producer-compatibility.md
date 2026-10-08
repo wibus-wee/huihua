@@ -228,3 +228,36 @@ These are retained lifecycle/state or mirrored item records, not newly supported
 Canonical assistant replies and tool outputs are independently checked against response_item
 rows, so accepting these known unknowns does not excuse missing message content.
 There are no optional field paths, automatic updates or widened unknown limits.
+
+## Daily tracking and incident issues
+
+Daily schedule: 05:17 UTC (13:17 Asia/Shanghai).
+After this workflow is merged to the default branch, each provider runs both pinned and
+latest CLI lanes against the same Huihua commit; PR/push runs keep pinned lanes only.
+Manual runs can choose both lanes and opt into issue publishing on the default branch.
+The live jobs have read-only repository permissions and separate synthetic artifacts.
+A default-branch-only publisher has issues:write and never installs or executes artifacts;
+it reads validated structured lane results, not native stores or arbitrary scripts.
+No issue is published from pull requests or non-default branches.
+
+One fixed issue, identified by `huihua-daily-compatibility:v1`, holds the current six-lane
+matrix and one bot-owned history comment per UTC day.
+Re-runs update that day's bot comment; human notes outside the managed body section remain intact.
+Missing, duplicate or wrong-commit artifacts are incomplete, never passing.
+Provider versions, the Huihua commit, stage, native counts, Actions links and uncovered
+Kimi/tool/schema scenarios stay visible even when all implemented checks pass.
+
+Anomalies use provider, verdict, stage and a normalized error fingerprint for deduplication
+across pinned/latest, versions, temporary paths and run timestamps.
+Read failures, schema review and environment/incomplete incidents are titled distinctly;
+an issue is not an automatic claim of a Huihua parser root cause.
+Existing incident issues receive a dated evidence comment, including closed incidents;
+the publisher does not automatically close or reopen any issue.
+A closed daily tracker stops publication for manual review.
+Failed or uncertain writes are not blindly retried; later runs reconcile stable markers first.
+It never accepts a baseline automatically or patches product code.
+
+The publisher supports read-only preview with COMPAT_PUBLISH unset; production writes
+require schedule/workflow_dispatch on the default branch plus an explicit publish flag.
+Tests cover classifications, missing/stale/duplicate results, managed text preservation,
+deduplication and Markdown/mention escaping.

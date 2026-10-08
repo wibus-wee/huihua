@@ -801,3 +801,11 @@ Its source-row oracle owns no production parser and uses the existing native-fie
 collector and reviewed-baseline comparison.
 Startup, acquisition, semantics and drift remain separate verdict stages.
 The tools policy checks that the new lane remains isolated and cannot silently pass failures.
+
+Daily compatibility reporting is CI-only orchestration in the tools layer.
+`producer-compat-daily.ts` owns pure verdict/rendering/deduplication rules;
+`producer-compat-publish.ts` owns bounded GitHub issue communication.
+The default-branch publisher consumes validated result JSON with no package installation
+or artifact code execution, and write permissions never reach producer jobs.
+Runtime dependencies, ingestion APIs and provider behavior are unchanged.
+Machine checks and focused tests enforce failure visibility and report preservation.
