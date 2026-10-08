@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
+import { isDeepStrictEqual } from 'node:util'
 
 import manifest from './manifest.json' with { type: 'json' }
 
@@ -23,8 +24,51 @@ export interface ProviderSelection {
   full: boolean
 }
 
+const manifestPath = 'tools/producer-compat/manifest.json'
+interface ManifestDiff { before: unknown, after: unknown }
+
+function manifestImpact(diff: ManifestDiff | undefined): { providers: string[], full: boolean, reason: string } {
+  const full = (reason: string) => ({ providers: [], full: true, reason })
+  try {
+    assert(diff !== undefined, 'Manifest comparison unavailable')
+    const parse = (value: unknown) => {
+      assert(value !== null && typeof value === 'object' && !Array.isArray(value), 'Invalid manifest')
+      const { providers, ...global } = value as Record<string, unknown>
+      assert(global.schemaVersion === 1 && Array.isArray(providers), 'Unsupported manifest schema')
+      const entries = new Map<string, Record<string, unknown>>()
+      for (const value of providers) {
+        assert(value !== null && typeof value === 'object' && !Array.isArray(value), 'Invalid provider entry')
+        const entry = value as Record<string, unknown>
+        assert(typeof entry.id === 'string' && typeof entry.ci === 'boolean' && !entries.has(entry.id), 'Invalid/duplicate provider identity')
+        entries.set(entry.id, entry)
+      }
+      return { global, entries }
+    }
+    const before = parse(diff.before)
+    const after = parse(diff.after)
+    if (!isDeepStrictEqual(before.global, after.global))
+      return full('Manifest global configuration changed')
+    const ids = [...after.entries.keys()].sort()
+    if (!isDeepStrictEqual([...before.entries.keys()].sort(), ids) || !isDeepStrictEqual(ids, manifest.providers.map(provider => provider.id).sort()))
+      return full('Manifest provider inventory changed or differs from the active catalog')
+    const changed: string[] = []
+    for (const id of ids) {
+      const previous = before.entries.get(id)!
+      const current = after.entries.get(id)!
+      if (!isDeepStrictEqual(previous.paths, current.paths) || previous.scopeLabel !== current.scopeLabel || previous.ci !== current.ci)
+        return full('Manifest routing or provider availability changed')
+      if (!isDeepStrictEqual(previous, current))
+        changed.push(id)
+    }
+    return { providers: changed, full: false, reason: changed.length ? `Manifest provider entries changed: ${changed.join(', ')}` : 'Manifest formatting/order only; no provider configuration changed' }
+  }
+  catch (error) {
+    return full(`Manifest comparison unavailable or invalid: ${String(error)}`)
+  }
+}
+
 /** Path scopes select lanes. Manual labels may only add coverage, never remove it. */
-export function selectProviders(paths: readonly string[], labels: readonly string[] = [], full = false): ProviderSelection {
+export function selectProviders(paths: readonly string[], labels: readonly string[] = [], full = false, manifestDiff?: ManifestDiff): ProviderSelection {
   const selected = new Set<string>()
   const scopeLabels = new Set<string>()
   const reasons = new Set<string>()
@@ -33,6 +77,18 @@ export function selectProviders(paths: readonly string[], labels: readonly strin
     reasons.add('Scheduled/manual run: full native-provider matrix')
   const quality = manifest.selection.qualityOnly
   for (const path of paths) {
+    if (path === manifestPath) {
+      const impact = manifestImpact(manifestDiff)
+      all ||= impact.full
+      reasons.add(impact.reason)
+      if (impact.full)
+        scopeLabels.add('scope:shared-or-unknown')
+      for (const id of impact.providers) {
+        selected.add(id)
+        scopeLabels.add(providerManifest(id).scopeLabel)
+      }
+      continue
+    }
     if (quality.files.includes(path) || quality.prefixes.some(prefix => path.startsWith(prefix)) || quality.suffixes.some(suffix => path.endsWith(suffix))) {
       scopeLabels.add(path.startsWith('packages/usage/') ? 'scope:usage' : 'scope:docs-or-quality')
       reasons.add(`${path}: regular quality checks only`)
@@ -111,7 +167,14 @@ async function matrixSelection(): Promise<ProviderSelection> {
       assert(Array.isArray(current.labels) && current.labels.every(label => typeof label.name === 'string'))
       labels = current.labels.map(label => label.name)
     }
-    return selectProviders(paths, labels)
+    let manifestDiff: ManifestDiff | undefined
+    if (paths.includes(manifestPath)) {
+      // Compare exactly the same trees as the path diff, including a PR's merge base.
+      const start = pr ? execFileSync('git', ['merge-base', base, head], { encoding: 'utf8' }).trim() : base
+      const read = (ref: string): unknown => JSON.parse(execFileSync('git', ['show', `${ref}:${manifestPath}`], { encoding: 'utf8', maxBuffer: 1024 * 1024 }))
+      manifestDiff = { before: read(start), after: read(head) }
+    }
+    return selectProviders(paths, labels, false, manifestDiff)
   }
   catch (error) {
     const selected = selectProviders([], [], true)

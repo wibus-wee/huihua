@@ -878,7 +878,14 @@ contracts, product parsers, production dependencies and package exports are unch
 The compatibility catalog also owns conservative change-scope routing.
 Paths
 map to provider scope labels in the manifest; scheduled/manual runs remain full.
-Documentation and consumer-only changes need no native producer installation.
+Documentation, test/policy and consumer-only changes need no native producer installation.
+Manifest comparison is owned by the same catalog: parsed provider-local entry changes
+select their lanes, while global settings, inventory, availability and routing changes select all.
+It reads both manifest blobs from the exact Git comparison (PR merge base included),
+and malformed/unavailable evidence retains full coverage.
+The alternative of treating every manifest edit as a shared runtime change was rejected:
+it made a single-provider fix plus its tests and gap documentation run every producer.
+No workflow permission, native assertion or public runtime contract changes.
 Unclassified paths or unavailable comparison data select all runnable lanes.
 Manual PR labels only expand scopes and are read with a read-only token.
 A stable
