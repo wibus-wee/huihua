@@ -24,12 +24,13 @@ await mkdir(config, { recursive: true })
 await mkdir(workspace)
 const port = Number(process.env.SIMULATOR_PORT ?? 18891)
 assert(Number.isSafeInteger(port) && port > 1024 && port < 65535)
+const unsandboxed = process.env.GITHUB_ACTIONS === 'true' && process.env.CODEX_COMPAT_UNSANDBOXED === '1'
 const base = `http://127.0.0.1:${port}`
 const control = `http://127.0.0.1:${port + 1}/_simulator`
 await writeFile(join(config, 'config.toml'), `model = "gpt-5.4"
 model_provider = "simulator"
 approval_policy = "never"
-sandbox_mode = "workspace-write"
+sandbox_mode = "${unsandboxed ? 'danger-full-access' : 'workspace-write'}"
 [model_providers.simulator]
 name = "Loopback simulator"
 base_url = "${base}/v1"

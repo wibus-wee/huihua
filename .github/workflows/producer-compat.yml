@@ -126,6 +126,7 @@ jobs:
         env:
           SIMULATOR_DIR: ${{ runner.temp }}/simulator
           CODEX_BIN: ${{ runner.temp }}/producers/node_modules/.bin/codex
+          CODEX_COMPAT_UNSANDBOXED: '1'
           COMPAT_REPORT: ${{ runner.temp }}/codex-compat-report.json
         run: pnpm test:producer-compat:codex
       - name: Publish reading compatibility summary

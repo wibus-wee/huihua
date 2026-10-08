@@ -194,7 +194,7 @@ Run locally with SIMULATOR_DIR, KIMI_BIN and optionally COMPAT_REPORT set, then
 ## Codex live lane
 
 The Codex job pins CLI 0.161.0 and uses the OpenAI Responses simulator, a fresh
-HOME/CODEX_HOME and workspace-write sandbox.
+HOME/CODEX_HOME and workspace-write sandbox by default.
 It requests only a deterministic read of a synthetic file, then resumes the same
 thread for a second reply.
 It never delegates repository work or uses real model credentials.
@@ -208,4 +208,8 @@ Startup errors are reported separately and never counted as parser failures or p
 Synthetic output and failure evidence are uploaded even when a stage fails.
 The development cloud's 0.161.0 pilot failed before model requests because the
 app-server sandbox rejected its socket directory; GitHub runner verification is required.
-No sandbox restriction is disabled to work around that host failure.
+The user approved disabling the inner Codex sandbox only for this synthetic GitHub job
+on 2026-10-08 after its shell read failed with bwrap loopback Operation not permitted.
+Both GITHUB_ACTIONS=true and CODEX_COMPAT_UNSANDBOXED=1 are required for that override;
+local runs keep workspace-write.
+No credentials, real workspace data or upstream model endpoints are used.
