@@ -9,7 +9,7 @@ import { sessions } from '../src/index.ts'
 import { assertDiscovery, assertNativeRead, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiReplies } from '../tools/producer-compat/kimi.ts'
-import { assertNoProducerDrift, nativeFieldPaths } from '../tools/producer-compat/runtime.ts'
+import { assertNoProducerDrift, NativeDriftError, nativeFieldPaths } from '../tools/producer-compat/runtime.ts'
 
 await test('independent native inventory detects omissions hidden by the old summary', async () => {
   const home = await mkdtemp(join(tmpdir(), 'huihua-audit-test-'))
@@ -129,4 +129,20 @@ await test('Codex audit catches raw loss, missing replies and tool association e
   finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+await test('reviewed optional paths accept new metadata without hiding type drift or required-field loss', () => {
+  const baseline = { unknown: {}, structured: 0, fieldPaths: ['$.message:object'], optionalFieldPaths: ['$.permissionDecision:object', '$.permissionDecision.decision:string'] }
+  assertNoProducerDrift(baseline, baseline)
+  assertNoProducerDrift({ ...baseline, fieldPaths: [...baseline.fieldPaths, ...baseline.optionalFieldPaths] }, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...baseline, fieldPaths: ['$.message:object', '$.permissionDecision.decision:number'] }, baseline), (error: unknown) => {
+    assert(error instanceof NativeDriftError)
+    assert.deepEqual(error.drift, { added: ['$.permissionDecision.decision:number'], removed: [] })
+    return true
+  })
+  assert.throws(() => assertNoProducerDrift({ ...baseline, fieldPaths: [] }, baseline), (error: unknown) => {
+    assert(error instanceof NativeDriftError)
+    assert.deepEqual(error.drift, { added: [], removed: ['$.message:object'] })
+    return true
+  })
 })

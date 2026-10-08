@@ -29,6 +29,11 @@ for (const name of await readdir(directory)) {
   assert(['passed', 'read-failure', 'drift-review', 'environment-blocked', 'incomplete'].includes(value.verdict))
   assert(typeof value.outcome === 'string' && (value.verdict !== 'passed' || (value.outcome === 'success' && value.stage === 'passed')), 'Inconsistent pass result')
   assert([value.sessions, value.records].every(count => count === null || (Number.isSafeInteger(count) && count >= 0)), 'Invalid counts in result')
+  if (value.drift !== undefined) {
+    assert(value.drift !== null && typeof value.drift === 'object', 'Invalid native drift in artifact')
+    for (const paths of [value.drift.added, value.drift.removed])
+      assert(Array.isArray(paths) && paths.length <= 10000 && paths.every(path => typeof path === 'string' && path.length <= 4096), 'Invalid native drift paths in artifact')
+  }
   results.push(value)
 }
 const matrix = completeMatrix(results, commit)

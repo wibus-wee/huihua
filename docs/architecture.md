@@ -835,3 +835,10 @@ Codex retains its narrow evidence allowlist and synthetic-job-only sandbox overr
 The shared simulator lifecycle owns startup, readiness, logs and bounded shutdown;
 provider config, model protocol, tool scenario and native assertions remain provider-owned.
 This reuses the existing runtime module instead of adding a composite Action or plugin framework.
+
+Native compatibility drift is typed test evidence in the existing runtime/report modules.
+A native-shape assertion carries added/removed paths into progress and lane artifacts;
+the trusted publisher validates these arrays before rendering or fingerprinting them.
+This extends only CI artifacts, not agent-session/v1 or public runtime contracts.
+Reviewed optional metadata preserves old/new producer compatibility without implying
+that raw preservation resolves a potential canonical-semantic gap.

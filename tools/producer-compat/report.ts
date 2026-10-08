@@ -2,12 +2,15 @@ import { createHash } from 'node:crypto'
 import { appendFile, readFile, writeFile } from 'node:fs/promises'
 import process from 'node:process'
 
+import type { NativeDrift } from './runtime.ts'
+
 export interface CompatibilityProgress {
   stage: string
   completed: string[]
   auditedSessions?: number
   auditedRecords?: number
   error?: string
+  drift?: NativeDrift
 }
 
 const checks = [
@@ -40,6 +43,7 @@ export function renderCompatibilitySummary(progress: CompatibilityProgress | und
     '',
     ...(passed ? [] : [`Failed stage: ${escape(progress?.stage ?? 'setup / harness startup')}`, '', escape(progress?.error ?? 'No audit evidence for successful completion. Inspect the failed step logs.')]),
     '',
+    ...renderNativeDrift(progress?.drift),
     provider === 'codex' ? 'Scope: Codex text, synthetic file-read tool roundtrip and resume. No other providers or scenarios are covered by this lane.' : provider === 'kimi' ? 'Scope: Kimi text and resume in one native session. No tool, subagent or native-shape baseline coverage is claimed.' : 'Scope: Claude only; two independent sessions including a Read tool roundtrip and resume. PASS does not imply other providers or scenarios are covered.',
     '',
     `Download ${provider === 'codex' ? 'synthetic-codex-compatibility' : provider === 'kimi' ? 'synthetic-kimi-compatibility' : 'synthetic-producer-compatibility'}-${lane} from this run’s Artifacts for JSON reports, native inventory, stores and diagnostics.`,
@@ -60,6 +64,7 @@ export interface LaneResult {
   stage: string
   verdict: Verdict
   detail: string
+  drift?: NativeDrift
   sessions: number | null
   records: number | null
 }
@@ -77,7 +82,7 @@ export function laneResult(provider: Provider, lane: Lane, version: string, comm
   const complete = outcome === 'success' && stage === 'passed' && expected.every(key => progress?.completed.includes(key))
   const infrastructure = /bwrap:|sandbox helper|socket directory|ECONN|ENOTFOUND|timed? ?out|ETIMEDOUT|authentication|unauthorized|rate.limit/i.test(error)
   const verdict: Verdict = complete ? 'passed' : infrastructure ? 'environment-blocked' : stage === 'baseline' ? 'drift-review' : ['scan', 'read', 'snapshot', 'records', 'events', 'scenario'].includes(stage) ? 'read-failure' : ['producer', 'simulator-startup', 'scenario-setup'].includes(stage) || stage.startsWith('producer-') ? 'environment-blocked' : 'incomplete'
-  return { provider, lane, version, commit, outcome, stage, verdict, detail: error.split('\n')[0]!.slice(0, 240), sessions: progress?.auditedSessions ?? null, records: progress?.auditedRecords ?? null }
+  return { provider, lane, version, commit, outcome, stage, verdict, detail: error.split('\n')[0]!.slice(0, 240), ...(progress?.drift ? { drift: progress.drift } : {}), sessions: progress?.auditedSessions ?? null, records: progress?.auditedRecords ?? null }
 }
 
 export function completeMatrix(results: LaneResult[], commit: string): LaneResult[] {
@@ -93,7 +98,20 @@ export function anomalyKey(result: LaneResult): string {
   // Stable across dates, run IDs, temporary paths and provider versions. Lane is excluded
   // so the same defect in pinned/latest updates one issue rather than creating two.
   const normalized = result.detail.replace(/(?:\/[\w.@+-]+)+/g, '<path>').replace(/[0-9a-f]{8}-[0-9a-f-]{20,}/gi, '<id>').replace(/\d+(?:\.\d+)*/g, '#')
-  return createHash('sha256').update(JSON.stringify([result.provider, result.verdict, result.stage, normalized])).digest('hex').slice(0, 20)
+  return createHash('sha256').update(JSON.stringify([result.provider, result.verdict, result.stage, normalized, ...(result.drift ? [[...result.drift.added].sort(), [...result.drift.removed].sort()] : [])])).digest('hex').slice(0, 20)
+}
+
+function renderNativeDrift(drift: NativeDrift | undefined): string[] {
+  if (!drift)
+    return []
+  const rows = (paths: string[], label: string) => paths.slice(0, 20).map(path => `- ${label}: ${escape(path).slice(0, 160)}`)
+  return [
+    `Native field/type changes: +${drift.added.length} / -${drift.removed.length}`,
+    ...rows(drift.added, 'Added'),
+    ...rows(drift.removed, 'Removed'),
+    ...(drift.added.length > 20 || drift.removed.length > 20 || [...drift.added, ...drift.removed].some(path => escape(path).length > 160) ? ['Showing up to 20 paths per direction, shortened to 160 characters; the complete diff is in the synthetic progress artifact.'] : []),
+    '',
+  ]
 }
 
 export function renderDailyReport(results: LaneResult[], date: string, runUrl: string, commit: string): string {
@@ -125,7 +143,7 @@ export function renderDailyReport(results: LaneResult[], date: string, runUrl: s
         : result.verdict === 'incomplete'
           ? 'Recover the missing result or evidence before drawing a conclusion.'
           : 'Compare native records with Huihua output at the failed stage.'
-    return `- **${escape(result.provider)}/${result.lane} · ${label[result.verdict]}** — ${escape(result.stage)}: ${escape(result.detail || 'No complete passing evidence.')} ${next}`
+    return [`- **${escape(result.provider)}/${result.lane} · ${label[result.verdict]}** — ${escape(result.stage)}: ${escape(result.detail || 'No complete passing evidence.')} ${next}`, ...renderNativeDrift(result.drift).map(line => line ? `  ${line}` : '')].join('\n')
   })
   return [
     `## Huihua Daily Compatibility · ${date} (UTC)`,

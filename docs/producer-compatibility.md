@@ -273,3 +273,25 @@ Codex uploads only stable reports, native rollouts and the synthetic input file;
 its background plugin-clone locks and unrelated runtime databases are excluded.
 The 2026-10-08 PR validation exposed a disappearing .git/shallow.lock during archive
 creation; narrowing evidence paths fixes that delivery race without weakening parsing checks.
+
+## Reviewed Claude 2.1.293 permission metadata
+
+[Issue #19](https://github.com/wibus-wee/huihua/issues/19) was produced by the
+[2026-10-08 six-lane run](https://github.com/wibus-wee/huihua/actions/runs/37737328660).
+Claude 2.1.292 passed; 2.1.293 preserved two sessions and 31 rows, passed discovery,
+read/snapshot/stream, tool roundtrip and resume, then failed the native shape baseline.
+Its user/tool-result row added permissionDecision with decision=accept, source=config
+and reasonType=rule.
+Only this object and these three string paths are accepted as reviewed optional fields,
+including their user-record grouping; other additions, type changes and missing required
+paths still fail.
+The pre-existing optional gitStatus path is unrelated.
+Raw preservation does not establish that permission semantics are fully represented by
+canonical events, and this automatic config/rule decision is not evidence of human approval.
+No production mapper or event schema changes are included.
+
+Native shape failures carry an explicit added/removed path diff through progress and lane
+results into the Summary and incident report.
+Reports bound visible paths and retain the complete diff in synthetic artifacts.
+Distinct path diffs receive distinct incident fingerprints; unchanged diffs still deduplicate
+across lanes and runs.

@@ -8,7 +8,7 @@ import type { Session } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
-import { assertNoProducerDrift, json, nativeFieldPaths, required, startSimulator } from './runtime.ts'
+import { assertNoProducerDrift, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
 export function assertCodexRead(store: NativeStore, session: Session): void {
   assert.equal(session.id, store.id)
@@ -186,6 +186,8 @@ async function main(): Promise<void> {
   }
   catch (error) {
     progress.error = String(error)
+    if (error instanceof NativeDriftError)
+      progress.drift = error.drift
     await writeFile(`${output}.failure.json`, JSON.stringify({ ...progress, artifacts: root }, null, 2))
     console.error(progress.error)
     process.exitCode = 1
