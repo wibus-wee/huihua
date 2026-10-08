@@ -742,3 +742,15 @@ because it cannot detect producer writer drift. tools/policy.ts checks that this
 outside src and the runtime dependency graph.
 The baseline is a reviewed observation of synthetic
 native records, not a provider parsing rule or automatic golden update.
+
+The test-only `tools/producer-compat-audit.ts` owns an independent disk inventory and assertions,
+not a public acquisition path.
+Node fs, TextDecoder and JSON.parse independently check native
+row evidence; scenario-local semantic assertions verify the exercised Claude contract.
+Reusing
+Huihua's own framer/mapper would conceal common-mode omissions.
+A generic second provider parser
+was rejected.
+This adds no dependency, runtime export, provider behavior or serialized schema.
+Executable policy prevents importing production ingestion helpers into the oracle; mutation tests
+verify that silent output loss fails even when the old shape summary is unchanged.

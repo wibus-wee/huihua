@@ -10,6 +10,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { sessions } from '../src/index.ts'
 import type { DriftSummary } from './producer-compat-assertions.ts'
 import { assertNoProducerDrift } from './producer-compat-assertions.ts'
+import { assertDiscovery, assertNativeRead, inventoryNativeStores, nativeFieldPaths } from './producer-compat-audit.ts'
 
 // Test infrastructure only: the production library never executes a producer.
 const simulatorDir = resolve(required('SIMULATOR_DIR'))
@@ -46,6 +47,10 @@ const toolText = 'HUIHUA_NATIVE_TOOL_RESULT'
 const file = join(workspace, 'synthetic.txt')
 await writeFile(file, `${toolText}\n`)
 const sessionId = randomUUID()
+const secondSessionId = randomUUID()
+const secondPrompt = 'HUIHUA_SECOND_SESSION'
+const secondText = 'HUIHUA_SECOND_RESPONSE'
+const output = resolve(process.env.COMPAT_REPORT ?? 'producer-compat-report.json')
 let stage = 'simulator-startup'
 try {
   for (let attempt = 0; ; attempt++) {
@@ -74,9 +79,35 @@ try {
     exchange('resume native session', 'HUIHUA_PRODUCER_RESUME', { type: 'text', text: resumedText, citations: null }, 'end_turn', template),
   ] })
   await runClaude(['--resume', sessionId], 'HUIHUA_PRODUCER_RESUME')
-  stage = 'huihua-scan-read-stream'
+  stage = 'producer-second-session'
+  await json(`${control}/enqueue`, { provider: 'anthropic', exchanges: [
+    exchange('second independent session', secondPrompt, { type: 'text', text: secondText, citations: null }, 'end_turn', template),
+  ] })
+  await runClaude(['--session-id', secondSessionId], secondPrompt)
+  stage = 'native-inventory'
+  const stores = await inventoryNativeStores(home)
+  await writeFile(join(root, 'native-inventory.json'), JSON.stringify(stores, null, 2))
+  stage = 'huihua-discovery-audit'
   const scan = await sessions.scan({ providers: ['claude'], homeDir: home })
-  assert.deepEqual(scan.failures, [])
+  assertDiscovery(stores, scan, [sessionId, secondSessionId])
+  stage = 'huihua-read-audit'
+  for (const store of stores) {
+    const discovered = scan.refs.find(ref => ref.source.path === store.path)!
+    const read = await sessions.read(discovered)
+    assertNativeRead(store, read)
+    const handle = await sessions.open(discovered)
+    assertNativeRead(store, await handle.snapshot())
+    const records = []
+    for await (const record of handle.records()) records.push(record)
+    assertNativeRead(store, { ...read, records })
+    const events = []
+    for await (const event of handle.events()) events.push(event)
+    assertNativeRead(store, { ...read, events })
+  }
+  stage = 'scenario-coverage'
+  const secondNative = stores.find(store => store.id === secondSessionId)!
+  assert(secondNative.rows.some(row => JSON.stringify(row.native).includes(secondPrompt)), 'second prompt was not persisted')
+  assert(secondNative.rows.some(row => JSON.stringify(row.native).includes(secondText)), 'second response was not persisted')
   const ref = scan.refs.find(item => item.id === sessionId)
   assert(ref, 'real producer did not persist a discoverable session')
   const session = await sessions.read(ref)
@@ -104,10 +135,9 @@ try {
       unknown[event.data.sourceType] = (unknown[event.data.sourceType] ?? 0) + 1
   }
   const structured = session.events.filter(event => event.type === 'user_message' || event.type === 'assistant_message').flatMap(event => event.data.content).filter(block => block.type === 'structured').length
-  const fieldPaths = new Set<string>()
-  for (const record of session.records) shape(record.native, '$', fieldPaths)
-  const report = { provider: 'claude', sessionId, records: session.records.length, events: session.events.length, unknown, structured, diagnostics: session.diagnostics, fieldPaths: [...fieldPaths].sort() }
-  const output = resolve(process.env.COMPAT_REPORT ?? 'producer-compat-report.json')
+  const fieldPaths = nativeFieldPaths(stores, false)
+  const groupedFieldPaths = nativeFieldPaths(stores)
+  const report = { provider: 'claude', auditedSessions: stores.length, auditedRecords: stores.reduce((sum, store) => sum + store.rows.length, 0), sessionId, records: session.records.length, events: session.events.length, unknown, structured, diagnostics: session.diagnostics, fieldPaths, groupedFieldPaths, inventory: stores.map(store => ({ path: store.path, id: store.id, records: store.rows.length })) }
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`)
   await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
   stage = 'compatibility-baseline'
@@ -119,6 +149,7 @@ try {
 }
 catch (error) {
   await writeFile(join(root, 'simulator.log'), serverLog)
+  await writeFile(`${output}.failure.json`, JSON.stringify({ stage, artifacts: root, error: String(error) }, null, 2))
   console.error(JSON.stringify({ stage, artifacts: root, error: String(error) }))
   process.exitCode = 1
 }
@@ -170,17 +201,4 @@ async function runClaude(args: string[], prompt: string): Promise<void> {
   assert.equal(code, 0, stderr)
   const result = JSON.parse(stdout) as { is_error?: boolean }
   assert.equal(result.is_error, false)
-}
-function shape(value: unknown, path: string, output: Set<string>): void {
-  if (Array.isArray(value)) {
-    output.add(`${path}:array`)
-    for (const item of value) shape(item, `${path}[]`, output)
-  }
-  else if (value !== null && typeof value === 'object') {
-    output.add(`${path}:object`)
-    for (const [key, child] of Object.entries(value)) shape(child, `${path}.${key}`, output)
-  }
-  else {
-    output.add(`${path}:${value === null ? 'null' : typeof value}`)
-  }
 }

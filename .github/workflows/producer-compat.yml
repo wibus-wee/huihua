@@ -41,7 +41,7 @@ jobs:
         with:
           name: synthetic-producer-compatibility
           path: |
-            ${{ runner.temp }}/producer-compat-report.json
+            ${{ runner.temp }}/producer-compat-report.json*
             /tmp/huihua-producer-*/
           retention-days: 7
           include-hidden-files: true

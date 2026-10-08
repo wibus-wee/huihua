@@ -1,17 +1,22 @@
 # Live producer compatibility
 
-This opt-in CI harness tests an actual producer, rather than replaying hand-authored stores:
+This opt-in CI harness tests Huihua discovery and reading against independently inventoried,
+real producer-owned stores.
+Agent execution only prepares the input:
 Claude Code → pinned model-api-simulator → producer-owned JSONL → Huihua scan/read/open/events.
-It currently covers one Read tool roundtrip, final assistant text and a resumed native session.
+It currently produces two independent sessions, one with a Read tool roundtrip and resume.
+A successful Agent run is not a successful Huihua compatibility result.
 It does not replace historical fixtures or claim all-provider compatibility.
 
 ## Ownership and isolation
 
 `tools/producer-compat.ts` owns process execution, loopback requests and scenario assertions.
 Huihua production code remains read-only and has no new dependencies or runtime-control API.
-Only public session entry points read the resulting store; the harness never fabricates or repairs it.
+Huihua is exercised only through public session entry points; the harness never fabricates or repairs
+the live stores.
+A test-only independent inventory reads their bytes for comparison.
 The simulator and CLI are installed separately from Huihua's dependency graph.
-This was chosen over a runtime dependency or a second native-store parser.
+This adds no runtime dependency or alternate production parser.
 
 Each attempt creates a fresh HOME/config/workspace, uses a synthetic key and loopback model URL,
 and launches Claude in bare mode with nonessential traffic disabled and only Read allowed.
@@ -24,12 +29,48 @@ The CLI reports synthetic model-cost estimates; no paid model endpoint is config
 
 ## Checks and evidence
 
+`tools/producer-compat-audit.ts` independently walks the isolated HOME with Node fs and decodes
+JSONL with TextDecoder and JSON.parse.
+It does not import Huihua's walker, line framer, provider,
+or mapper.
+Expected session IDs come from the scenario, not scan output.
+Unexpected JSONL without
+one native identity fails inventory review rather than disappearing through the provider's filters.
+This deliberately small oracle supports this isolated Claude scenario only; it is not a discovery
+framework or a second general provider implementation.
+
+- Compare the complete session inventory against scan: provider, source path, format and ID;
+  missing, duplicate and extra refs fail.
+- For every source, compare every nonblank physical row against records: count, order, sequence,
+  original text (including line endings), complete native value, provider, path and physical line.
+  Raw text retains number spellings that JavaScript numbers cannot represent exactly.
+- Verify every event's source record, ID, timestamp and explicit envelope lineage.
+  Check exact
+  same-record text, model, tool arguments/results, call IDs, error flags and complete native usage;
+  unsupported record types retain complete unknown payloads.
+  Check created/updated/workspace facts.
+- Run the independent assertions against read, snapshot, streamed records and streamed events;
+  agreement between Huihua interfaces alone is not the oracle.
+- Negative output mutations cover missing/duplicate/reordered rows, lost fields/text, wrong physical
+  lines, missing events, wrong associations/times/identity and corrupted text/tool/usage/unknown data.
+  These tests alter copies of outputs, never the live Agent stores.
+
+The semantic assertions intentionally cover the produced text/tool/usage surface, not every
+possible Claude block.
+A new unreviewed content shape stops the check for review; raw evidence
+preservation alone does not establish normalization support.
+Diagnostics still distinguish known
+unsupported metadata.
+Source generation/inventory failures are not labeled Huihua parser defects.
+
 The test requires discovery without scan failures, preserved user/assistant sentinels, exact tool
 arguments, matching call/result IDs and ordering, successful tool output, and equality between
 read(), open().snapshot() and open().events().
 It reports unknown types/counts, diagnostics, structured fallback blocks and value-free native
-field/type paths.
+field/type paths, collected directly from disk before Huihua parsing.
 The checked-in baseline comes from the pinned real producer, not an invented store.
+Paths are additionally grouped by outer native record type so a field in one record type cannot
+mask its disappearance or type change in another.
 New unknown types, increased unknown counts, structured fallback growth, extra diagnostics or
 field/type drift fail distinctly at the compatibility-baseline stage.
 Existing known unknown records remain raw evidence, not newly supported semantics.
@@ -91,3 +132,23 @@ New field paths, other missing paths and counts above
 these observed bounds still fail.
 This is reviewed environment variation, not automatic acceptance
 of an upstream schema change. [Initial CI evidence](https://github.com/wibus-wee/huihua/actions/runs/37650773174).
+
+## Independent audit baseline provenance
+
+On 2026-10-08 the pinned Claude Code 2.1.292 and simulator 5bdf08c produced an 18-record
+resumed session and a 9-record independent session in a fresh isolated HOME.
+All 27 raw rows
+passed the new independent read audit.
+The 151 per-record-type paths for the original resumed
+scenario were reviewed against those native files; the old ungrouped paths had no additions or
+removals.
+Only the already-reviewed attachment.context.gitStatus remains optional in the grouped
+baseline.
+Existing unknown maxima are unchanged; there is no automatic baseline-update mode.
+
+The report includes each discovered native source and record count.
+A separate `.failure.json`
+records the failed stage and exact assertion, preserving any structural report already written.
+Native inventory and request ledger remain in synthetic artifacts.
+Exact assertions identify the
+session, file and physical row; deep equality differences identify changed fields or values.
