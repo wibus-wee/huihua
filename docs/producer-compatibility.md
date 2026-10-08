@@ -342,11 +342,11 @@ On 2026-10-08, fx 0.0.13 wrote a schema-version-4 `session.json` plus an
 `events.jsonl` containing both sentinel replies in one resumed conversation.
 Huihua discovered the native ID, but `read` raised `UnsupportedSchema: unsupported
 fx snapshot schema`.
-The existing reader expects schema version 3 and checkpoint
-snapshots.
-The fx lane intentionally reports this as a reading failure; no
-continue-on-error, fabricated old store, or automatically accepted baseline hides it.
-This integration change does not modify the product parser.
+The old reader expected schema version 3 and checkpoint snapshots.
+The fx parser now reads schema-4 metadata with the current conversation log while preserving the legacy snapshot path.
+The captured regression first reproduced that failure; a fresh fx 0.0.13 first-turn/resume run then passed scan/read/snapshot/records/events, independently matching all seven native records.
+No continue-on-error, fabricated old store, or automatically accepted baseline hides the failure.
+Tool roundtrip and reviewed shape-baseline certification remain explicit gaps.
 
 ## Primitive-review inputs
 
@@ -407,5 +407,5 @@ selected-lane failure, or cancellation; it succeeds on a justified empty
 selection without claiming any missing native-reader coverage.
 Quality CI keeps
 running separately.
-Live failures such as fx remain red whenever their scope is
+Live failures remain red whenever their scope is
 selected; routing never changes an assertion or accepts a baseline.

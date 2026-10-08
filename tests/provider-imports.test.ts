@@ -219,6 +219,33 @@ void it('Hermes decodes only the native sentinel and preserves inactive rows and
   await assert.rejects(sessions.parse('hermes', { path: fixture('hermes/sessions.db'), format: 'hermes_sqlite' }), { code: 'UnsupportedSchema' })
 })
 
+void it('fx reads the real schema-four metadata and conversation log across public entry points', async () => {
+  const path = fixture('fx/current/session.json')
+  const scan = await sessions.scan({ providers: ['fx'], roots: { fx: [path] } })
+  assert.deepEqual(scan.failures, [])
+  assert.equal(scan.refs.length, 1)
+  const ref = scan.refs[0]!
+  assert.equal(ref.id, 'qC_1v7UythyM')
+  const session = await sessions.read(ref)
+  assertSessionContract(session)
+  const rows = (await readFile(fixture('fx/current/events.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as unknown)
+  assert.deepEqual(session.records.map(record => record.native), [JSON.parse(await readFile(path, 'utf8')), ...rows])
+  assert.deepEqual(conversationOf(session).map(event => event.data.content), ['HUIHUA_FX_FIRST', 'HUIHUA_FX_REPLY', 'HUIHUA_FX_RESUME', 'HUIHUA_FX_RESUMED'].map(data => [{ type: 'text', data }]))
+  assert.deepEqual(conversationOf(session).map(event => event.record), [1, 2, 4, 5])
+  assert.deepEqual(session.diagnostics, [])
+  const opened = await sessions.open(ref)
+  assert.deepEqual(await opened.snapshot(), session)
+  const records = []
+  for await (const record of opened.records())
+    records.push(record)
+  const events = []
+  for await (const event of opened.events())
+    events.push(event)
+  assert.deepEqual(records, session.records)
+  assert.deepEqual(events, session.events)
+  assert.deepEqual(await sessions.parse('fx', { path, format: 'fx_json' }), session)
+})
+
 void it('fx preserves checkpoint failure and interruption without reading referenced artifacts', async () => {
   const session = await sessions.parse('fx', { path: fixture('fx/session/session.json'), format: 'fx_json' })
   assertSessionContract(session)
@@ -228,6 +255,66 @@ void it('fx preserves checkpoint failure and interruption without reading refere
   assert.equal(eventsOf(session, 'unknown').length, 1)
   assert.ok(session.diagnostics.some(d => d.message.includes('through_seq')))
   assert.ok(session.diagnostics.some(d => d.message.includes('no recorded result')))
+})
+
+void it('fx conversation frames retain tools, interruptions, repeated sequences and future evidence', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-current-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  await writeFile(join(root, 'session.json'), await readFile(fixture('fx/current/session.json')))
+  const frame = (event: unknown, schema_version = 3) => ({ schema_version, seq: 1, timestamp_ms: 0, event })
+  const rows = [
+    frame({ user: { text: 'image', images: [{ path: '/must-not-read.png' }] } }, 1),
+    frame({ steering: { text: 'change direction' } }, 2),
+    frame({ tool_call: { call_id: 'repeat', tool_name: 'read', arguments_json: '{"path":"missing"}' } }),
+    frame({ tool_result: { call_id: 'repeat', tool_name: 'read', status: 'failure', artifact_ref: '/must-not-open', preview: 'denied', completeness: 'partial', stored_bytes: 6 } }),
+    frame({ tool_call: { call_id: 'repeat', tool_name: 'read', arguments_json: '{}' } }),
+    frame({ interrupted: { reason: 'cancelled', partial_text: 'unfinished' } }),
+    frame({ context_checkpoint: { covers_through_seq: 0, summary: 'context summary' } }),
+    frame({ future_event: { opaque: true } }),
+    frame({ assistant: { text: 'do not guess future semantics' } }, 99),
+    frame({ assistant: { text: 'after damaged row' } }),
+  ]
+  const lines = rows.map(row => JSON.stringify(row))
+  lines.splice(9, 0, '{broken')
+  await writeFile(join(root, 'events.jsonl'), lines.join('\n'))
+  const session = await sessions.parse('fx', { path: join(root, 'session.json'), format: 'fx_json' })
+  assertSessionContract(session)
+  assert.deepEqual(session.records.slice(1).map(record => record.native), [...rows.slice(0, 9), '{broken\n', rows[9]])
+  assert.deepEqual(toolCallsOf(session).map(event => event.data.callId), ['repeat', 'repeat'])
+  assert.equal(toolCallsOf(session)[0]?.data.arguments, '{"path":"missing"}')
+  assert.equal(toolResultsOf(session)[0]?.data.isError, true)
+  assert.deepEqual(toolResultsOf(session)[0]?.timestamp, { format: 'unix_millis', value: 0 })
+  assert.deepEqual(eventsOf(session, 'assistant_message').map(event => event.data.content), ['unfinished', 'after damaged row'].map(data => [{ type: 'text', data }]))
+  assert.deepEqual(eventsOf(session, 'unknown').map(event => event.data.sourceType), ['future_event', 'fx_conversation', 'malformed_jsonl'])
+  assert.ok(session.diagnostics.some(diagnostic => diagnostic.code === 'UnsupportedSchema'))
+  assert.ok(session.diagnostics.some(diagnostic => diagnostic.message.includes('no recorded result')))
+  assert.equal(session.records.at(-1)?.source.position, 11)
+})
+
+void it('fx current reads enforce identity, missing-log, cancellation and bounded framing', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-bounds-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'session.json')
+  await writeFile(path, await readFile(fixture('fx/current/session.json')))
+  const { refs } = await sessions.scan({ providers: ['fx'], roots: { fx: [root] } })
+  const ref = refs[0]!
+  await assert.rejects(sessions.read({ ...ref, id: 'wrong-native-id' }), { code: 'CorruptedSession' })
+  await assert.rejects(sessions.read(ref), { code: 'SessionNotFound' })
+  await writeFile(join(root, 'events.jsonl'), JSON.stringify({ schema_version: 3, seq: 1, event: { assistant: { text: 'a'.repeat(4096) } } }))
+  await assert.rejects(sessions.read(ref, { maxRecordBytes: 1024 }), { code: 'CorruptedSession' })
+  const controller = new AbortController()
+  controller.abort(new Error('cancel fx read'))
+  await assert.rejects(sessions.read(ref, { signal: controller.signal }), /cancel fx read/)
+  await writeFile(join(root, 'events.jsonl'), '')
+  const supplied = await sessions.parse('fx', { path, format: 'fx_json', id: 'caller-id' })
+  assert.equal(supplied.id, 'caller-id')
+  assert.equal(supplied.metadata.id_origin, 'caller')
+  await writeFile(join(root, 'display.json'), JSON.stringify({ title: 'optional title' }))
+  const display = await sessions.read(ref)
+  assert.equal(display.title, 'optional title')
+  assert.equal(display.records.at(-1)?.source.path, join(root, 'display.json'))
+  await writeFile(path, JSON.stringify({ schema_version: 99, id: ref.id }))
+  await assert.rejects(sessions.read(ref), { code: 'UnsupportedSchema' })
 })
 
 void it('Devin retains main-chain order, off-chain messages, repeated IDs and complete native nodes', async () => {
