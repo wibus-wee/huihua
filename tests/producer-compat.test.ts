@@ -6,9 +6,11 @@ import { test } from 'node:test'
 
 import type { Session } from '../src/index.ts'
 import { sessions } from '../src/index.ts'
+import { activeProviders, manifest } from '../tools/producer-compat/catalog.ts'
 import { assertDiscovery, assertNativeRead, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiReplies } from '../tools/producer-compat/kimi.ts'
+import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import { assertNoProducerDrift, NativeDriftError, nativeFieldPaths } from '../tools/producer-compat/runtime.ts'
 
 await test('independent native inventory detects omissions hidden by the old summary', async () => {
@@ -145,4 +147,31 @@ await test('reviewed optional paths accept new metadata without hiding type drif
     assert.deepEqual(error.drift, { added: [], removed: ['$.message:object'] })
     return true
   })
+})
+
+await test('provider manifest covers the registry without turning blocked or partial journeys green', () => {
+  assert.deepEqual(manifest.providers.map(provider => provider.id).sort(), sessions.providers().map(provider => provider.id).sort())
+  assert.equal(new Set(manifest.providers.map(provider => provider.id)).size, manifest.providers.length)
+  assert.match(manifest.simulator.commit, /^[a-f\d]{40}$/)
+  for (const provider of manifest.providers) {
+    if (provider.ci) {
+      assert(provider.install !== undefined)
+      assert(provider.checks.includes('read'))
+      assert(provider.runner !== undefined)
+    }
+    else {
+      assert(provider.reason !== undefined && provider.reason.length > 20)
+      assert.deepEqual(provider.checks, [])
+    }
+  }
+  const partial = { stage: 'passed', completed: ['scan', 'read', 'snapshot', 'records', 'events'], auditedSessions: 1, auditedRecords: 2 }
+  assert.equal(laneResult('cline', 'pinned', '3.0.70', 'test', 'success', partial).verdict, 'incomplete')
+  const complete = { ...partial, completed: [...partial.completed, 'scenario'] }
+  const summary = renderCompatibilitySummary(complete, 'success', 'cline')
+  assert.match(summary, /first-turn store only/)
+  assert.doesNotMatch(summary, /Text \/ tool roundtrip \/ resume.*PASS/)
+  assert.doesNotMatch(summary, /Native shape.*PASS/)
+  const report = renderDailyReport([], '2026-10-08', 'https://github.com/wibus-wee/huihua/actions', 'test')
+  assert.match(report, /cursor: NOT CERTIFIED|cursor\*\*: NOT CERTIFIED/)
+  assert.match(report, new RegExp(`0/${activeProviders.length * 2} covered lanes passed`))
 })

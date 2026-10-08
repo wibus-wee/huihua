@@ -7,6 +7,7 @@ import process from 'node:process'
 import type { Session } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
+import { writeReviewPacket } from './review.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
 import { assertNoProducerDrift, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
@@ -162,6 +163,8 @@ async function main(): Promise<void> {
         session = { ...session, events }
       }
       await writeFile(join(root, `${kind}.json`), JSON.stringify(session, null, 2))
+      if (kind === 'read')
+        await writeReviewPacket('codex', root, session)
       assertCodexRead(store, session)
       progress.completed.push(kind)
     }

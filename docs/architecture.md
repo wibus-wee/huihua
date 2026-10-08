@@ -827,7 +827,7 @@ A single counterexample suite protects omissions and
 wrong associations; actual CLI journeys provide the integration coverage.
 Report layout is
 reviewed from rendered Markdown rather than maintained through string-matching unit tests.
-The daily dashboard presents attention items first, three provider rows with pinned/latest columns,
+The daily dashboard presents attention items first, manifest-driven provider rows with pinned/latest columns,
 visible coverage gaps and collapsible evidence.
 No missing subcheck is inferred as passing.
 
@@ -845,3 +845,23 @@ the trusted publisher validates these arrays before rendering or fingerprinting 
 This extends only CI artifacts, not agent-session/v1 or public runtime contracts.
 Reviewed optional metadata preserves old/new producer compatibility without implying
 that raw preservation resolves a potential canonical-semantic gap.
+
+### All-provider acquisition and semantic-review evidence
+
+The compatibility manifest now owns producer installation provenance, exact
+required checks, supported journey, and explicit unavailable-provider reasons.
+CI matrix and dashboard consume that inventory rather than duplicating provider
+lists.
+Its IDs must equal the public registry.
+Shared live/recording runners use
+isolated native producers; independent disk oracles use Node SQLite/JSON and zstd,
+never production decoders.
+Specialized Claude/Kimi/Codex assertions remain intact.
+
+These test tools generate bounded primitive-review packets from native evidence,
+current event contracts/mappings and canonical output (or explicit read failure).
+They do not add an LLM dependency, auto-accept baselines, or claim semantic
+completeness from raw preservation.
+Provider-specific gaps stay visible.
+Runtime
+contracts, product parsers, production dependencies and package exports are unchanged.
