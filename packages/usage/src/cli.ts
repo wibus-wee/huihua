@@ -4,7 +4,7 @@ import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 import { isMainThread, Worker } from 'node:worker_threads'
 
-import type { FrameSelection, OpenSession, SessionProvider, SessionRef } from 'huihua'
+import type { FrameSelection, OpenSession, SessionFrame, SessionProvider, SessionRef, Timestamp, UsageFactItem } from 'huihua'
 import { createSessionRegistry } from 'huihua/registry'
 
 import { parseUsageArgs } from './options.ts'
@@ -67,7 +67,14 @@ export async function usageRegistry(ids: readonly string[]) {
   })))
 }
 
-export async function consumeRef(builder: UsageReportBuilder, ref: SessionRef, open: OpenSession, execution: ExecutionOptions, useCallback = true): Promise<void> {
+export interface UsageSink {
+  add: (ref: SessionRef, frame: SessionFrame) => void
+  addFact: (ref: SessionRef, item: UsageFactItem) => void
+  end: (ref: SessionRef) => void
+  acceptTimestamp: (ref: SessionRef, timestamp: Timestamp | undefined) => boolean
+}
+
+export async function consumeRef(builder: UsageSink, ref: SessionRef, open: OpenSession, execution: ExecutionOptions, useCallback = true): Promise<void> {
   const selection: FrameSelection = { events: ['usage'], records: true, metadata: true, metadataKeys: ['parentSessionId'] }
   if (useCallback && execution.facts && open.consumeUsageFacts) {
     await open.consumeUsageFacts(item => builder.addFact(ref, item), execution.pushdown
@@ -156,7 +163,13 @@ export async function run(argv: readonly string[] = process.argv.slice(2), useCa
     return
   }
   const sessions = await usageRegistry(args.providers)
-  const { refs, failures } = await sessions.scan(args.providers.length === 0 ? {} : { providers: args.providers })
+  let refs: Awaited<ReturnType<typeof sessions.scan>>['refs'] = []
+  let failures: Awaited<ReturnType<typeof sessions.scan>>['failures'] = []
+  for (let attempt = 0; attempt < 3; attempt++) {
+    ({ refs, failures } = await sessions.scan(args.providers.length === 0 ? {} : { providers: args.providers }))
+    if (failures.length === 0 || !failures.every(failure => failure.code === 'PartialParse'))
+      break
+  }
   if (failures.length !== 0)
     throw new Error(`Incomplete usage discovery: ${failures.map(failure => `${failure.provider} ${failure.code} ${failure.source?.path ?? failure.scope}: ${failure.message}`).join('; ')}`)
   const options = {
@@ -177,8 +190,39 @@ export async function run(argv: readonly string[] = process.argv.slice(2), useCa
   const workerCount = execution.workers ?? args.workers
   if (![1, 2, 4].includes(workerCount))
     throw new TypeError('usage workers must be one, two or four')
+  const readOptions = () => ({
+    signal: controller.signal,
+    batchDecode: execution.batchDecode === true,
+    ...(execution.maxRecordBytes === undefined ? {} : { maxRecordBytes: execution.maxRecordBytes }),
+  })
   async function read(ref: SessionRef, open: OpenSession): Promise<void> {
-    await consumeRef(builder, ref, open, execution, useCallback)
+    // Delivered frames are captured per attempt so a retried read cannot double-count.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const captured: ((builder: UsageReportBuilder) => void)[] = []
+      const sink: UsageSink = {
+        add: (current, frame) => captured.push(target => target.add(current, frame)),
+        addFact: (current, item) => captured.push(target => target.addFact(current, item)),
+        end: () => {},
+        acceptTimestamp: (current, timestamp) => builder.acceptTimestamp(current, timestamp),
+      }
+      try {
+        await consumeRef(sink, ref, open, execution, useCallback)
+        for (const apply of captured) apply(builder)
+        builder.end(ref)
+        return
+      }
+      catch (error) {
+        // Any source-level SessionError can be a transient race with a live writer;
+        // deterministic failures still fail after the bounded attempts.
+        if (attempt === 2 || !(error instanceof Error) || error.name !== 'SessionError') {
+          throw new Error(
+            `${ref.provider} ${ref.id} at ${ref.source.path}: ${error instanceof Error ? error.message : String(error)}`,
+            { cause: error },
+          )
+        }
+        open = await sessions.open(ref, readOptions())
+      }
+    }
   }
   const parallel: SessionRef[] = []
   let pending: { ref: SessionRef, open: OpenSession }[] = []
@@ -200,11 +244,7 @@ export async function run(argv: readonly string[] = process.argv.slice(2), useCa
     }
   }
   for (const ref of refs) {
-    const open = await sessions.open(ref, {
-      signal: controller.signal,
-      batchDecode: execution.batchDecode === true,
-      ...(execution.maxRecordBytes === undefined ? {} : { maxRecordBytes: execution.maxRecordBytes }),
-    })
+    const open = await sessions.open(ref, readOptions())
     if (workerCount > 1 && open.readMode === 'incremental' && ['jsonl', 'jsonl_zstd'].includes(ref.source.format)) {
       parallel.push(ref)
     }
@@ -224,7 +264,7 @@ export async function run(argv: readonly string[] = process.argv.slice(2), useCa
   }
   else {
     for (const ref of parallel)
-      await read(ref, await sessions.open(ref, { signal: controller.signal, ...(execution.maxRecordBytes === undefined ? {} : { maxRecordBytes: execution.maxRecordBytes }), batchDecode: execution.batchDecode === true }))
+      await read(ref, await sessions.open(ref, readOptions()))
   }
   const report = builder.finish()
   process.stdout.write(`${args.json ? JSON.stringify(report, null, 2) : formatUsageReport(report)}\n`)

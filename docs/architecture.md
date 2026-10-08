@@ -209,8 +209,10 @@ Nonempty
 rollback journals fail PartialParse.
 File identity/size/time checks reject changing stores; this
 is not atomic isolation against an active writer.
-Scan still walks relevant table pages and the
-WAL; no index or live-store cache is created.
+Scan still walks relevant table pages, while repeated opens of one path extend an in-memory
+prefix of already-validated WAL frames instead of rescanning the whole log.
+Session-scoped row reads seek the store's own plain-column ascending indexes when present and
+walk the table otherwise; no persistent index, copy or live-store cache is created.
 Cursor ordering and OpenCode SQL sorting can buffer
 a selected session's rows, so database adapters do not promise JSONL's bounded streaming memory.
 Virtual, generated-column, encrypted and WITHOUT ROWID stores are explicitly unsupported.
@@ -604,7 +606,8 @@ Missing referenced nodes, invalid content addresses and malformed known graph fi
 ACP schemaVersion 1 sidecars supply cwd; a UUID directory must match native agentId.
 Symlink descendants are excluded by the walker and static ACP pathname checks also reject symlink roots/sidecars.
 These checks are not descriptor-bound protection against adversarial path replacement; reads retain the existing
-SQLite fingerprint/WAL validation and no atomic snapshot claim.
+A mid-read database/journal change is delivered as a PartialParse diagnostic naming the changed file; the frozen open-time WAL overlay excludes appended frames from that check.
+Scans and direct reader closes still fail explicitly; no atomic snapshot is claimed.
 User stores are never copied or written.
 Chat and ACP are additive cursor_sqlite locator.storage values; modern and legacy IDE locators retain their behavior.
 Cursor acquisition does not dispatch Grok, Kimi or Antigravity evidence through its mapper.

@@ -463,10 +463,13 @@ async function* readDatabase(ref: SessionRef, options: ReadOptions) {
       if (db.tables.has(name))
         yield* unknownTable(name)
     }
+    const changed = await db.changedPaths()
+    if (changed.length !== 0)
+      ingest.diagnostic('PartialParse', `SQLite store changed during reading: ${changed.join(', ')}; delivered rows may span inconsistent snapshots`)
     yield* ingest.finish()
   }
   finally {
-    await db.close()
+    await db.close(false)
   }
 }
 function safeComponent(id: string): void {

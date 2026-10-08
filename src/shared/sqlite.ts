@@ -14,6 +14,22 @@ interface Table {
   integerKey?: number
   unsupported?: string
 }
+export interface Index {
+  root: number
+  table: string
+  columns: string[]
+}
+interface WalIndex {
+  readonly salt: string
+  s0: number
+  s1: number
+  pages: number
+  readonly pending: Map<number, number>
+  readonly overlay: Map<number, number>
+  offset: number
+}
+/** Bounded per-path WAL index; appended frames extend the validated prefix, a new salt rebuilds it. */
+const walIndexes = new Map<string, Promise<WalIndex>>()
 async function fingerprint(path: string): Promise<string> {
   try {
     const s = await stat(path, { bigint: true })
@@ -27,6 +43,66 @@ async function fingerprint(path: string): Promise<string> {
 }
 function fail(message: string): never {
   throw new SessionError('DatabaseError', message)
+}
+function ident(sql: string): string | undefined {
+  const match = /^"([^"]+)"|^'([^']+)'|^`([^`]+)`|^\[([^\]]+)\]|^([A-Z_][\w$]*)/i.exec(sql.trimStart())
+  return match?.slice(1).find(value => value !== undefined)
+}
+/** Plain-column BINARY ASC index definitions only; partial, descending, collated and expression indexes stay unsupported. */
+function indexDef(sql: string): { table: string, columns: string[] } | undefined {
+  if (/\bwhere\b|\bcollate\b/i.test(sql))
+    return undefined
+  const on = /\bon\s+("([^"]+)"|'([^']+)'|`([^`]+)`|\[([^\]]+)\]|([A-Z_][\w$]*))\s*\(([^)]*)\)/i.exec(sql)
+  const table = on?.slice(2, 7).find(value => value !== undefined)
+  if (on === null || table === undefined)
+    return undefined
+  const columns = on[7]!.split(',').map((part) => {
+    const column = /^\s*("[^"]+"|'[^']+'|`[^`]+`|\[[^\]]+\]|[A-Z_][\w$]*)\s*(?:asc\s*)?$/i.exec(part)
+    return column === null ? undefined : ident(column[1]!)
+  })
+  if (columns.some(column => column === undefined || !/^[\w$]+$/.test(column)))
+    return undefined
+  return { table, columns: columns as string[] }
+}
+function serialLength(type: number): number {
+  return type <= 4
+    ? type
+    : type === 5
+      ? 6
+      : type === 6 || type === 7
+        ? 8
+        : type < 12
+          ? 0
+          : Math.floor((type - 12) / 2)
+}
+function rank(value: unknown): number {
+  return value === null || value === undefined
+    ? 0
+    : typeof value === 'number' || typeof value === 'bigint'
+      ? 1
+      : typeof value === 'string'
+        ? 2
+        : 3
+}
+/** SQLite BINARY collation: null < numeric < text < blob, text compared as UTF-8 bytes. */
+function compareOne(a: unknown, b: unknown): number {
+  const difference = rank(a) - rank(b)
+  if (difference !== 0)
+    return difference
+  if (rank(a) === 1)
+    return Number(a) < Number(b) ? -1 : Number(a) > Number(b) ? 1 : 0
+  const left = typeof a === 'string' ? Buffer.from(a) : (a as Buffer)
+  const right = typeof b === 'string' ? Buffer.from(b) : (b as Buffer)
+  return Buffer.compare(left, right)
+}
+/** Negative when the key's leading columns precede the prefix, zero when the key starts with it. */
+function comparePrefix(key: readonly unknown[], prefix: readonly unknown[]): number {
+  for (let i = 0; i < prefix.length && i < key.length; i++) {
+    const difference = compareOne(key[i], prefix[i])
+    if (difference !== 0)
+      return difference
+  }
+  return key.length < prefix.length ? -1 : 0
 }
 function varint(data: Buffer, offset: number): [bigint, number] {
   let value = 0n
@@ -286,11 +362,12 @@ function schema(sql: string, root: number): Table {
 /** Read-only rowid-table reader. No SQL execution, source writes, migrations or database index. */
 export class SqliteReader {
   readonly tables = new Map<string, Table>()
+  readonly #indexes: Index[] = []
   readonly #db: FileHandle
   #wal: FileHandle | undefined
   readonly #path: string
   readonly #options: ReadOptions
-  #fingerprints: string[] = []
+  #fingerprints = new Map<string, string>()
   #pageSize = 0
   #usable = 0
   #pages = 0
@@ -350,15 +427,19 @@ export class SqliteReader {
 
   async #initialize(): Promise<void> {
     const paths = [this.#path, `${this.#path}-wal`, `${this.#path}-journal`]
-    this.#fingerprints = await Promise.all(paths.map(fingerprint))
-    if (this.#fingerprints[2] !== 'absent' && (await stat(paths[2]!)).size > 0) {
+    this.#fingerprints = new Map(
+      await Promise.all(
+        paths.map(async path => [path, await fingerprint(path)] as const),
+      ),
+    )
+    if (this.#fingerprints.get(paths[2]!) !== 'absent' && (await stat(paths[2]!)).size > 0) {
       throw new SessionError(
         'PartialParse',
         'nonempty SQLite rollback journal; read a quiescent backup',
       )
     }
     const size = (await this.#db.stat()).size
-    if (size === 0 && this.#fingerprints[1] === 'absent')
+    if (size === 0 && this.#fingerprints.get(paths[1]!) === 'absent')
       return
     const head = await this.#read(this.#db, 0, 100)
     if (head.toString('ascii', 0, 16) !== 'SQLite format 3\0') {
@@ -388,7 +469,7 @@ export class SqliteReader {
     if (size % this.#pageSize !== 0)
       fail('truncated SQLite database')
     this.#pages = size / this.#pageSize
-    if (this.#fingerprints[1] !== 'absent') {
+    if (this.#fingerprints.get(paths[1]!) !== 'absent') {
       this.#wal = await open(paths[1]!, 'r')
       await this.#loadWal()
     }
@@ -406,7 +487,88 @@ export class SqliteReader {
       ) {
         this.tables.set(values[1], schema(values[4], values[3]))
       }
+      else if (
+        values[0] === 'index'
+        && typeof values[1] === 'string'
+        && typeof values[3] === 'number'
+        && typeof values[4] === 'string'
+      ) {
+        const index = indexDef(values[4])
+        if (index !== undefined)
+          this.#indexes.push({ root: values[3], ...index })
+      }
     }
+  }
+
+  async #scanWal(
+    file: FileHandle,
+    head: Buffer,
+    little: boolean,
+    salt: string,
+    prior: WalIndex | undefined,
+  ): Promise<WalIndex> {
+    const size = (await file.stat()).size
+    const index: WalIndex
+      = prior !== undefined && prior.salt === salt && prior.offset <= size
+        ? {
+            salt,
+            s0: prior.s0,
+            s1: prior.s1,
+            pages: prior.pages,
+            pending: new Map(prior.pending),
+            overlay: prior.overlay,
+            offset: prior.offset,
+          }
+        : {
+            salt,
+            s0: 0,
+            s1: 0,
+            pages: this.#pages,
+            pending: new Map(),
+            overlay: new Map(),
+            offset: 32,
+          }
+    let { s0, s1 } = index
+    const checksum = (data: Buffer): void => {
+      for (let i = 0; i < data.length; i += 8) {
+        const a = little ? data.readUInt32LE(i) : data.readUInt32BE(i)
+        const b = little ? data.readUInt32LE(i + 4) : data.readUInt32BE(i + 4)
+        s0 = (s0 + a + s1) >>> 0
+        s1 = (s1 + b + s0) >>> 0
+      }
+    }
+    if (index.offset === 32) {
+      checksum(head.subarray(0, 24))
+      if (s0 !== head.readUInt32BE(24) || s1 !== head.readUInt32BE(28))
+        fail('SQLite WAL header checksum mismatch')
+    }
+    for (
+      let offset = index.offset;
+      offset + 24 + this.#pageSize <= size;
+      offset += 24 + this.#pageSize
+    ) {
+      const frame = await this.#read(file, offset, 24 + this.#pageSize)
+      if (!frame.subarray(8, 16).equals(head.subarray(16, 24)))
+        break // Stale frames after a WAL reset are not part of this transaction.
+      checksum(frame.subarray(0, 8))
+      checksum(frame.subarray(24))
+      if (s0 !== frame.readUInt32BE(16) || s1 !== frame.readUInt32BE(20))
+        break // Stop at the first incomplete/invalid transaction.
+      const page = frame.readUInt32BE(0)
+      if (page === 0)
+        fail('invalid WAL page number')
+      index.pending.set(page, offset + 24)
+      const commitSize = frame.readUInt32BE(4)
+      if (commitSize) {
+        for (const [key, value] of index.pending) index.overlay.set(key, value)
+        index.pending.clear()
+        index.pages = commitSize
+      }
+      index.offset = offset + 24 + this.#pageSize
+    }
+    index.s0 = s0
+    index.s1 = s1
+    return index
   }
 
   async #loadWal(): Promise<void> {
@@ -425,44 +587,19 @@ export class SqliteReader {
     ) {
       fail('unsupported SQLite WAL header')
     }
-    const little = magic === 0x377F0682
-    let s0 = 0
-    let s1 = 0
-    const checksum = (data: Buffer): void => {
-      for (let i = 0; i < data.length; i += 8) {
-        const a = little ? data.readUInt32LE(i) : data.readUInt32BE(i)
-        const b = little ? data.readUInt32LE(i + 4) : data.readUInt32BE(i + 4)
-        s0 = (s0 + a + s1) >>> 0
-        s1 = (s1 + b + s0) >>> 0
-      }
-    }
-    checksum(head.subarray(0, 24))
-    if (s0 !== head.readUInt32BE(24) || s1 !== head.readUInt32BE(28))
-      fail('SQLite WAL header checksum mismatch')
-    const pending = new Map<number, number>()
-    for (
-      let offset = 32;
-      offset + 24 + this.#pageSize <= size;
-      offset += 24 + this.#pageSize
-    ) {
-      const frame = await this.#read(file, offset, 24 + this.#pageSize)
-      if (!frame.subarray(8, 16).equals(head.subarray(16, 24)))
-        break // Stale frames after a WAL reset are not part of this transaction.
-      checksum(frame.subarray(0, 8))
-      checksum(frame.subarray(24))
-      if (s0 !== frame.readUInt32BE(16) || s1 !== frame.readUInt32BE(20))
-        break // Stop at the first incomplete/invalid transaction.
-      const page = frame.readUInt32BE(0)
-      if (page === 0)
-        fail('invalid WAL page number')
-      pending.set(page, offset + 24)
-      const commitSize = frame.readUInt32BE(4)
-      if (commitSize) {
-        for (const [key, value] of pending) this.#overlay.set(key, value)
-        pending.clear()
-        this.#pages = commitSize
-      }
-    }
+    const salt = head.subarray(16, 24).toString('hex')
+    const prior = walIndexes.get(this.#path) ?? Promise.resolve(undefined)
+    const built = prior.then(async index => this.#scanWal(file, head, magic === 0x377F0682, salt, index))
+    walIndexes.set(this.#path, built)
+    if (walIndexes.size > 8)
+      walIndexes.delete(walIndexes.keys().next().value!)
+    const index = await built.catch((error: unknown) => {
+      if (walIndexes.get(this.#path) === built)
+        walIndexes.delete(this.#path)
+      throw error
+    })
+    this.#overlay = new Map(index.overlay)
+    this.#pages = index.pages
     for (const page of this.#overlay.keys()) {
       if (page > this.#pages)
         this.#overlay.delete(page)
@@ -516,58 +653,173 @@ export class SqliteReader {
       fail('invalid btree cell count')
     for (let i = 0; i < count; i++) {
       this.#options.signal?.throwIfAborted()
-      let cell = page.readUInt16BE(pointerStart + i * 2)
+      const cell = page.readUInt16BE(pointerStart + i * 2)
       if (cell < pointerStart + count * 2 || cell >= this.#usable)
         fail('invalid btree cell pointer')
       if (interior) {
         yield* this.#tree(page.readUInt32BE(cell), visited, depth + 1)
         continue
       }
-      const [length, next] = varint(page, cell)
-      cell = next
-      const [id, body] = varint(page, cell)
-      const total = unsigned(length)
-      if (total > positiveLimit(this.#options.maxRecordBytes, 16 * 1024 * 1024)) {
-        throw new SessionError(
-          'CorruptedSession',
-          'SQLite record exceeds maxRecordBytes',
-        )
-      }
-      const maxLocal = this.#usable - 35
-      const minLocal = Math.floor(((this.#usable - 12) * 32) / 255) - 23
-      let local = total
-      if (total > maxLocal) {
-        local = minLocal + ((total - minLocal) % (this.#usable - 4))
-        if (local > maxLocal)
-          local = minLocal
-      }
-      if (body + local + (local < total ? 4 : 0) > this.#usable)
-        fail('truncated btree payload')
-      const parts = [page.subarray(body, body + local)]
-      let remaining = total - local
-      if (remaining) {
-        let overflow = page.readUInt32BE(body + local)
-        const seen = new Set<number>()
-        while (remaining) {
-          if (seen.has(overflow))
-            fail('cyclic SQLite overflow chain')
-          seen.add(overflow)
-          const data = await this.#page(overflow)
-          overflow = data.readUInt32BE(0)
-          const take = Math.min(remaining, this.#usable - 4)
-          parts.push(data.subarray(4, 4 + take))
-          remaining -= take
-        }
-        if (overflow)
-          fail('excess SQLite overflow chain')
-      }
+      const [length, keyOffset] = varint(page, cell)
+      const [id, body] = varint(page, keyOffset)
       yield {
         rowid: safe(BigInt.asIntN(64, id)),
-        payload: Buffer.concat(parts, total),
+        payload: await this.#payload(page, body, unsigned(length), false),
       }
     }
     if (interior)
       yield* this.#tree(page.readUInt32BE(h + 8), visited, depth + 1)
+  }
+
+  /** Local payload plus its overflow chain; index and table cells share bounds except maxLocal. */
+  async #payload(page: Buffer, offset: number, total: number, index: boolean): Promise<Buffer> {
+    if (total > positiveLimit(this.#options.maxRecordBytes, 16 * 1024 * 1024)) {
+      throw new SessionError(
+        'CorruptedSession',
+        'SQLite record exceeds maxRecordBytes',
+      )
+    }
+    const maxLocal
+      = index
+        ? Math.floor(((this.#usable - 12) * 64) / 255) - 23
+        : this.#usable - 35
+    const minLocal = Math.floor(((this.#usable - 12) * 32) / 255) - 23
+    let local = total
+    if (total > maxLocal) {
+      local = minLocal + ((total - minLocal) % (this.#usable - 4))
+      if (local > maxLocal)
+        local = minLocal
+    }
+    if (offset + local + (local < total ? 4 : 0) > this.#usable)
+      fail('truncated btree payload')
+    const parts = [page.subarray(offset, offset + local)]
+    let remaining = total - local
+    if (remaining) {
+      let overflow = page.readUInt32BE(offset + local)
+      const seen = new Set<number>()
+      while (remaining) {
+        if (seen.has(overflow))
+          fail('cyclic SQLite overflow chain')
+        seen.add(overflow)
+        const data = await this.#page(overflow)
+        overflow = data.readUInt32BE(0)
+        const take = Math.min(remaining, this.#usable - 4)
+        parts.push(data.subarray(4, 4 + take))
+        remaining -= take
+      }
+      if (overflow)
+        fail('excess SQLite overflow chain')
+    }
+    return Buffer.concat(parts, total)
+  }
+
+  /** Index cells open with a payload-length varint, like table cells but without the rowid. */
+  async #indexRecord(page: Buffer, offset: number): Promise<Buffer> {
+    const [length, start] = varint(page, offset)
+    return this.#payload(page, start, unsigned(length), true)
+  }
+
+  async* #indexTree(
+    root: number,
+    prefix: readonly unknown[],
+    visited: Set<number>,
+    depth = 0,
+  ): AsyncGenerator<number | bigint> {
+    if (visited.has(root) || depth > 64)
+      fail('cyclic or excessive SQLite btree')
+    visited.add(root)
+    const page = await this.#page(root)
+    const h = root === 1 ? 100 : 0
+    const kind = page[h]
+    if (kind !== 2 && kind !== 10) {
+      throw new SessionError(
+        'UnsupportedSchema',
+        'expected SQLite index btree',
+      )
+    }
+    const interior = kind === 2
+    const count = page.readUInt16BE(h + 3)
+    const pointerStart = h + (interior ? 12 : 8)
+    if (pointerStart + count * 2 > this.#usable)
+      fail('invalid btree cell count')
+    let previous: unknown[] | undefined
+    for (let i = 0; i < count; i++) {
+      this.#options.signal?.throwIfAborted()
+      const cell = page.readUInt16BE(pointerStart + i * 2)
+      if (cell < pointerStart + count * 2 || cell >= this.#usable)
+        fail('invalid btree cell pointer')
+      const key = this.#decode(
+        await this.#indexRecord(page, interior ? cell + 4 : cell),
+      )
+      if (interior) {
+        if (
+          comparePrefix(key, prefix) >= 0
+          && (previous === undefined || comparePrefix(previous, prefix) <= 0)
+        ) {
+          yield* this.#indexTree(
+            page.readUInt32BE(cell),
+            prefix,
+            visited,
+            depth + 1,
+          )
+        }
+        previous = key
+      }
+      else if (comparePrefix(key, prefix) === 0 && key.length > prefix.length) {
+        yield key.at(-1) as number | bigint
+      }
+    }
+    if (
+      interior
+      && (previous === undefined || comparePrefix(previous, prefix) <= 0)
+    ) {
+      yield* this.#indexTree(page.readUInt32BE(h + 8), prefix, visited, depth + 1)
+    }
+  }
+
+  async #cellById(
+    root: number,
+    target: bigint,
+    depth = 0,
+  ): Promise<{ rowid: number | bigint, payload: Buffer } | undefined> {
+    if (depth > 64)
+      fail('cyclic or excessive SQLite btree')
+    const page = await this.#page(root)
+    const h = root === 1 ? 100 : 0
+    const kind = page[h]
+    if (kind !== 5 && kind !== 13) {
+      throw new SessionError(
+        'UnsupportedSchema',
+        'expected SQLite rowid table btree',
+      )
+    }
+    const count = page.readUInt16BE(h + 3)
+    const interior = kind === 5
+    const pointerStart = h + (interior ? 12 : 8)
+    if (pointerStart + count * 2 > this.#usable)
+      fail('invalid btree cell count')
+    for (let i = 0; i < count; i++) {
+      this.#options.signal?.throwIfAborted()
+      const cell = page.readUInt16BE(pointerStart + i * 2)
+      if (cell < pointerStart + count * 2 || cell >= this.#usable)
+        fail('invalid btree cell pointer')
+      if (interior) {
+        const [separator] = varint(page, cell + 4)
+        if (separator >= target)
+          return this.#cellById(page.readUInt32BE(cell), target, depth + 1)
+      }
+      else {
+        const [length, keyOffset] = varint(page, cell)
+        const [id, body] = varint(page, keyOffset)
+        if (id === target)
+          return { rowid: safe(BigInt.asIntN(64, id)), payload: await this.#payload(page, body, unsigned(length), false) }
+        if (id > target)
+          return undefined
+      }
+    }
+    if (interior)
+      return this.#cellById(page.readUInt32BE(h + 8), target, depth + 1)
+    return undefined
   }
 
   #decode(payload: Buffer): unknown[] {
@@ -586,16 +838,7 @@ export class SqliteReader {
     const values: unknown[] = []
     let cursor = end
     for (const type of types) {
-      const length
-        = type <= 4
-          ? type
-          : type === 5
-            ? 6
-            : type === 6 || type === 7
-              ? 8
-              : type < 12
-                ? 0
-                : Math.floor((type - 12) / 2)
+      const length = serialLength(type)
       if (cursor + length > payload.length)
         fail('truncated SQLite record value')
       const data = payload.subarray(cursor, cursor + length)
@@ -644,6 +887,27 @@ export class SqliteReader {
     return this.tables.get(table)?.columns ?? []
   }
 
+  #rowOf(table: Table, rowid: number | bigint, payload: Buffer): Row {
+    const values = this.#decode(payload)
+    const row: Row = {}
+    for (let i = 0; i < table.columns.length; i++) {
+      let value = values[i]
+      if (i >= values.length) {
+        const fallback = table.defaults[i]!
+        if ('unsupported' in fallback)
+          throw new SessionError('UnsupportedSchema', fallback.unsupported)
+        value = fallback.value
+      }
+      Object.defineProperty(row, table.columns[i]!, {
+        value: i === table.integerKey && value === null ? rowid : value,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      })
+    }
+    return row
+  }
+
   async* rows(name: string): AsyncGenerator<Row> {
     const table = this.tables.get(name)
     if (!table)
@@ -654,26 +918,49 @@ export class SqliteReader {
         `${name}: ${table.unsupported ?? 'table has no btree'}`,
       )
     }
-    for await (const record of this.#tree(table.root)) {
-      const values = this.#decode(record.payload)
-      const row: Row = {}
-      for (let i = 0; i < table.columns.length; i++) {
-        let value = values[i]
-        if (i >= values.length) {
-          const fallback = table.defaults[i]!
-          if ('unsupported' in fallback)
-            throw new SessionError('UnsupportedSchema', fallback.unsupported)
-          value = fallback.value
-        }
-        Object.defineProperty(row, table.columns[i]!, {
-          value: i === table.integerKey && value === null ? record.rowid : value,
-          enumerable: true,
-          configurable: true,
-          writable: true,
-        })
-      }
-      yield row
+    for await (const record of this.#tree(table.root))
+      yield this.#rowOf(table, record.rowid, record.payload)
+  }
+
+  /** Native indexes on this table with plain ascending BINARY columns; other definitions are skipped. */
+  indexes(table: string): Index[] {
+    return this.#indexes.filter(index => index.table === table)
+  }
+
+  /** Rowids whose leading index columns equal the prefix, in index order. */
+  async rowIds(index: Index, prefix: readonly unknown[]): Promise<readonly (number | bigint)[]> {
+    const ids: (number | bigint)[] = []
+    for await (const id of this.#indexTree(index.root, prefix, new Set()))
+      ids.push(id)
+    return ids
+  }
+
+  async rowById(name: string, rowid: number | bigint): Promise<Row | undefined> {
+    const table = this.tables.get(name)
+    if (!table)
+      return undefined
+    if (table.unsupported !== undefined || !table.root) {
+      throw new SessionError(
+        'UnsupportedSchema',
+        `${name}: ${table.unsupported ?? 'table has no btree'}`,
+      )
     }
+    const cell = await this.#cellById(
+      table.root,
+      typeof rowid === 'bigint' ? rowid : BigInt(rowid),
+    )
+    return cell === undefined ? undefined : this.#rowOf(table, cell.rowid, cell.payload)
+  }
+
+  /** Files whose fingerprints moved since open; a nonempty result means delivered rows may span inconsistent snapshots. */
+  async changedPaths(): Promise<readonly string[]> {
+    // The WAL overlay is frozen at open, so appended frames are never read;
+    // only a checkpoint or rollback journal can move evidence mid-read.
+    const checked = [this.#path, `${this.#path}-journal`]
+    const now = await Promise.all(checked.map(fingerprint))
+    return checked.filter(
+      (path, index) => now[index] !== this.#fingerprints.get(path),
+    )
   }
 
   async close(verify = true): Promise<void> {
@@ -682,15 +969,11 @@ export class SqliteReader {
     this.#closed = true
     try {
       if (verify) {
-        const now = await Promise.all(
-          [this.#path, `${this.#path}-wal`, `${this.#path}-journal`].map(
-            fingerprint,
-          ),
-        )
-        if (now.some((value, i) => value !== this.#fingerprints[i])) {
+        const changed = await this.changedPaths()
+        if (changed.length !== 0) {
           throw new SessionError(
             'PartialParse',
-            'SQLite store changed during reading; retry a quiescent source',
+            `SQLite store changed during reading: ${changed.join(', ')}; retry a quiescent source`,
           )
         }
       }

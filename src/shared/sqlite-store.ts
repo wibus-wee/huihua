@@ -48,16 +48,32 @@ export function sqliteStoreProvider(adapter: {
       ingest.emit('system', { sourceType: 'session_metadata', payload: binarySafe(selected) })
       yield* ingest.drain()
       const rows: Row[] = []
-      for await (const row of db.rows(adapter.table)) {
-        if (row.session_id === id)
-          rows.push(row)
+      const index = db.indexes(adapter.table).find(candidate => candidate.columns[0] === 'session_id')
+      if (index !== undefined) {
+        const found: { rowid: number | bigint, row: Row }[] = []
+        for (const rowid of await db.rowIds(index, [id])) {
+          const row = await db.rowById(adapter.table, rowid)
+          if (row !== undefined)
+            found.push({ rowid, row })
+        }
+        found.sort((a, b) => (a.rowid < b.rowid ? -1 : a.rowid > b.rowid ? 1 : 0))
+        rows.push(...found.map(entry => entry.row))
+      }
+      else {
+        for await (const row of db.rows(adapter.table)) {
+          if (row.session_id === id)
+            rows.push(row)
+        }
       }
       await adapter.normalize(ingest, rows, selected, ref, options)
+      const changed = await db.changedPaths()
+      if (changed.length !== 0)
+        ingest.diagnostic('PartialParse', `SQLite store changed during reading: ${changed.join(', ')}; delivered rows may span inconsistent snapshots`)
       yield* ingest.drain()
       yield* ingest.finish()
     }
     finally {
-      await db.close()
+      await db.close(false)
     }
   }
   async function open(ref: SessionRef, options: ReadOptions = {}) {

@@ -170,10 +170,13 @@ async function* stream(ref: SessionRef, options: ReadOptions): AsyncGenerator<Se
       normalize(ingest, row)
       yield* ingest.drain()
     }
+    const changed = await db.changedPaths()
+    if (changed.length !== 0)
+      ingest.diagnostic('PartialParse', `SQLite store changed during reading: ${changed.join(', ')}; delivered rows may span inconsistent snapshots`)
     yield* ingest.finish()
   }
   finally {
-    await db.close()
+    await db.close(false)
   }
 }
 async function open(ref: SessionRef, options: ReadOptions = {}) {

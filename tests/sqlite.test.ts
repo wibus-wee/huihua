@@ -236,10 +236,44 @@ void it('SQLite changed-store detection and nonempty rollback journal fail expli
   )
   const reader = await SqliteReader.open(path)
   db.exec('UPDATE t SET v=\'after\'')
+  assert.deepEqual(await reader.changedPaths(), [path])
   await assert.rejects(async () => reader.close(), hasCode('PartialParse'))
   db.close()
   await writeFile(`${path}-journal`, 'unresolved transaction')
   await assert.rejects(async () => SqliteReader.open(path), hasCode('PartialParse'))
+})
+void it('SQLite WAL appends after open are excluded as a consistent prefix, not a store change', async (t) => {
+  const root = await directory(t)
+  const path = join(root, 's.db')
+  const db = new DatabaseSync(path)
+  t.after(() => db.close())
+  db.exec(
+    'PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; CREATE TABLE t(id INTEGER PRIMARY KEY,v TEXT); INSERT INTO t VALUES(1,\'before\');',
+  )
+  const reader = await SqliteReader.open(path)
+  db.exec('INSERT INTO t VALUES(2,\'after-open\')')
+  const rows = []
+  for await (const row of reader.rows('t')) rows.push(row)
+  assert.deepEqual(rows.map(row => [row.id, row.v]), [[1, 'before']])
+  assert.deepEqual(await reader.changedPaths(), [])
+  await reader.close()
+})
+void it('SQLite reopen extends the WAL index so later commits stay visible', async (t) => {
+  const root = await directory(t)
+  const path = join(root, 's.db')
+  const db = new DatabaseSync(path)
+  t.after(() => db.close())
+  db.exec(
+    'PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; CREATE TABLE t(id INTEGER PRIMARY KEY,v TEXT); INSERT INTO t VALUES(1,\'one\');',
+  )
+  const first = await SqliteReader.open(path)
+  db.exec('INSERT INTO t VALUES(2,\'two\')')
+  const second = await SqliteReader.open(path)
+  const rows = []
+  for await (const row of second.rows('t')) rows.push(row)
+  assert.deepEqual(rows.map(row => row.id), [1, 2])
+  await first.close()
+  await second.close()
 })
 for (const pageSize of [512, 4096, 65536]) {
   void it(`SQLite ${pageSize}-byte pages: interior trees, overflow chains, UTF-16 and 64-bit integers`, async (t) => {
@@ -338,4 +372,140 @@ void it('added columns retain native defaults in pre-migration rows', async (t) 
   finally {
     await reader.close()
   }
+})
+
+void it('native indexes seek session rows without a full table scan', async (t) => {
+  const path = join(await directory(t), 'indexed.db')
+  const db = new DatabaseSync(path)
+  db.exec(`CREATE TABLE t(id INTEGER PRIMARY KEY, session_id, seq, payload TEXT);
+    CREATE INDEX idx_session ON t(session_id);
+    INSERT INTO t VALUES (1,'a',1,'one'),(2,'b',1,'skip'),(3,'a',2,'two'),(4,NULL,1,'null-session'),(5,'a',3,'three'),(6,'a',4,'four'),(7,42,1,'numeric');`)
+  const expected = db.prepare('SELECT * FROM t WHERE session_id = \'a\'').all().map(row => ({ ...row }))
+  db.close()
+  const reader = await SqliteReader.open(path)
+  try {
+    const indexes = reader.indexes('t')
+    assert.equal(indexes.length, 1)
+    assert.deepEqual(indexes[0]!.columns, ['session_id'])
+    const ids = await reader.rowIds(indexes[0]!, ['a'])
+    const sought = []
+    for (const rowid of ids) sought.push(await reader.rowById('t', rowid))
+    assert.deepEqual(sought, expected)
+    assert.equal(await reader.rowById('t', 999), undefined)
+  }
+  finally { await reader.close() }
+})
+
+void it('composite indexes answer leading-column and deeper prefix seeks', async (t) => {
+  const path = join(await directory(t), 'composite.db')
+  const db = new DatabaseSync(path)
+  db.exec(`CREATE TABLE t(id INTEGER PRIMARY KEY, session_id TEXT, seq INTEGER, payload TEXT);
+    CREATE INDEX idx_session_seq ON t(session_id, seq);
+    INSERT INTO t VALUES (1,'a',2,'second'),(2,'a',1,'first'),(3,'b',1,'skip'),(4,'a',3,'third'),(5,'a',2,'dup');`)
+  const sessionRows = db.prepare('SELECT * FROM t WHERE session_id = \'a\'').all().map(row => ({ ...row }))
+  const deepRows = db.prepare('SELECT * FROM t WHERE session_id = \'a\' AND seq = 2').all().map(row => ({ ...row }))
+  db.close()
+  const reader = await SqliteReader.open(path)
+  try {
+    const index = reader.indexes('t').find(candidate => candidate.columns.length === 2)
+    assert.ok(index)
+    const all = []
+    for (const rowid of await reader.rowIds(index, ['a']))
+      all.push(await reader.rowById('t', rowid))
+    assert.deepEqual(all, sessionRows)
+    assert.deepEqual(all.map(row => row.id), [2, 1, 5, 4])
+    const deep = []
+    for (const rowid of await reader.rowIds(index, ['a', 2]))
+      deep.push(await reader.rowById('t', rowid))
+    assert.deepEqual(deep, deepRows)
+    assert.deepEqual(await reader.rowIds(index, ['missing']), [])
+  }
+  finally { await reader.close() }
+})
+
+void it('index definitions outside the supported subset are skipped', async (t) => {
+  const path = join(await directory(t), 'unsupported-indexes.db')
+  const db = new DatabaseSync(path)
+  db.exec(`CREATE TABLE t(id INTEGER PRIMARY KEY, session_id TEXT, seq INTEGER, payload TEXT);
+    CREATE INDEX partial ON t(session_id) WHERE seq > 0;
+    CREATE INDEX descending ON t(session_id DESC);
+    CREATE INDEX collated ON t(session_id COLLATE NOCASE);
+    CREATE INDEX expression ON t(session_id || '');
+    CREATE INDEX supported ON t(session_id);
+    INSERT INTO t VALUES (1,'a',1,'row');`)
+  db.close()
+  const reader = await SqliteReader.open(path)
+  try {
+    assert.deepEqual(reader.indexes('t').map(index => index.columns), [['session_id']])
+    const rows = []
+    for await (const row of reader.rows('t')) rows.push(row)
+    assert.equal(rows.length, 1)
+  }
+  finally { await reader.close() }
+})
+
+void it('index seeks prune across interior pages', async (t) => {
+  const path = join(await directory(t), 'deep-index.db')
+  const db = new DatabaseSync(path)
+  db.exec('CREATE TABLE t(id INTEGER PRIMARY KEY, session_id TEXT, payload TEXT); CREATE INDEX idx_session ON t(session_id);')
+  const insert = db.prepare('INSERT INTO t(session_id, payload) VALUES (?, ?)')
+  for (let i = 0; i < 24000; i++)
+    insert.run(`s${i % 500}`, `payload-${i}`)
+  const expected = db.prepare('SELECT * FROM t WHERE session_id = \'s250\' ORDER BY id').all().map(row => ({ ...row }))
+  const absent = db.prepare('SELECT * FROM t WHERE session_id = \'s999\'').all()
+  db.close()
+  const reader = await SqliteReader.open(path)
+  try {
+    const index = reader.indexes('t')[0]!
+    const found = []
+    for (const rowid of await reader.rowIds(index, ['s250']))
+      found.push(await reader.rowById('t', rowid))
+    found.sort((a, b) => Number(a!.id) - Number(b!.id))
+    assert.deepEqual(found, expected)
+    assert.deepEqual(await reader.rowIds(index, ['s999']), [])
+    assert.equal(absent.length, 0)
+  }
+  finally { await reader.close() }
+})
+
+void it('WAL-resident rows remain visible through index seeks', async (t) => {
+  const path = join(await directory(t), 'wal-index.db')
+  const producer = new DatabaseSync(path)
+  producer.exec(`PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0;
+    CREATE TABLE t(id INTEGER PRIMARY KEY, session_id TEXT, payload TEXT);
+    CREATE INDEX idx_session ON t(session_id);
+    INSERT INTO t VALUES (1,'a','main');`)
+  producer.exec('INSERT INTO t VALUES (2,\'a\',\'wal-resident\'),(3,\'b\',\'other\')')
+  const reader = await SqliteReader.open(path)
+  try {
+    const index = reader.indexes('t')[0]!
+    const found = []
+    for (const rowid of await reader.rowIds(index, ['a']))
+      found.push(await reader.rowById('t', rowid))
+    assert.deepEqual(found.map(row => row!.payload), ['main', 'wal-resident'])
+  }
+  finally {
+    await reader.close()
+    producer.close()
+  }
+})
+
+void it('indexed Devin sessions parse identically to full-table scans', async (t) => {
+  const root = await directory(t)
+  const sql = await readFile(resolve('fixtures/devin/sessions.sql'), 'utf8')
+  const parsed = []
+  for (const [name, extra] of [
+    ['plain.db', ''],
+    ['indexed.db', 'CREATE INDEX idx_message_nodes_session ON message_nodes(session_id);'],
+  ] as const) {
+    const path = join(root, name)
+    const producer = new DatabaseSync(path)
+    producer.exec(sql + extra)
+    producer.close()
+    parsed.push(await sessions.parse('devin', { path, format: 'devin_sqlite', id: 'devin-session' }))
+  }
+  const normalize = (session: unknown) => JSON.parse(
+    JSON.stringify(session).replaceAll(/huihua-sqlite-[^/]+\/(?:plain|indexed)\.db/g, 'sessions.db'),
+  ) as unknown
+  assert.deepEqual(normalize(parsed[0]), normalize(parsed[1]))
 })
