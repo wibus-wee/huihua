@@ -86,8 +86,8 @@ Unknown events and their diagnostics are not counted as two separate unknown rec
 The PR/push lane pins Claude Code 2.1.292 and simulator commit 5bdf08c.
 The daily scheduled canary resolves the latest Claude Code version while keeping simulator/scenarios
 fixed, and records the version in the run summary.
-Failures produce CI results and synthetic artifacts,
-not automatically posted issues.
+Producer jobs emit CI results and synthetic artifacts; the trusted daily reporter described
+below owns issue publication.
 Startup, scenario, producer, read and drift failures retain a stage.
 
 ## Run locally
