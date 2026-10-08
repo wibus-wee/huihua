@@ -51,13 +51,16 @@ jobs:
               {0}/huihua-codex-*/workspace/synthetic.txt
               {0}/huihua-codex-*/home/.codex/sessions/**/*.jsonl
     env:
-      SIMULATOR_DIR: ${{ runner.temp }}/simulator
-      PRODUCER_BIN: ${{ runner.temp }}/producers/node_modules/.bin/${{ matrix.provider.binary }}
       COMPAT_PROVIDER: ${{ matrix.provider.id }}
       COMPAT_LANE: ${{ matrix.lane }}
-      COMPAT_REPORT: ${{ runner.temp }}/${{ matrix.provider.id }}-compat-report.json
-      COMPAT_RESULT_PATH: ${{ runner.temp }}/result-${{ matrix.provider.id }}-${{ matrix.lane }}.json
+      PRODUCER_BINARY: ${{ matrix.provider.binary }}
     steps:
+      - name: Set shared run paths
+        run: |
+          echo "SIMULATOR_DIR=$RUNNER_TEMP/simulator" >> "$GITHUB_ENV"
+          echo "PRODUCER_BIN=$RUNNER_TEMP/producers/node_modules/.bin/$PRODUCER_BINARY" >> "$GITHUB_ENV"
+          echo "COMPAT_REPORT=$RUNNER_TEMP/$COMPAT_PROVIDER-compat-report.json" >> "$GITHUB_ENV"
+          echo "COMPAT_RESULT_PATH=$RUNNER_TEMP/result-$COMPAT_PROVIDER-$COMPAT_LANE.json" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
