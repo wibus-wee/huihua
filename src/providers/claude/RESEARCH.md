@@ -108,3 +108,23 @@ The same metadata function accepts the existing selected patch keys internally.
 It always resolves native session/agent identity for validation, and only constructs
 requested workspace/title/time/parent/metadata fields; discovery and full reads
 omit that selector and retain their complete original facts.
+
+## Observed 2.1.295 request metadata
+
+The [2026-10-09 native CI capture](https://github.com/wibus-wee/huihua/actions/runs/37926896716)
+adds outer `assistant.requestedModel`.
+This is empirical private-writer evidence, not an official
+stable contract or third-party inference.
+Huihua retains it in the native record while continuing
+to derive canonical response model from `message.model`.
+The compatibility harness accepts only
+the reviewed string path; see the artifact provenance in docs/producer-compatibility.md.
+
+The v0.4.4 foreground-subagent journey was also exercised with 2.1.292 and 2.1.295.
+Both wrote three repeated parent latch/last-prompt records in this capture.
+The newer writer adds typed `requestedModel` and `toolUseResult.canContinueAgent`
+metadata; no public meaning is inferred for the latter.
+Full raw preservation and
+independent child/spawn/result assertions remain required.
+These are empirical
+CLI observations, not an official format contract or a new production mapping.

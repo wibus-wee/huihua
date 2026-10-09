@@ -5,8 +5,8 @@
   "unknown": {
     "queue-operation": 2,
     "attachment": 22,
-    "atis-latch": 2,
-    "last-prompt": 2,
+    "atis-latch": 3,
+    "last-prompt": 3,
     "cost-state": 1
   },
   "structured": 0,
@@ -490,13 +490,17 @@
     "$.permissionDecision.decision:string",
     "$.permissionDecision.reasonType:string",
     "$.permissionDecision.source:string",
-    "$.permissionDecision:object"
+    "$.permissionDecision:object",
+    "$.requestedModel:string",
+    "$.toolUseResult.canContinueAgent:boolean"
   ],
   "optionalGroupedFieldPaths": [
+    "\"assistant\":$.requestedModel:string",
     "\"attachment\":$.attachment.context.gitStatus:string",
     "\"user\":$.permissionDecision.decision:string",
     "\"user\":$.permissionDecision.reasonType:string",
     "\"user\":$.permissionDecision.source:string",
-    "\"user\":$.permissionDecision:object"
+    "\"user\":$.permissionDecision:object",
+    "\"user\":$.toolUseResult.canContinueAgent:boolean"
   ]
 }

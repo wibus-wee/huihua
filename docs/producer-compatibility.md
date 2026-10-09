@@ -504,3 +504,97 @@ test file, policy assertions and fx-only manifest gap update now select only fx.
 A PR changing the selector itself still selects all lanes to validate that shared infrastructure.
 Live failures remain red whenever their scope is
 selected; routing never changes an assertion or accepts a baseline.
+
+## Reviewed Claude 2.1.295 and Codex 0.162.0 drift
+
+The [2026-10-09 scheduled run](https://github.com/wibus-wee/huihua/actions/runs/37926896716)
+at Huihua 8d7e728 passed acquisition, same-record semantic assertions, tool roundtrip and resume
+for both versions, then raised [Claude #31](https://github.com/wibus-wee/huihua/issues/31)
+and [Codex #32](https://github.com/wibus-wee/huihua/issues/32) at the structural baseline.
+These observations concern the synthetic journey, not a complete private-format specification.
+
+Claude 2.1.295 adds `assistant.requestedModel` (string).
+In this capture it equals the requested
+model; `message.model` still supplies the recorded response model.
+The new outer field remains
+in raw evidence and must not overwrite the response model.
+Only that exact record/type path is
+accepted as optional, alongside the existing reviewed permission metadata; different types or
+placement still fail.
+
+Codex 0.162.0 adds `task_started.turn_attribution` containing turn/root identifiers, `exec`
+trigger and null parent/initiating-agent fields.
+It omits the three old turn-context fields
+`current_date`, `timezone`, `workspace_roots`, and the `CommandExecution` mirror's `stdout`,
+`stderr`, `formatted_output`.
+The mirror retains `aggregated_output`, exit code and command;
+the `response_item.function_call_output` retains the successful tool result.
+The new attribution
+remains complete unknown evidence; turn context remains complete system evidence.
+No new
+public primitive or production parser change is justified by this journey alone.
+
+The Codex harness owns two complete reviewed path shapes in its existing baseline file.
+It reuses `assertNoProducerDrift` for each, retaining the pinned shape and all common unknown,
+structured-fallback and diagnostic checks.
+This is deliberately not a union of optional additions
+and removals: a partial hybrid, lost tool-result path, attribution type change or unknown growth
+still fails.
+When neither shape matches, report the smaller exact drift for review.
+Future shapes
+are never accepted automatically.
+Shared runtime and provider code are unchanged.
+
+Native artifacts were checked against GitHub's SHA-256 digests before inspection:
+
+| Artifact                                | SHA-256                                                          |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| synthetic-producer-compatibility-pinned | 98d6e6bd66f5c9d0ecfbf8e8660a01805aeed187561785ad94e5301d44718a88 |
+| synthetic-producer-compatibility-latest | c7ce0c4384886dce3e7ab72987a0f3ebf93dd8743c2b2eb4e3cc69870f2a1f6d |
+| synthetic-codex-compatibility-pinned    | 827c397ffbfb35cb0ed242fc472d4a208b48a1ea2c8fbb56b2efb6080fa26a27 |
+| synthetic-codex-compatibility-latest    | e8651cacbbd6ea9c3a8156422ceb1a3a268c1096813308367adb5bca3f2e5053 |
+
+Local replay first reproduced both baseline errors with the previous code.
+After this review,
+all four archived captures pass scan/read/snapshot/record-stream/event-stream audits and exact
+native paths: six sessions, 120 rows total.
+Codex scenario assertions also pass.
+Replay does not
+claim a fresh CLI execution; synthetic historical captures are inputs, never repaired stores.
+
+### Refresh against v0.4.4
+
+The PR refresh retains main dd63e93's exact simulator request ledger, exhausted-queue
+checks, independent native oracles and foreground Claude subagent journey.
+Fresh local runs of Claude 2.1.292 and 2.1.295 both passed scan/read/snapshot/record/event
+and scenario assertions before exposing a separate subagent-baseline mismatch:
+three parent `atis-latch` and `last-prompt` records instead of the earlier two.
+The reviewed upper bounds are three, not an unbounded allowance; unknown kinds and
+fourth occurrences still fail.
+Records are retained without deduplication.
+Claude 2.1.295 additionally writes `assistant.requestedModel:string` and
+`user.toolUseResult.canContinueAgent:boolean` in this journey.
+Only those typed
+metadata paths are optional.
+Native child identity, spawn/result association and
+response text checks remain required; the new boolean remains native evidence.
+The focused regression failed before this baseline update.
+
+Local Codex 0.161.0 and 0.162.0 attempts stopped before producing sessions because
+the cloud sandbox helper rejected its app-server socket directory.
+No sandbox
+setting was changed to bypass that failure.
+Fresh verification uses GitHub-hosted
+synthetic CI, where the existing runner already has its reviewed CI-only override.
+
+After the narrow update, fresh 2.1.292 and 2.1.295 runs both passed every required
+stage, including five independently audited sessions each, native child lineage,
+tool roundtrip, resume, exact request ledger and exhausted simulator queue.
+
+[Fresh GitHub-hosted Codex validation](https://github.com/wibus-wee/huihua/actions/runs/37956554952)
+passed both manifest-pinned 0.161.0 and current 0.162.0 against the refreshed code.
+Both jobs independently produced native stores and passed tool roundtrip, resume,
+scan/read/snapshot/records/events, semantic, native-shape and diagnostic assertions.
+The temporary two-lane workflow was removed after retaining its CI evidence.
+Final changes are limited to the compatibility code, reviewed baselines, regression
+checks and their documentation; the ordinary workflow remains unchanged.

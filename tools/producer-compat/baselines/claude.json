@@ -123,7 +123,8 @@
     "$.permissionDecision.decision:string",
     "$.permissionDecision.reasonType:string",
     "$.permissionDecision.source:string",
-    "$.permissionDecision:object"
+    "$.permissionDecision:object",
+    "$.requestedModel:string"
   ],
   "groupedFieldPaths": [
     "\"assistant\":$.apiBlockIndex:number",
@@ -283,6 +284,7 @@
     "\"user\":$.permissionDecision.decision:string",
     "\"user\":$.permissionDecision.reasonType:string",
     "\"user\":$.permissionDecision.source:string",
-    "\"user\":$.permissionDecision:object"
+    "\"user\":$.permissionDecision:object",
+    "\"assistant\":$.requestedModel:string"
   ]
 }

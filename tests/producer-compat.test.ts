@@ -11,10 +11,11 @@ import type { Session } from '../src/index.ts'
 import { sessions } from '../src/index.ts'
 import { activeProviders, manifest, selectProviders } from '../tools/producer-compat/catalog.ts'
 import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
-import { assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
+import { assertCodexBaseline, assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiFacts, assertKimiReplies } from '../tools/producer-compat/kimi.ts'
 import { inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
+import type { DriftSummary } from '../tools/producer-compat/runtime.ts'
 import { assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
 
 await test('test launcher disables automatic model replies and checks unconsumed exchanges', async () => {
@@ -513,4 +514,49 @@ await test('real git comparison handles doc-only changes, cross-provider renames
     assert.deepEqual(await selected(advancedBase, fxCommit, true), ['fx'])
   }
   finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+await test('reviewed Codex shapes preserve pinned requirements and reject partial hybrids', async () => {
+  const baseline = JSON.parse(await readFile(new URL('../tools/producer-compat/baselines/codex.json', import.meta.url), 'utf8')) as DriftSummary & { groupedFieldPaths: string[], reviewedPathVariants: { fieldPaths: string[], groupedFieldPaths: string[] }[] }
+  const latest = { ...baseline, ...baseline.reviewedPathVariants[0]! }
+  assertCodexBaseline(baseline, baseline)
+  assertCodexBaseline(latest, baseline)
+  for (const shape of [baseline, latest]) {
+    const missing = { ...shape, groupedFieldPaths: shape.groupedFieldPaths.filter((path: string) => path !== '"response_item":$.payload.output:string') }
+    assert.throws(() => assertCodexBaseline(missing, baseline), NativeDriftError)
+    assert.throws(() => assertCodexBaseline({ ...shape, unknown: { ...shape.unknown, new_kind: 1 } }, baseline), /unknown native/)
+    assert.throws(() => assertCodexBaseline({ ...shape, structured: 1 }, baseline), /structured fallback/)
+    assert.throws(() => assertCodexBaseline({ ...shape, groupedFieldPaths: [...shape.groupedFieldPaths, '"event_msg":$.future:string'] }, baseline), NativeDriftError)
+  }
+  // Removing old stdout without the complete reviewed new shape is not accepted.
+  assert.throws(() => assertCodexBaseline({ ...baseline, groupedFieldPaths: baseline.groupedFieldPaths.filter((path: string) => path !== '"event_msg":$.payload.item.stdout:string') }, baseline), NativeDriftError)
+  const attribution = '"event_msg":$.payload.turn_attribution.turn_id:string'
+  assert.throws(() => assertCodexBaseline({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.filter((path: string) => path !== attribution) }, baseline), NativeDriftError)
+  assert.throws(() => assertCodexBaseline({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.map((path: string) => path === attribution ? attribution.replace(':string', ':number') : path) }, baseline), NativeDriftError)
+})
+
+await test('reviewed Claude requestedModel metadata stays raw and cannot replace response model', async () => {
+  const native = { type: 'assistant', sessionId: 'reviewed', requestedModel: 'requested-alias', message: { model: 'actual-response-model', content: [{ type: 'text', text: 'exact reply' }], usage: { input_tokens: 1, output_tokens: 2 } } }
+  const session = await sessions.parse('claude', { jsonl: JSON.stringify(native) })
+  assert.deepEqual(session.records[0]!.native, native)
+  const message = session.events.find(event => event.type === 'assistant_message')
+  assert(message?.type === 'assistant_message')
+  assert.equal(message.data.model, 'actual-response-model')
+  const baseline = JSON.parse(await readFile(new URL('../tools/producer-compat/baselines/claude.json', import.meta.url), 'utf8')) as DriftSummary & { groupedFieldPaths: string[] }
+  assertNoProducerDrift(baseline, baseline)
+  assertNoProducerDrift({ ...baseline, fieldPaths: [...baseline.fieldPaths, '$.requestedModel:string'], groupedFieldPaths: [...baseline.groupedFieldPaths, '"assistant":$.requestedModel:string'] }, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...baseline, groupedFieldPaths: [...baseline.groupedFieldPaths, '"assistant":$.requestedModel:number'] }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...baseline, groupedFieldPaths: [...baseline.groupedFieldPaths, '"user":$.requestedModel:string'] }, baseline), NativeDriftError)
+})
+
+await test('reviewed Claude child metadata is narrow and unknown repetition stays bounded', async () => {
+  const baseline = JSON.parse(await readFile(new URL('../tools/producer-compat/baselines/claude-subagents.json', import.meta.url), 'utf8')) as DriftSummary & { groupedFieldPaths: string[] }
+  const latest = { ...baseline, unknown: { ...baseline.unknown, 'atis-latch': 3, 'last-prompt': 3 }, fieldPaths: [...baseline.fieldPaths, '$.requestedModel:string', '$.toolUseResult.canContinueAgent:boolean'], groupedFieldPaths: [...baseline.groupedFieldPaths, '"assistant":$.requestedModel:string', '"user":$.toolUseResult.canContinueAgent:boolean'] }
+  assertNoProducerDrift(latest, baseline)
+  assertNoProducerDrift(baseline, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'atis-latch': 4 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'last-prompt': 4 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, new_kind: 1 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: [...latest.groupedFieldPaths, '"user":$.toolUseResult.canContinueAgent:string'] }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.filter(path => path !== '"user":$.toolUseResult.agentId:string') }, baseline), NativeDriftError)
 })
