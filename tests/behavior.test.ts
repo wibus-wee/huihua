@@ -156,6 +156,47 @@ void it('provider path globs preserve hidden directories, literal roots and nati
   if (process.platform !== 'win32')
     assert.equal(transcripts(join(root, 'agent-transcripts\\id.jsonl')), false)
 })
+void it('Pi directory discovery requires a session header and retains genuine nested run sessions', async (t) => {
+  const root = await directory(t)
+  const store = join(root, '.pi/agent/sessions')
+  const parent = join(store, '--workspace--/parent.jsonl')
+  const child = join(store, '--workspace--/2026-01-01_parent/run-id/run-0/session.jsonl')
+  const transcript = join(store, '--workspace--/subagent-artifacts/run-id_worker_0_transcript.jsonl')
+  const header = `${JSON.stringify({ type: 'session', version: 3, id: 'child', cwd: '/workspace' })}\n`
+  const artifact = `${JSON.stringify({ version: 1, recordType: 'message', source: 'async', runId: 'run-id', agent: 'worker', childIndex: 0, role: 'assistant', text: 'done' })}\n`
+  await put(parent, '{"type":"session","id":"parent"}\n')
+  await put(child, `${header}{"type":"session_info","name":"subagent-worker-run-id-0"}\n`)
+  await put(transcript, artifact)
+  for (const [name, prefix] of [['empty', ''], ['unrelated', '{}\n'], ['late-header', artifact], ['malformed-head', 'broken\n']] as const)
+    await put(join(store, `${name}.jsonl`), name === 'empty' ? prefix : `${prefix}${header}`)
+  // Content determines discovery, even inside an extension artifacts directory.
+  const portable = join(store, 'subagent-artifacts/portable.jsonl')
+  await put(portable, '{"type":"session","version":99,"id":"portable"}\n')
+  const anonymous = join(store, 'anonymous.jsonl')
+  await put(anonymous, '{"type":"session","version":3}\n')
+
+  for (const options of [{ homeDir: root }, { roots: { pi: [store] } }]) {
+    const result = await sessions.scan({ providers: ['pi'], ...options })
+    assert.deepEqual(result.failures, [])
+    assert.deepEqual(result.refs.map(ref => ref.id).sort(), ['child', 'parent', 'portable', `source:${anonymous}`])
+    const ref = result.refs.find(ref => ref.source.path === child)!
+    assert.equal(ref.title, 'subagent-worker-run-id-0')
+    const session = await sessions.read(ref)
+    assert.equal(session.id, 'child')
+    assert.equal(session.parentSessionId, undefined)
+    assertSessionContract(session)
+    const future = await sessions.read(result.refs.find(ref => ref.source.path === portable)!)
+    assert.ok(future.diagnostics.some(diagnostic => diagnostic.code === 'UnsupportedSchema'))
+  }
+  assert.deepEqual(await sessions.scan({ providers: ['pi'], roots: { pi: [store] }, headerBytes: 10 }), { refs: [], failures: [] })
+  const explicit = await sessions.scan({ providers: ['pi'], roots: { pi: [transcript] } })
+  assert.deepEqual(explicit.failures, [])
+  assert.deepEqual(explicit.refs.map(ref => ref.source.path), [transcript])
+  const read = await sessions.read(explicit.refs[0]!)
+  assert.equal(read.records[0]?.text, artifact)
+  assert.equal(eventsOf(read, 'unknown').length, 1)
+  assert.deepEqual((await sessions.parse('pi', { jsonl: artifact })).records[0]?.native, JSON.parse(artifact))
+})
 void it('Qwen directory discovery certifies exact chat layout and the first complete record identity', async (t) => {
   const root = await directory(t)
   const projects = join(root, '.qwen/projects')

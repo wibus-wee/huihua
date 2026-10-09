@@ -22,6 +22,9 @@ export const piProvider = jsonlProvider({
       ]
     )
   },
+  identify({ header, explicitFile }) {
+    return explicitFile || object(header[0]).type === 'session' ? {} : false
+  },
   metadata(records) {
     let facts: Partial<Session> = {}
     const metadata: Record<string, unknown> = {}
