@@ -98,3 +98,14 @@ The same metadata function accepts the existing selected patch keys internally.
 It always resolves native session/agent identity for validation, and only constructs
 requested workspace/title/time/parent/metadata fields; discovery and full reads
 omit that selector and retain their complete original facts.
+
+## Observed 2.1.295 request metadata
+
+The [2026-10-09 native CI capture](https://github.com/wibus-wee/huihua/actions/runs/37926896716)
+adds outer `assistant.requestedModel`.
+This is empirical private-writer evidence, not an official
+stable contract or third-party inference.
+Huihua retains it in the native record while continuing
+to derive canonical response model from `message.model`.
+The compatibility harness accepts only
+the reviewed string path; see the artifact provenance in docs/producer-compatibility.md.
