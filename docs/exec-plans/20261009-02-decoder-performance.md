@@ -16,7 +16,8 @@ It authorizes the focused benchmarks in this plan; no other profiling or benchma
       all twelve focused decoder tests and strict type checks pass.
 - [x] 2026-10-09: Finish 150 alternating fresh-process before/fixed trials across 15 configurations.
 - [x] 2026-10-09: Pass the complete pinned pnpm check with 445 tests and installed-package verification.
-- [ ] Update PR #30 with the fix, measured results and EOF-publication contract.
+- [x] 2026-10-09: Push performance commit 9d733f4 and update PR #30 with measured results,
+      reproduction links and the EOF-publication contract.
 
 ## Surprises & Discoveries
 
@@ -48,7 +49,8 @@ Final decoder metadata is deliberately published once at successful EOF.
 Raw measurements and limitations are recorded in docs/decoder-performance.md and its linked JSON.
 Full repository acceptance passes with 445 tests and installed JavaScript/TypeScript verification.
 The measured production source hashes still match the final implementation.
-The PR update remains pending.
+PR #30 contains the implementation, raw trials and performance report, with the final contract
+and validation summarized in its description.
 
 ## Context and Orientation
 
@@ -100,4 +102,4 @@ Shared ingestion passes FrameSelection to the runner and requests native parent 
 when that field is not delivered.
 There is no new public dispatch/filter API without evidence that it is required.
 
-Revision: initial performance follow-up plan, 2026-10-09.
+Revision: performance investigation, acceptance and PR update completed, 2026-10-09.
