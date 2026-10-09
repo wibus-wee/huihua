@@ -46,3 +46,17 @@ These private aliases and request-usage observations are third-party compatibili
 
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
+
+## Observed 0.162.0 lifecycle and mirror changes
+
+The [2026-10-09 native CI capture](https://github.com/wibus-wee/huihua/actions/runs/37926896716)
+adds task_started turn attribution and removes old turn-context and command-mirror fields.
+These are empirical official-CLI outputs, not a guarantee of a stable schema.
+No third-party
+parser behavior is used to infer their meaning.
+The existing provider preserves task_started
+and item_completed as complete unknown payloads and turn_context as system evidence.
+The actual tool result still comes from response_item, not removed mirror output fields.
+The reviewed compatibility baseline keeps two complete shapes rather than making all changed
+paths independently optional.
+See docs/producer-compatibility.md for exact changes and digests.
