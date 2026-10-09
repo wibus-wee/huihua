@@ -54,6 +54,11 @@ function desktopDirectory(path: string): string | undefined {
   }
   return undefined
 }
+function subagentMetadataPath(path: string): string | undefined {
+  return basename(dirname(path)) === 'subagents' && /^agent-.+\.(?:jsonl|ndjson)$/.test(basename(path))
+    ? path.replace(/\.(?:jsonl|ndjson)$/, '.meta.json')
+    : undefined
+}
 const claude = jsonlProvider({
   id: 'claude',
   usageContext: true,
@@ -73,9 +78,10 @@ const claude = jsonlProvider({
   },
   metadataFiles(path) {
     const local = desktopDirectory(path)
-    return local === undefined ? [] : [`${local}.json`]
+    const subagent = subagentMetadataPath(path)
+    return [...(local === undefined ? [] : [`${local}.json`]), ...(subagent === undefined ? [] : [subagent])]
   },
-  metadata(records, path, _context, keys) {
+  metadata(records, path, context, keys) {
     const facts: Partial<Session> = {}
     let metadata: Record<string, unknown> = {}
     const wantsWorkspace = keys === undefined || keys.includes('workspace')
@@ -85,6 +91,11 @@ const claude = jsonlProvider({
     const wantsTitle = keys === undefined || keys.includes('title')
     for (const record of records) {
       const v = object(record)
+      if (v.type === undefined && typeof v.agentType === 'string' && typeof v.toolUseId === 'string') {
+        if (wantsMetadata && context.fileBacked && subagentMetadataPath(path) !== undefined)
+          metadata = { ...metadata, subagent: v }
+        continue
+      }
       if (typeof v.cliSessionId === 'string') {
         const local = desktopDirectory(path)
         if (local !== undefined && v.sessionId === basename(local) && v.cliSessionId === basename(path).replace(/\.(?:jsonl|ndjson)$/, '')) {
@@ -108,12 +119,22 @@ const claude = jsonlProvider({
       }
       if (wantsCreated && facts.createdAt === undefined && timestamp(v.timestamp))
         Object.assign(facts, { createdAt: timestamp(v.timestamp) })
+      const sessionId = string(v.sessionId)
+      const parentSessionId = string(v.parentSessionId)
+      // An explicit parentSessionId already describes an independently identified session.
+      const agentId = parentSessionId === undefined && v.isSidechain === true ? string(v.agentId) : undefined
+      const id = agentId ?? sessionId
       Object.assign(facts, {
-        ...optional('id', string(v.sessionId)),
-        ...optional('parentSessionId', wantsParent ? string(v.parentSessionId) : undefined),
+        ...optional('id', id),
+        ...optional('parentSessionId', wantsParent ? parentSessionId ?? (agentId === undefined ? undefined : sessionId) : undefined),
       })
-      if (wantsMetadata && typeof v.sessionId === 'string')
-        metadata = { ...metadata, id_origin: 'native' }
+      if (wantsMetadata && id !== undefined) {
+        metadata = {
+          ...metadata,
+          id_origin: 'native',
+          ...(agentId === undefined ? {} : { agentId, ...optional('sessionId', sessionId) }),
+        }
+      }
       if (wantsTitle && v.type === 'custom-title')
         Object.assign(facts, optional('title', string(v.customTitle)))
     }
@@ -141,6 +162,9 @@ const claude = jsonlProvider({
     }
     else if (type === 'tool_result') {
       ingest.emit('tool_result', { ...optional('callId', string(v.tool_use_id) ?? string(v.tool_call_id)), ...optional('toolName', string(v.name) ?? string(v.tool)), result: v.output ?? v.content ?? null, isError: v.is_error === true })
+    }
+    else if (v.type === undefined && typeof v.agentType === 'string' && typeof v.toolUseId === 'string') {
+      ingest.emit('system', { sourceType: 'subagent_metadata', payload: native })
     }
     else if (typeof v.cliSessionId === 'string') {
       ingest.emit('system', { sourceType: 'desktop_metadata', payload: native })

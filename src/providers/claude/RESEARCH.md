@@ -43,6 +43,36 @@ The local sidecar ID is preserved separately as desktop_session_id and never rep
 Foreign sidecar metadata stays raw; its model is not a historical response model.
 Supplied JSONL opens no sidecar.
 
+Reviewed [Huihua issue #24](https://github.com/wibus-wee/huihua/issues/24) on 2026-10-09
+as third-party compatibility evidence: current Claude Code subagent records carry
+the enclosing session's `sessionId`, their own `agentId`, and `isSidechain: true`.
+The adjacent `agent-<agentId>.meta.json` records the agent type, description,
+spawn tool call and depth.
+This private layout is not an official wire contract.
+The Claude mapper uses native `agentId` as `id` and native `sessionId` as
+`parentSessionId` when both subagent markers are present and no explicit
+`parentSessionId` already identifies a legacy independently named child session.
+It retains both native IDs in metadata and the original event envelopes.
+Neither filenames nor `parentUuid` establish a session identity or parent.
+As with other providers, IDs remain native and source-scoped rather than
+promising global uniqueness across stores.
+
+File-backed `subagents/agent-*.jsonl` and `.ndjson` select only their exact sibling
+`.meta.json` through the existing bounded companion hook.
+A metadata object with
+native `agentType` and `toolUseId` is preserved as `metadata.subagent` and a System
+event with source type `subagent_metadata`; complete native records retain its
+actual source path and unknown fields.
+Missing sidecars do not prevent the
+transcript's explicit identity and parent mapping.
+Metadata does not invent a
+title, response model, lifecycle event or parent from a directory or tool ID.
+The same mapper serves discovery, direct acquisition, snapshots and selected
+usage delivery.
+Focused regressions cover a parent with two child transcripts,
+optional sidecars, acquired text/bytes/chunks, preserved legacy lineage and
+foreign-identity diagnostics without rewriting historical goldens.
+
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
 
@@ -65,6 +95,6 @@ unknown-record and tool/EOF checks still run for rejected rows.
 No usage, date, model, identity or branch fact is inferred.
 
 The same metadata function accepts the existing selected patch keys internally.
-It always extracts native sessionId for identity validation, and only constructs
+It always resolves native session/agent identity for validation, and only constructs
 requested workspace/title/time/parent/metadata fields; discovery and full reads
 omit that selector and retain their complete original facts.
