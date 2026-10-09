@@ -8,6 +8,7 @@ import type { Session } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import { writeFailedReviewPacket, writeReviewPacket } from './review.ts'
+import { assertNativeBaseline, nativeReadSummary } from './runtime.ts'
 
 type Row = Record<string, unknown>
 interface Inventory {
@@ -52,6 +53,7 @@ export async function auditNativeStore(provider: string, home: string, root: str
   progress.completed.push('scan')
   const ref = scan.refs[0]!
   const handle = await sessions.open(ref)
+  let read: Session | undefined
   for (const kind of ['read', 'snapshot', 'records', 'events']) {
     progress.stage = kind
     let session: Session
@@ -86,8 +88,39 @@ export async function auditNativeStore(provider: string, home: string, root: str
       assert(event.record >= 0 && event.record < session.records.length, 'event points outside native evidence')
     if (kind === 'read')
       await writeReviewPacket(provider, root, session)
+    if (kind === 'read')
+      read = session
     progress.completed.push(kind)
   }
+  assert(read)
+  await assertNativeBaseline(provider, nativeDriftSummary(provider, inventory.rows, read), root, progress)
+}
+
+// Observe native layouts before Huihua mapping, including JSON stored inside SQLite columns.
+export function nativeDriftSummary(provider: string, rows: Row[], session: Session) {
+  const observed = rows.map((row, index) => {
+    if (provider === 'opencode' && index > 0)
+      return { row, decoded: object(JSON.parse(String(row.data))) }
+    if (provider === 'openclaw' && index > 0) {
+      const text = typeof row.event_json === 'string' ? row.event_json : execFileSync('zstd', ['-d', '-c'], { input: row.event_zstd as Uint8Array, encoding: 'utf8' })
+      return { row, decoded: object(JSON.parse(text)) }
+    }
+    if (provider === 'hermes' && typeof row.content === 'string' && row.content.startsWith('\0json:'))
+      return { row, decoded: JSON.parse(row.content.slice(6)) as unknown }
+    return row
+  })
+  const kind = (native: Row) => {
+    const row = native.row === undefined ? native : object(native.row)
+    const decoded = native.decoded === undefined ? {} : object(native.decoded)
+    const message = row.message === undefined ? {} : object(row.message)
+    const event = row.event === undefined ? {} : object(row.event)
+    const params = row.params === undefined ? {} : object(row.params)
+    const update = params.update === undefined ? {} : object(params.update)
+    const recording = row.record === undefined ? {} : object(row.record)
+    const body = recording.body === undefined ? {} : object(recording.body)
+    return JSON.stringify([row.type ?? row.kind ?? row.role ?? row.method ?? 'state', message.role ?? null, event.type ?? (provider === 'fx' ? Object.keys(event).join(',') : null), update.sessionUpdate ?? null, recording.kind ?? null, body.kind ?? null, decoded.type ?? decoded.role ?? null, provider === 'opencode' ? typeof row.message_id === 'string' ? 'part' : 'message' : null])
+  }
+  return nativeReadSummary([{ path: '', id: session.id, rows: observed.map((native, index) => ({ native, position: index + 1, text: '' })) }], session, kind)
 }
 export async function inventoryStore(provider: string, home: string): Promise<Inventory> {
   const inventory = await readInventory(provider, home)

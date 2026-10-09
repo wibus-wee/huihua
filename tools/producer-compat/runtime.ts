@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
+
+import type { Session } from '../../src/index.ts'
+import type { CompatibilityProgress } from './report.ts'
 
 export function required(name: string): string {
   const value = process.env[name]
@@ -87,15 +90,15 @@ function assertNativePaths(actual: string[], baseline: string[], optional: strin
 }
 
 export function assertNoProducerDrift(actual: DriftSummary, baseline: DriftSummary): void {
-  for (const [kind, count] of Object.entries(actual.unknown))
-    assert(count <= (baseline.unknown[kind] ?? 0), `unknown native record growth: ${kind}=${count}`)
-  assert.equal(actual.structured, baseline.structured, 'new structured fallback content')
   if (actual.groupedFieldPaths !== undefined || baseline.groupedFieldPaths !== undefined) {
     assert(actual.groupedFieldPaths, 'missing independent per-record-type native observations')
     assert(baseline.groupedFieldPaths, 'missing reviewed per-record-type native baseline')
     assertNativePaths(actual.groupedFieldPaths, baseline.groupedFieldPaths, baseline.optionalGroupedFieldPaths ?? [], 'native per-record-type field/type drift')
   }
   assertNativePaths(actual.fieldPaths, baseline.fieldPaths, baseline.optionalFieldPaths ?? [], 'native field/type drift; inspect report before updating baseline')
+  for (const [kind, count] of Object.entries(actual.unknown))
+    assert(count <= (baseline.unknown[kind] ?? 0), `unknown native record growth: ${kind}=${count}`)
+  assert.equal(actual.structured, baseline.structured, 'new structured fallback content')
 }
 
 export interface NativeStore {
@@ -104,11 +107,14 @@ export interface NativeStore {
   rows: { position: number, text: string, native: Record<string, unknown> }[]
 }
 
-export function nativeFieldPaths(stores: NativeStore[], grouped = true): string[] {
+export function nativeFieldPaths(stores: NativeStore[], grouped = true, recordType = (native: Record<string, unknown>) => JSON.stringify(native.type ?? null)): string[] {
   const paths = new Set<string>()
   function visit(value: unknown, path: string): void {
-    const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+    const type = value instanceof Uint8Array ? 'bytes' : value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
     paths.add(`${path}:${type}`)
+    if (value instanceof Uint8Array) {
+      return
+    }
     if (Array.isArray(value)) {
       for (const item of value) visit(item, `${path}[]`)
     }
@@ -117,9 +123,33 @@ export function nativeFieldPaths(stores: NativeStore[], grouped = true): string[
     }
   }
   for (const store of stores) {
-    for (const row of store.rows) visit(row.native, grouped ? `${JSON.stringify(row.native.type ?? null)}:$` : '$')
+    for (const row of store.rows) visit(row.native, grouped ? `${recordType(row.native)}:$` : '$')
   }
   return [...paths].sort()
+}
+
+export function nativeReadSummary(stores: NativeStore[], session: Session, recordType?: (native: Record<string, unknown>) => string): DriftSummary & { diagnosticCodes: string[] } {
+  const unknown: Record<string, number> = {}
+  for (const event of session.events) {
+    if (event.type === 'unknown')
+      unknown[event.data.sourceType] = (unknown[event.data.sourceType] ?? 0) + 1
+  }
+  return {
+    unknown,
+    structured: session.events.flatMap(event => event.type === 'user_message' || event.type === 'assistant_message' ? event.data.content : []).filter(block => block.type === 'structured').length,
+    fieldPaths: nativeFieldPaths(stores, false),
+    groupedFieldPaths: nativeFieldPaths(stores, true, recordType),
+    diagnosticCodes: session.diagnostics.map(diagnostic => diagnostic.code).sort(),
+  }
+}
+
+export async function assertNativeBaseline(provider: string, summary: ReturnType<typeof nativeReadSummary>, root: string, progress: CompatibilityProgress): Promise<void> {
+  progress.stage = 'baseline'
+  await writeFile(join(root, 'drift-report.json'), JSON.stringify(summary, null, 2))
+  const baseline = JSON.parse(await readFile(new URL(`./baselines/${provider}.json`, import.meta.url), 'utf8')) as ReturnType<typeof nativeReadSummary>
+  assertNoProducerDrift(summary, baseline)
+  assert.deepEqual(summary.diagnosticCodes, baseline.diagnosticCodes, 'native diagnostic drift; inspect report before updating baseline')
+  progress.completed.push('baseline')
 }
 
 // Shared infrastructure only; provider protocols and reading assertions stay in their scenarios.

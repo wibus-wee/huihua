@@ -104,7 +104,21 @@ Kimi separately verifies context user messages, loop text, usage records and tim
 mirrors in `step.end` must not become additional usage events.
 These checks do not certify ungenerated tool, permission, reasoning or lifecycle scenarios, or
 infer usage from raw-only metadata.
-Reviewed structural baselines still exist only for Claude and Codex.
+Every enabled producer now has a reviewed structural baseline from real synthetic CLI evidence.
+Native field renames, removals, nesting changes, added fields and type changes fail with explicit
+added/removed paths, grouped by native record kind; no baseline is automatically accepted.
+SQLite checks observe decoded JSON payloads as well as table columns.
+Unknown-event growth, structured fallback growth and changed diagnostic counts also fail.
+This detects upstream format drift that could break Huihua reading; a shape-only change is a
+review signal, not proof of a reader defect.
+Semantic native-to-Huihua assertions still detect wrong interpretation when field types stay the same.
+Baselines certify the fields produced by the declared journey, not ungenerated provider features.
+In a copy of the pinned Pi CLI capture, renaming both user messages' `message.role` to
+`message.speaker` made Huihua emit zero user messages while the prior native audit still passed.
+The new baseline rejected the changed record layout.
+This is an upstream-field-change regression, distinct from corrupt or truncated input files.
+Twelve independent captures also passed their reviewed baselines; Kimi's observed optional
+`lastTurnReason:string` is narrowly allowlisted without accepting other types.
 
 On 2026-10-09, the pinned real Pi, Qwen, Copilot, OpenCode, Cline, ACP/Qwen, OAR/Pi and
 DeepSeek captures were compared against the prior audit and these strengthened assertions.

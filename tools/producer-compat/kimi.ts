@@ -9,7 +9,7 @@ import type { Session } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import { writeReviewPacket } from './review.ts'
-import { assertSimulatorRequests, exchange, json, required, startSimulator } from './runtime.ts'
+import { assertNativeBaseline, assertSimulatorRequests, exchange, json, NativeDriftError, nativeReadSummary, required, startSimulator } from './runtime.ts'
 
 // Scenario-local oracle over real writer records, not Huihua's parsing output.
 export function assertKimiReplies(rows: unknown[], events: Session['events']): void {
@@ -181,10 +181,13 @@ async function main(): Promise<void> {
       assertKimiReplies(rows, session.events)
       progress.completed.push(kind)
     }
+    await assertNativeBaseline('kimi', nativeReadSummary([{ path, id: String(state.id), rows: [state, ...rows as Record<string, unknown>[]].map((native, index) => ({ native, position: index + 1, text: '' })) }], await handle.snapshot(), native => JSON.stringify([native.type ?? 'state', (native.event as { type?: string } | undefined)?.type ?? null])), root, progress)
     progress.stage = 'passed'
   }
   catch (error) {
     progress.error = String(error)
+    if (error instanceof NativeDriftError)
+      progress.drift = error.drift
     await writeFile(`${output}.failure.json`, JSON.stringify({ ...progress, artifacts: root }, null, 2))
     console.error(progress.error)
     process.exitCode = 1

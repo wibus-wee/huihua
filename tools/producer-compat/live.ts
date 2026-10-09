@@ -7,7 +7,7 @@ import process from 'node:process'
 
 import { auditNativeStore } from './native.ts'
 import type { CompatibilityProgress } from './report.ts'
-import { assertSimulatorRequests, chatExchange, exchange, json, required, startSimulator } from './runtime.ts'
+import { assertSimulatorRequests, chatExchange, exchange, json, NativeDriftError, required, startSimulator } from './runtime.ts'
 
 async function main(): Promise<void> {
   const provider = required('COMPAT_PROVIDER')
@@ -177,6 +177,8 @@ supports_backend_search = false
   }
   catch (error) {
     progress.error = String(error)
+    if (error instanceof NativeDriftError)
+      progress.drift = error.drift
     process.exitCode = 1
   }
   finally {

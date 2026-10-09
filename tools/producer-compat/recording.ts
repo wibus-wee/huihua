@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url'
 
 import { auditNativeStore } from './native.ts'
 import type { CompatibilityProgress } from './report.ts'
-import { assertSimulatorRequests, exchange, json, required, startSimulator } from './runtime.ts'
+import { assertSimulatorRequests, exchange, json, NativeDriftError, required, startSimulator } from './runtime.ts'
 
 async function main(): Promise<void> {
   const provider = required('COMPAT_PROVIDER')
@@ -71,6 +71,8 @@ async function main(): Promise<void> {
   }
   catch (error) {
     progress.error = String(error)
+    if (error instanceof NativeDriftError)
+      progress.drift = error.drift
     process.exitCode = 1
   }
   finally {

@@ -13,7 +13,7 @@ import { activeProviders, manifest, selectProviders } from '../tools/producer-co
 import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiFacts, assertKimiReplies } from '../tools/producer-compat/kimi.ts'
-import { inventoryStore } from '../tools/producer-compat/native.ts'
+import { inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import { assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
 
@@ -86,6 +86,19 @@ await test('shared live audit rejects user, usage and envelope loss with native 
     const scan = await sessions.scan({ providers: ['pi'], homeDir: home })
     const session = await sessions.read(scan.refs[0]!)
     inventory.assertRecords(session)
+    const baseline = nativeDriftSummary('pi', rows, session)
+    for (const mutate of [
+      (native: Record<string, unknown>) => {
+        native.speaker = native.role
+        delete native.role
+      },
+      (native: Record<string, unknown>) => { native.content = { text: 'HUIHUA_PI_FIRST' } },
+      (native: Record<string, unknown>) => { native.content = [{ type: 'text', text: 123 }] },
+    ]) {
+      const changed = structuredClone(rows)
+      mutate(changed[1]!.message!)
+      assert.throws(() => assertNoProducerDrift(nativeDriftSummary('pi', changed, session), baseline), NativeDriftError, 'native field rename/nesting/type changes must not silently pass')
+    }
     for (const type of ['user_message', 'usage'])
       assert.throws(() => inventory.assertRecords({ ...session, events: session.events.filter(event => event.type !== type) }), /./, type)
     assert.throws(() => inventory.assertRecords({ ...session, events: session.events.map(({ timestamp: _time, ...event }) => event) }), /./, 'timestamp')
@@ -102,6 +115,17 @@ await test('shared live audit rejects user, usage and envelope loss with native 
     ]
     for (const [name, mutate] of mutations)
       assert.throws(() => inventory.assertRecords(mutate(session)), /./, name)
+    // A changed input field can fool an oracle that derives expected roles from that same field.
+    const renamed = structuredClone(rows) as Record<string, unknown>[]
+    const user = renamed[1]!.message as Record<string, unknown>
+    user.speaker = user.role
+    delete user.role
+    await writeFile(path, renamed.map(row => `${JSON.stringify(row)}\n`).join(''))
+    const changedInventory = await inventoryStore('pi', home)
+    const changedSession = await sessions.read(scan.refs[0]!)
+    changedInventory.assertRecords(changedSession)
+    assert.equal(changedSession.events.filter(event => event.type === 'user_message').length, 0)
+    assert.throws(() => assertNoProducerDrift(nativeDriftSummary('pi', renamed, changedSession), baseline), NativeDriftError)
   }
   finally { await rm(home, { recursive: true, force: true }) }
 })
@@ -338,6 +362,16 @@ await test('reviewed optional paths accept new metadata without hiding type drif
   })
 })
 
+await test('SQLite drift observations include decoded payloads and bounded binary types', () => {
+  const session = { id: 'native', events: [], diagnostics: [] } as unknown as Session
+  const rows = [{ id: 'native' }, { id: 'message', data: '{"role":"user","content":"first"}' }]
+  const baseline = nativeDriftSummary('opencode', rows, session)
+  const changed = [rows[0]!, { ...rows[1], data: '{"role":"user","text":"first"}' }]
+  assert.throws(() => assertNoProducerDrift(nativeDriftSummary('opencode', changed, session), baseline), NativeDriftError)
+  const bytes = nativeFieldPaths([{ id: 'native', path: '', rows: [{ native: { compressed: new Uint8Array([1, 2]) }, position: 1, text: '' }] }], false)
+  assert.deepEqual(bytes, ['$.compressed:bytes', '$:object'])
+})
+
 await test('provider manifest covers the registry without turning blocked or partial journeys green', () => {
   assert.deepEqual(manifest.providers.map(provider => provider.id).sort(), sessions.providers().map(provider => provider.id).sort())
   assert.equal(new Set(manifest.providers.map(provider => provider.id)).size, manifest.providers.length)
@@ -346,6 +380,7 @@ await test('provider manifest covers the registry without turning blocked or par
     if (provider.ci) {
       assert(provider.install !== undefined)
       assert(provider.checks.includes('read'))
+      assert(provider.checks.includes('baseline'), `${provider.id} must detect upstream native field drift`)
       assert(provider.runner !== undefined)
     }
     else {
@@ -355,11 +390,11 @@ await test('provider manifest covers the registry without turning blocked or par
   }
   const partial = { stage: 'passed', completed: ['scan', 'read', 'snapshot', 'records', 'events'], auditedSessions: 1, auditedRecords: 2 }
   assert.equal(laneResult('cline', 'pinned', '3.0.70', 'test', 'success', partial).verdict, 'incomplete')
-  const complete = { ...partial, completed: [...partial.completed, 'scenario'] }
+  const complete = { ...partial, completed: [...partial.completed, 'scenario', 'baseline'] }
   const summary = renderCompatibilitySummary(complete, 'success', 'cline')
   assert.match(summary, /first-turn store only/)
   assert.doesNotMatch(summary, /Text \/ tool roundtrip \/ resume.*PASS/)
-  assert.doesNotMatch(summary, /Native shape.*PASS/)
+  assert.match(summary, /Native shape.*PASS/)
   const report = renderDailyReport([], '2026-10-08', 'https://github.com/wibus-wee/huihua/actions', 'test')
   assert.match(report, /cursor: NOT CERTIFIED|cursor\*\*: NOT CERTIFIED/)
   assert.match(report, new RegExp(`0/${activeProviders.length * 2} covered lanes passed`))

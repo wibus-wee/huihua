@@ -842,7 +842,7 @@ Workflow policy checks enforce failure visibility; the publisher validates resul
 Each provider scenario owns its
 native oracle and CLI journey in one file; importing it does not launch a producer. `runtime.ts`
 contains only shared simulator helpers, native shape comparison and drift assertions.
-`baselines/` contains reviewed Claude/Codex native baselines. `report.ts` owns both job summaries
+`baselines/` contains reviewed native baselines for every enabled producer. `report.ts` owns both job summaries
 and the daily dashboard; `publish.ts` is the separate, permission-bounded GitHub writer.
 This replaces flat per-helper modules and one-test-file-per-script, without changing the public
 library or the serialized result format.
@@ -871,6 +871,13 @@ production imports or new primitives.
 This reuses the existing runtime module instead of adding a composite Action or plugin framework.
 
 Native compatibility drift is typed test evidence in the existing runtime/report modules.
+Every enabled lane compares independently observed native field paths and types, grouped by
+native record kind, plus unknown/structured fallback growth and diagnostic counts.
+SQLite observations include JSON decoded directly from native columns, so a changed payload
+field cannot hide behind an unchanged TEXT column.
+Binary columns are typed as bytes rather than expanded into position-dependent numeric keys.
+Native observations precede Huihua normalization; unchanged raw preservation cannot establish
+that a changed upstream field remains readable.
 A native-shape assertion carries added/removed paths into progress and lane artifacts;
 the trusted publisher validates these arrays before rendering or fingerprinting them.
 This extends only CI artifacts, not agent-session/v1 or public runtime contracts.
