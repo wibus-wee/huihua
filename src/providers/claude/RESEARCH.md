@@ -73,6 +73,16 @@ Focused regressions cover a parent with two child transcripts,
 optional sidecars, acquired text/bytes/chunks, preserved legacy lineage and
 foreign-identity diagnostics without rewriting historical goldens.
 
+On 2026-10-09 the pinned real Claude Code 2.1.292, driven by the loopback simulator,
+independently reproduced this private layout for two foreground general-purpose children.
+Both native child transcripts reuse the parent's `sessionId` and carry their own `agentId`.
+The real companions contain `requestShape: "foreground"`, `requestNonInteractive: true`
+and `spawnDepth: 1`; their `toolUseId` values match parent Agent calls and completed results.
+The test-only live journey and reviewed structural baseline are documented in
+[producer compatibility](../../../docs/producer-compatibility.md#foreground-subagent-baseline-provenance).
+This producer observation corroborates issue #24 without making the private layout an official
+contract or certifying background, nested or resumed children.
+
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
 

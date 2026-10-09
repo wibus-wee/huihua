@@ -886,6 +886,13 @@ was rejected.
 This adds no dependency, runtime export, provider behavior or serialized schema.
 Executable policy prevents importing production ingestion helpers into the oracle; mutation tests
 verify that silent output loss fails even when the old shape summary is unchanged.
+The Claude foreground Agent journey extends this same oracle to two actual child transcripts and
+their exact sibling metadata files.
+Native sidechain `agentId` supplies child identity, native `sessionId` supplies parent lineage, and
+the parent's tool call/result independently corroborates the companion's spawn reference.
+Companion bytes enter the same per-source evidence audit and a separate reviewed structural
+baseline; no public primitive or production parser is added.
+The manifest selects that baseline with the existing Claude CI lane.
 
 The Kimi live lane uses the same simulator request/exchange helpers in
 `tools/producer-compat/runtime.ts` and a small Kimi-specific writer oracle.

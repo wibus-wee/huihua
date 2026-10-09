@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import type { Session } from '../src/index.ts'
 import { sessions } from '../src/index.ts'
 import { activeProviders, manifest, selectProviders } from '../tools/producer-compat/catalog.ts'
-import { assertDiscovery, assertNativeRead, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
+import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiReplies } from '../tools/producer-compat/kimi.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
@@ -93,6 +93,75 @@ await test('same-record semantic checks reject loss even when raw evidence is in
     assert.throws(() => assertNativeRead(stores[0]!, { ...session, diagnostics: [] }), /diagnostics/)
   }
   finally { await rm(root, { recursive: true, force: true }) }
+})
+
+await test('Claude native audit distinguishes parent and child identity and checks companion evidence', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-audit-subagents-'))
+  try {
+    const path = join(root, 'parent', 'subagents', 'agent-child.jsonl')
+    const companion = path.replace('.jsonl', '.meta.json')
+    await mkdir(join(root, 'parent', 'subagents'), { recursive: true })
+    const metadata = { agentType: 'general-purpose', description: 'Synthetic child', toolUseId: 'spawn', spawnDepth: 1, requestShape: 'foreground', requestNonInteractive: true }
+    await writeFile(companion, JSON.stringify(metadata))
+    await writeFile(path, `${JSON.stringify({ type: 'user', uuid: 'child-user', sessionId: 'parent', agentId: 'child', isSidechain: true, message: { content: 'task' } })}\n`)
+    const stores = await inventoryNativeStores(root)
+    assert.equal(stores[0]!.id, 'child')
+    const scan = await sessions.scan({ providers: ['claude'], roots: { claude: [root] } })
+    assertDiscovery(stores, scan, ['child'])
+    const session = await sessions.read(scan.refs[0]!)
+    assertNativeRead(stores[0]!, session)
+    assert.throws(() => assertNativeRead(stores[0]!, { ...session, id: 'parent' }), /session id/)
+    assert.throws(() => assertNativeRead(stores[0]!, { ...session, parentSessionId: 'foreign' }), /parentSessionId/)
+    assert.throws(() => assertNativeRead(stores[0]!, { ...session, metadata: { ...session.metadata, subagent: {} } }), /companion/)
+    assert.throws(() => assertNativeRead(stores[0]!, { ...session, records: session.records.slice(1) }), /record count/)
+    const wrongSource = { ...session, records: session.records.map((record, index) => index ? record : { ...record, source: { path: 'wrong' } }) }
+    assert.throws(() => assertNativeRead(stores[0]!, wrongSource), /source/)
+  }
+  finally { await rm(root, { recursive: true, force: true }) }
+})
+
+await test('Claude subagent journey rejects absent children and broken native spawn references', () => {
+  type Stores = Awaited<ReturnType<typeof inventoryNativeStores>>
+  const rows = (native: Record<string, unknown>[]) => native.map((value, index) => ({ native: value, text: JSON.stringify(value), position: index + 1 }))
+  const stores: Stores = [{ path: '/synthetic/parent.jsonl', id: 'parent', rows: [] }]
+  for (const [index, ordinal] of ['FIRST', 'SECOND'].entries()) {
+    const id = `child-${index}`
+    const callId = `huihua_spawn_${index + 1}`
+    const description = `${index === 0 ? 'First' : 'Second'} synthetic compatibility child`
+    const prompt = `HUIHUA_CHILD_${ordinal}`
+    const reply = `${prompt}_REPLY`
+    stores[0]!.rows.push(...rows([
+      { type: 'assistant', message: { content: [{ type: 'tool_use', id: callId, name: 'Agent', input: { description, prompt, subagent_type: 'general-purpose', run_in_background: false } }] } },
+      { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: callId, content: reply }] }, toolUseResult: { agentId: id, status: 'completed' } },
+    ]))
+    stores.push({ path: `/synthetic/parent/subagents/agent-${id}.jsonl`, id, parentSessionId: 'parent', rows: rows([
+      { type: 'user', message: { content: prompt } },
+      { type: 'assistant', message: { content: [{ type: 'text', text: reply }] } },
+    ]), companion: { path: `/synthetic/parent/subagents/agent-${id}.meta.json`, text: '', native: { agentType: 'general-purpose', description, toolUseId: callId, spawnDepth: 1, requestShape: 'foreground', requestNonInteractive: true } } })
+  }
+  stores[0]!.rows.push(...rows([{ type: 'assistant', message: { content: 'HUIHUA_SUBAGENTS_COMPLETE' } }]))
+  assert.deepEqual(assertSubagentScenario(stores, 'parent'), ['child-0', 'child-1'])
+  const mutations: [string, (input: Stores) => void][] = [
+    ['missing child', input => input.pop()],
+    ['colliding identity', (input) => { input[1]!.id = 'parent' }],
+    ['wrong parent', (input) => { input[1]!.parentSessionId = 'foreign' }],
+    ['missing companion', (input) => { delete input[1]!.companion }],
+    ['wrong spawn reference', (input) => { input[1]!.companion!.native.toolUseId = 'foreign' }],
+    ['missing child reply', (input) => { input[1]!.rows.pop() }],
+    ['missing parent call', (input) => { input[0]!.rows.shift() }],
+    ['failed tool result', (input) => { input[0]!.rows[1]!.native.message = { content: [{ type: 'tool_result', tool_use_id: 'huihua_spawn_1', content: 'HUIHUA_CHILD_FIRST_REPLY', is_error: true }] } }],
+    ['wrong result agent', (input) => { input[0]!.rows[1]!.native.toolUseResult = { agentId: 'foreign', status: 'completed' } }],
+    ['swapped sibling results', (input) => {
+      input[0]!.rows[1]!.native.toolUseResult = { agentId: 'child-1', status: 'completed' }
+      input[0]!.rows[3]!.native.toolUseResult = { agentId: 'child-0', status: 'completed' }
+    }],
+    ['unfinished agent', (input) => { input[0]!.rows[1]!.native.toolUseResult = { agentId: 'child-0', status: 'running' } }],
+  ]
+  for (const [name, mutate] of mutations) {
+    const copy = structuredClone(stores)
+    mutate(copy)
+    assert.throws(() => assertSubagentScenario(copy, 'parent'), /subagent scenario/, name)
+  }
 })
 
 await test('Kimi native reply oracle rejects missing, duplicated and changed assistant content', async () => {

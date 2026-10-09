@@ -62,6 +62,13 @@ export async function policy(): Promise<void> {
   const producerWorkflow = await readFile('.github/workflows/producer-compat.yml', 'utf8')
   assert.match(manifest.simulator.commit, /^[a-f\d]{40}$/)
   assert.equal(manifest.simulator.commit, '4357945b88d16a1a3155c39305ce135dc66b9510')
+  const childBaselinePath = 'tools/producer-compat/baselines/claude-subagents.json'
+  const childBaseline = JSON.parse(await readFile(childBaselinePath, 'utf8')) as { producer: string, simulatorCommit: string }
+  const claudeLane = manifest.providers.find(provider => provider.id === 'claude')!
+  assert(claudeLane.paths.files.includes(childBaselinePath), 'Claude child baseline must select the live Claude lane')
+  assert.equal(childBaseline.simulatorCommit, manifest.simulator.commit)
+  assert.equal(childBaseline.producer, `${claudeLane.install!.package}@${claudeLane.install!.version}`)
+  assert(producerHarness.includes('assertSubagentScenario(stores, subagentSessionId)'))
   assert(producerWorkflow.includes('manifest.json'))
   assert(producerWorkflow.includes('contents: read'))
 

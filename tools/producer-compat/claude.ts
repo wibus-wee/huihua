@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import process from 'node:process'
 
 import type { ScanResult, Session, SessionEvent } from '../../src/index.ts'
@@ -13,10 +13,21 @@ import { writeReviewPacket } from './review.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
 import { assertNoProducerDrift, exchange, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
+interface ClaudeStore extends NativeStore {
+  parentSessionId?: string
+  companion?: { path: string, text: string, native: Record<string, unknown> }
+}
+
+const subagentJourney = [
+  { callId: 'huihua_spawn_1', description: 'First synthetic compatibility child', prompt: 'HUIHUA_CHILD_FIRST', reply: 'HUIHUA_CHILD_FIRST_REPLY' },
+  { callId: 'huihua_spawn_2', description: 'Second synthetic compatibility child', prompt: 'HUIHUA_CHILD_SECOND', reply: 'HUIHUA_CHILD_SECOND_REPLY' },
+]
+const subagentFinal = 'HUIHUA_SUBAGENTS_COMPLETE'
+
 // Independent test oracle, deliberately not Huihua's walker, framer or mapper.
 // Only the isolated producer's JSONL is inspected. No user stores are read or repaired.
-export async function inventoryNativeStores(root: string): Promise<NativeStore[]> {
-  const stores: NativeStore[] = []
+export async function inventoryNativeStores(root: string): Promise<ClaudeStore[]> {
+  const stores: ClaudeStore[] = []
   async function visit(directory: string): Promise<void> {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name)
@@ -39,7 +50,29 @@ export async function inventoryNativeStores(root: string): Promise<NativeStore[]
         // Do not silently ignore new files based on Huihua's filename/root filters.
         const ids = new Set(rows.map(row => row.native.sessionId).filter(id => typeof id === 'string'))
         assert.equal(ids.size, 1, `${path}: unclassified or mixed-session JSONL; inspect native inventory`)
-        stores.push({ path, id: [...ids][0] as string, rows })
+        const nativeSessionId = [...ids][0] as string
+        const agents = new Set(rows.filter(row => row.native.isSidechain === true && row.native.parentSessionId === undefined).map(row => row.native.agentId).filter(id => typeof id === 'string'))
+        assert(agents.size <= 1, `${path}: mixed-agent transcript`)
+        const agentId = [...agents][0]
+        const store: ClaudeStore = { path, id: agentId ?? nativeSessionId, rows }
+        if (agentId !== undefined) {
+          assert(rows.every(row => row.native.agentId === agentId && row.native.isSidechain === true && row.native.sessionId === nativeSessionId), `${path}: inconsistent native subagent identity`)
+          assert.equal(basename(dirname(path)), 'subagents', `${path}: unexpected subagent location`)
+          assert.equal(basename(path), `agent-${agentId}.jsonl`, `${path}: filename disagrees with native agent identity`)
+          store.parentSessionId = nativeSessionId
+          const companionPath = path.replace(/\.jsonl$/, '.meta.json')
+          try {
+            const text = new TextDecoder('utf-8', { fatal: true }).decode(await readFile(companionPath))
+            const native = JSON.parse(text) as unknown
+            assert(native !== null && typeof native === 'object' && !Array.isArray(native), `${companionPath}: companion requires a JSON object`)
+            store.companion = { path: companionPath, text, native: native as Record<string, unknown> }
+          }
+          catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+              throw error
+          }
+        }
+        stores.push(store)
       }
     }
   }
@@ -47,7 +80,8 @@ export async function inventoryNativeStores(root: string): Promise<NativeStore[]
   return stores.sort((a, b) => a.path.localeCompare(b.path))
 }
 
-export function assertDiscovery(stores: NativeStore[], scan: ScanResult, expectedIds: string[]): void {
+export function assertDiscovery(stores: ClaudeStore[], scan: ScanResult, expectedIds: string[]): void {
+  assert.equal(new Set(stores.map(store => store.id)).size, stores.length, 'producer inventory: colliding session identities')
   assert.deepEqual(stores.map(store => store.id).sort(), [...expectedIds].sort(), 'producer inventory: missing/duplicate/unexpected native sessions')
   assert.deepEqual(scan.failures, [], 'Huihua scan failures')
   const expected = stores.map(store => ['claude', store.path, 'jsonl', store.id]).sort()
@@ -55,26 +89,30 @@ export function assertDiscovery(stores: NativeStore[], scan: ScanResult, expecte
   assert.deepEqual(actual, expected, 'Huihua discovery: missing/duplicate/unexpected session or wrong identity/path')
 }
 
-export function assertNativeRead(store: NativeStore, session: Session): void {
+export function assertNativeRead(store: ClaudeStore, session: Session): void {
   const label = `${store.id} ${store.path}`
   assert.equal(session.id, store.id, `${label}: session id`)
   assert.equal(session.provider, 'claude', `${label}: session provider`)
   assert.deepEqual(session.source, { path: store.path, format: 'jsonl' }, `${label}: session source`)
-  assert.equal(session.records.length, store.rows.length, `${label}: native record count (loss or duplication)`)
-  for (const [i, row] of store.rows.entries()) {
+  const evidence: { path: string, position?: number, text: string, native: Record<string, unknown> }[] = [
+    ...(store.companion === undefined ? [] : [store.companion]),
+    ...store.rows.map(row => ({ ...row, path: store.path })),
+  ]
+  assert.equal(session.records.length, evidence.length, `${label}: native record count (loss or duplication)`)
+  for (const [i, row] of evidence.entries()) {
     const record = session.records[i]!
     const at = `${label}:${row.position}`
     assert.equal(record.sequence, i, `${at}: record sequence`)
     assert.equal(record.provider, 'claude', `${at}: provider`)
-    assert.deepEqual(record.source, { path: store.path, position: row.position }, `${at}: evidence source/line`)
+    assert.deepEqual(record.source, { path: row.path, ...(row.position === undefined ? {} : { position: row.position }) }, `${at}: evidence source/line`)
     assert.equal(record.text, row.text, `${at}: raw text differs`)
     assert.deepEqual(record.native, row.native, `${at}: native field/value differs`)
   }
   for (const [i, event] of session.events.entries()) {
     assert.equal(event.sequence, i, `${label}: event sequence`)
-    assert(Number.isInteger(event.record) && event.record >= 0 && event.record < store.rows.length, `${label}: dangling event.record ${event.record}`)
+    assert(Number.isInteger(event.record) && event.record >= 0 && event.record < evidence.length, `${label}: dangling event.record ${event.record}`)
   }
-  for (const [i, row] of store.rows.entries()) {
+  for (const [i, row] of evidence.entries()) {
     const events = session.events.filter(event => event.record === i)
     const at = `${label}:${row.position}`
     assert(events.length > 0, `${at}: native record has no event or unknown report`)
@@ -91,11 +129,17 @@ export function assertNativeRead(store: NativeStore, session: Session): void {
   const expectedDiagnostics = session.events.filter(event => event.type === 'unknown').map(event => ({
     code: 'PartialParse',
     message: `unrecognized native record ${event.data.sourceType}`,
-    position: store.rows[event.record]!.position,
+    ...(evidence[event.record]!.position === undefined ? {} : { position: evidence[event.record]!.position }),
   }))
   assert.deepEqual(session.diagnostics, expectedDiagnostics, `${label}: missing/extra/misattributed diagnostics`)
   const parents = store.rows.map(row => row.native.parentSessionId).filter(value => typeof value === 'string')
-  assert.equal(session.parentSessionId, parents.at(-1), `${label}: parentSessionId`)
+  assert.equal(session.parentSessionId, store.parentSessionId ?? parents.at(-1), `${label}: parentSessionId`)
+  if (store.parentSessionId !== undefined) {
+    assert.equal(session.metadata.agentId, store.id, `${label}: native agent metadata`)
+    assert.equal(session.metadata.sessionId, store.parentSessionId, `${label}: native parent metadata`)
+  }
+  if (store.companion !== undefined)
+    assert.deepEqual(session.metadata.subagent, store.companion.native, `${label}: companion metadata`)
   const titles = store.rows.filter(row => row.native.type === 'custom-title').map(row => row.native.customTitle).filter(value => typeof value === 'string')
   assert.equal(session.title, titles.at(-1), `${label}: title`)
   const times = store.rows.map(row => row.native.timestamp).filter(time => typeof time === 'string')
@@ -105,6 +149,50 @@ export function assertNativeRead(store: NativeStore, session: Session): void {
     const values = store.rows.map(row => row.native[nativeKey]).filter(value => typeof value === 'string')
     assert.equal(session.workspace?.[key], values.at(-1), `${label}: workspace.${key}`)
   }
+}
+
+export function assertSubagentScenario(stores: ClaudeStore[], parentId: string): string[] {
+  const parent = stores.find(store => store.id === parentId && store.parentSessionId === undefined)
+  assert(parent, 'subagent scenario: missing parent transcript')
+  const children = stores.filter(store => store.parentSessionId === parentId)
+  assert.equal(children.length, subagentJourney.length, 'subagent scenario: missing/extra child transcripts')
+  assert.equal(new Set([parent.id, ...children.map(child => child.id)]).size, children.length + 1, 'subagent scenario: colliding parent/child identities')
+  assert(parent.rows.some(row => row.native.type === 'assistant' && JSON.stringify(row.native.message).includes(subagentFinal)), 'subagent scenario: missing parent completion')
+  const blocks = parent.rows.flatMap((row) => {
+    const message = row.native.message as { content?: unknown } | undefined
+    return Array.isArray(message?.content) ? message.content as Record<string, unknown>[] : []
+  })
+  for (const expected of subagentJourney) {
+    const matching = children.filter(child => child.rows.some(row => row.native.type === 'user' && JSON.stringify(row.native.message).includes(expected.prompt)))
+    assert.equal(matching.length, 1, `subagent scenario: missing/duplicate child for ${expected.prompt}`)
+    const child = matching[0]!
+    assert(child.rows.some(row => row.native.type === 'assistant' && JSON.stringify(row.native.message).includes(expected.reply)), `subagent scenario: missing native reply for ${expected.prompt}`)
+    assert(child.companion, `subagent scenario: missing companion for ${child.id}`)
+    const meta = child.companion.native
+    assert.equal(meta.toolUseId, expected.callId, `subagent scenario: wrong spawn tool reference for ${child.id}`)
+    assert.equal(meta.agentType, 'general-purpose', `subagent scenario: agent type for ${child.id}`)
+    assert.equal(meta.description, expected.description, `subagent scenario: description for ${child.id}`)
+    assert.equal(meta.spawnDepth, 1, `subagent scenario: spawn depth for ${child.id}`)
+    assert.equal(meta.requestShape, 'foreground', `subagent scenario: request shape for ${child.id}`)
+    assert.equal(meta.requestNonInteractive, true, `subagent scenario: noninteractive request for ${child.id}`)
+    const call = blocks.find(block => block.type === 'tool_use' && block.id === meta.toolUseId)
+    assert(call, `subagent scenario: missing parent spawn call for ${child.id}`)
+    assert.equal(call.name, 'Agent', `subagent scenario: spawn tool for ${child.id}`)
+    assert.deepEqual(call.input, { description: expected.description, prompt: expected.prompt, subagent_type: 'general-purpose', run_in_background: false }, `subagent scenario: spawn arguments for ${child.id}`)
+    const result = blocks.find(block => block.type === 'tool_result' && block.tool_use_id === meta.toolUseId)
+    assert(result && result.is_error !== true, `subagent scenario: missing/failed parent tool result for ${child.id}`)
+    assert(JSON.stringify(result.content).includes(expected.reply), `subagent scenario: child result did not reach parent for ${child.id}`)
+    const resultRows: NativeStore['rows'] = parent.rows.filter((row) => {
+      const message = row.native.message as { content?: unknown } | undefined
+      return Array.isArray(message?.content) && message.content.includes(result)
+    })
+    assert.equal(resultRows.length, 1, `subagent scenario: missing/duplicate result record for ${child.id}`)
+    const nativeResult = resultRows[0]!.native.toolUseResult as Record<string, unknown> | undefined
+    assert(nativeResult, `subagent scenario: missing native child result for ${child.id}`)
+    assert.equal(nativeResult.agentId, child.id, `subagent scenario: native result agent for ${child.id}`)
+    assert.equal(nativeResult.status, 'completed', `subagent scenario: native child status for ${child.id}`)
+  }
+  return children.map(child => child.id)
 }
 
 // Assertions for the exercised Claude surface, not a reusable normalization implementation.
@@ -148,6 +236,13 @@ function assertClaudeFacts(native: Record<string, unknown>, events: readonly Ses
       assert.deepEqual(event.data.usage, message.usage, `${at}: usage fields`)
     }
     assert.equal(events.length, cursor, `${at}: unexpected/duplicate semantic events`)
+  }
+  else if (native.type === undefined && typeof native.agentType === 'string' && typeof native.toolUseId === 'string') {
+    assert.equal(events.length, 1, `${at}: companion event count`)
+    const event = events[0]!
+    assert(event.type === 'system', `${at}: companion classification`)
+    assert.equal(event.data.sourceType, 'subagent_metadata', `${at}: companion source type`)
+    assert.deepEqual(event.data.payload, native, `${at}: companion payload`)
   }
   else if (['system', 'summary', 'custom-title'].includes(String(native.type))) {
     assert.equal(events.length, 1, `${at}: system event count`)
@@ -196,6 +291,7 @@ async function main(): Promise<void> {
   const secondSessionId = randomUUID()
   const secondPrompt = 'HUIHUA_SECOND_SESSION'
   const secondText = 'HUIHUA_SECOND_RESPONSE'
+  const subagentSessionId = randomUUID()
   const output = resolve(process.env.COMPAT_REPORT ?? 'producer-compat-report.json')
   let stage = 'simulator-startup'
   const progress: CompatibilityProgress = { stage, completed: [] }
@@ -221,14 +317,30 @@ async function main(): Promise<void> {
       exchange('second independent session', secondPrompt, { type: 'text', text: secondText, citations: null }, 'end_turn', template),
     ] })
     await runClaude(['--session-id', secondSessionId], secondPrompt)
+    stage = 'producer-subagents'
+    const spawnAgent = (index: number) => {
+      const child = subagentJourney[index]!
+      return { type: 'tool_use', id: child.callId, name: 'Agent', input: { description: child.description, prompt: child.prompt, subagent_type: 'general-purpose', run_in_background: false } }
+    }
+    await json(`${control}/enqueue`, { provider: 'anthropic', exchanges: [
+      exchange('spawn first child', 'HUIHUA_SUBAGENT_PARENT', spawnAgent(0), 'tool_use', template),
+      exchange('first child reply', subagentJourney[0]!.prompt, { type: 'text', text: subagentJourney[0]!.reply, citations: null }, 'end_turn', template),
+      exchange('spawn second child', subagentJourney[0]!.reply, spawnAgent(1), 'tool_use', template),
+      exchange('second child reply', subagentJourney[1]!.prompt, { type: 'text', text: subagentJourney[1]!.reply, citations: null }, 'end_turn', template),
+      exchange('complete after children', subagentJourney[1]!.reply, { type: 'text', text: subagentFinal, citations: null }, 'end_turn', template),
+    ] })
+    await runClaude(['--session-id', subagentSessionId], 'HUIHUA_SUBAGENT_PARENT', false)
+    const ledger = await json(`${control}/requests`)
+    await writeFile(join(root, 'ledger.json'), JSON.stringify(ledger, null, 2))
     stage = 'native-inventory'
     const stores = await inventoryNativeStores(home)
     await writeFile(join(root, 'native-inventory.json'), JSON.stringify(stores, null, 2))
     progress.auditedSessions = stores.length
-    progress.auditedRecords = stores.reduce((sum, store) => sum + store.rows.length, 0)
+    progress.auditedRecords = stores.reduce((sum, store) => sum + store.rows.length + (store.companion === undefined ? 0 : 1), 0)
+    const childIds = assertSubagentScenario(stores, subagentSessionId)
     stage = 'scan'
     const scan = await sessions.scan({ providers: ['claude'], homeDir: home })
-    assertDiscovery(stores, scan, [sessionId, secondSessionId])
+    assertDiscovery(stores, scan, [sessionId, secondSessionId, subagentSessionId, ...childIds])
     progress.completed.push('scan')
     stage = 'read'
     for (const kind of ['read', 'snapshot', 'records', 'events']) {
@@ -288,14 +400,31 @@ async function main(): Promise<void> {
         unknown[event.data.sourceType] = (unknown[event.data.sourceType] ?? 0) + 1
     }
     const structured = session.events.filter(event => event.type === 'user_message' || event.type === 'assistant_message').flatMap(event => event.data.content).filter(block => block.type === 'structured').length
-    const fieldPaths = nativeFieldPaths(stores, false)
-    const groupedFieldPaths = nativeFieldPaths(stores)
-    const report = { provider: 'claude', auditedSessions: stores.length, auditedRecords: stores.reduce((sum, store) => sum + store.rows.length, 0), sessionId, records: session.records.length, events: session.events.length, unknown, structured, diagnostics: session.diagnostics, fieldPaths, groupedFieldPaths, inventory: stores.map(store => ({ path: store.path, id: store.id, records: store.rows.length })) }
+    const originalStores = stores.filter(store => store.id === sessionId || store.id === secondSessionId)
+    const fieldPaths = nativeFieldPaths(originalStores, false)
+    const groupedFieldPaths = nativeFieldPaths(originalStores)
+    const childStores = stores.filter(store => store.id === subagentSessionId || store.parentSessionId === subagentSessionId)
+    const childSources = childStores.flatMap(store => [store, ...(store.companion === undefined ? [] : [{ path: store.companion.path, id: store.id, rows: [{ ...store.companion, position: 1 }] }])])
+    const childSessions = await Promise.all(childStores.map(async store => sessions.read(scan.refs.find(ref => ref.source.path === store.path)!)))
+    const childUnknown: Record<string, number> = {}
+    for (const child of childSessions) {
+      for (const event of child.events) {
+        if (event.type === 'unknown')
+          childUnknown[event.data.sourceType] = (childUnknown[event.data.sourceType] ?? 0) + 1
+      }
+    }
+    const subagents = { parentSessionId: subagentSessionId, childIds, unknown: childUnknown, structured: childSessions.flatMap(child => child.events.filter(event => event.type === 'user_message' || event.type === 'assistant_message').flatMap(event => event.data.content)).filter(block => block.type === 'structured').length, fieldPaths: nativeFieldPaths(childSources, false), groupedFieldPaths: nativeFieldPaths(childSources) }
+    for (const [index, child] of childSessions.entries())
+      await writeFile(join(root, `subagent-read-${index}.json`), JSON.stringify(child, null, 2))
+    const report = { provider: 'claude', auditedSessions: stores.length, auditedRecords: progress.auditedRecords, sessionId, records: session.records.length, events: session.events.length, unknown, structured, diagnostics: session.diagnostics, fieldPaths, groupedFieldPaths, subagents, inventory: stores.map(store => ({ path: store.path, id: store.id, parentSessionId: store.parentSessionId, companion: store.companion?.path, records: store.rows.length + (store.companion === undefined ? 0 : 1) })) }
     await writeFile(output, `${JSON.stringify(report, null, 2)}\n`)
-    await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
     stage = 'baseline'
     const baseline = JSON.parse(await readFile(new URL('./baselines/claude.json', import.meta.url), 'utf8')) as DriftSummary
     assertNoProducerDrift(report, baseline)
+    const childBaseline = JSON.parse(await readFile(new URL('./baselines/claude-subagents.json', import.meta.url), 'utf8')) as DriftSummary
+    assertNoProducerDrift(subagents, childBaseline)
+    const requests = ledger.requests as { method: string, path: string }[]
+    assert.equal(requests.filter(request => request.method === 'POST' && request.path === '/v1/messages').length, 9, 'unexpected model requests or simulator fallback during the deterministic journeys')
     assert.equal(session.diagnostics.length, Object.values(unknown).reduce((sum, count) => sum + count, 0), 'unexpected diagnostics beyond known unknown records')
     assert(session.diagnostics.every(diagnostic => diagnostic.code === 'PartialParse' && diagnostic.message.startsWith('unrecognized native record ')))
     progress.completed.push('baseline')
@@ -316,8 +445,10 @@ async function main(): Promise<void> {
     await writeFile(`${output}.progress.json`, JSON.stringify(progress, null, 2))
   }
 
-  async function runClaude(args: string[], prompt: string): Promise<void> {
-    const child = spawn(claude, ['--bare', '-p', '--model', 'claude-sonnet-4-5', '--output-format', 'json', '--tools', 'Read', '--allowedTools', 'Read', ...args], { cwd: workspace, env, stdio: ['pipe', 'pipe', 'pipe'] })
+  async function runClaude(args: string[], prompt: string, bare = true): Promise<void> {
+    // Bare mode disables Agent; only the isolated child journey enables that tool.
+    const mode = bare ? ['--bare', '--tools', 'Read', '--allowedTools', 'Read'] : ['--setting-sources', '', '--tools', 'Agent', '--allowedTools', 'Agent']
+    const child = spawn(claude, [...mode, '-p', '--model', 'claude-sonnet-4-5', '--output-format', 'json', ...args], { cwd: workspace, env, stdio: ['pipe', 'pipe', 'pipe'] })
     child.stdin.end(prompt)
     let stdout = ''
     let stderr = ''

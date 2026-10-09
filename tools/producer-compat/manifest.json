@@ -6,7 +6,7 @@
     "packageManager": "pnpm@11.24.0"
   },
   "commonGaps": [
-    "Cancellation, compaction, archive transitions, subagents and arbitrary historical/corrupt stores are not exercised by these acquisition journeys.",
+    "Cancellation, compaction, archive transitions and arbitrary historical/corrupt stores are not exercised. Subagents are exercised only by the Claude foreground journey.",
     "Primitive review packets are generated but no external LLM review is executed."
   ],
   "providers": [
@@ -93,8 +93,10 @@
         "scenario",
         "baseline"
       ],
-      "journey": "Text \u00b7 Read tool \u00b7 resume \u00b7 native baseline",
-      "gaps": [],
+      "journey": "Text \u00b7 Read tool \u00b7 resume \u00b7 two foreground subagents \u00b7 native baselines",
+      "gaps": [
+        "Background, nested and resumed subagents are not exercised."
+      ],
       "artifact": "synthetic-producer-compatibility",
       "evidence": "/tmp/huihua-producer-*/",
       "scopeLabel": "scope:provider:claude",
@@ -106,7 +108,8 @@
         ],
         "files": [
           "tools/producer-compat/claude.ts",
-          "tools/producer-compat/baselines/claude.json"
+          "tools/producer-compat/baselines/claude.json",
+          "tools/producer-compat/baselines/claude-subagents.json"
         ]
       }
     },
