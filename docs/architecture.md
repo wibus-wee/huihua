@@ -516,12 +516,19 @@ A voyage header without an end marker receives a truncation diagnostic on comple
 Early return does not inspect an unread suffix.
 RawEvent-only captures have a labeled source identity when no authoritative voyage header exists.
 
-Claude Desktop, Kimi and Grok may supply adjacent metadata files through the shared JSONL adapter's metadataFiles hook.
+Claude Desktop/subagents, Kimi and Grok may supply adjacent metadata files through the shared JSONL adapter's metadataFiles hook.
 The hook may resolve paths asynchronously; the adapter remains the sole owner of native layout and associations.
 Scan reads bounded metadata prefixes; open reads each complete companion within maxRecordBytes, preserves its native value/text and actual path, then reads the wire.
 The companion is a metadata prelude, not an invented historical event in the transcript's chronology.
 Missing companions do not fabricate workspace or identity; malformed companions remain unknown evidence.
 Supplied JSONL never opens companion files, even when its provenance label looks like a real local path.
+Claude owns resolving sidechain records with native agentId and isSidechain into a child id and parentSessionId from the recorded sessionId.
+An explicit parentSessionId preserves the existing independently named session convention.
+The original IDs remain in provider metadata and event envelopes; no filename supplies an identity or parent.
+The existing session fields suffice, so there is no new relationship primitive, public contract or shared provider routing.
+Claude's exact subagent companion is retained under metadata.subagent and as System evidence through the same bounded prelude.
+Missing companions do not remove transcript-native lineage, and direct acquired JSONL resolves it without filesystem access.
+The alternative of merging child files into the parent would hide separately persisted streams; identity/lineage regressions verify discovery, direct reads and selected usage with unchanged legacy goldens.
 Kimi agent files remain separate refs; no timestamp sort invents a global order among independent streams.
 ID-less state metadata supplies title, workspace and timestamps independently of source identity.
 Loop content/tool facts are normalized directly; step.end and agent.message.appended remain system evidence to avoid adding mirrored usage or conversation projections.

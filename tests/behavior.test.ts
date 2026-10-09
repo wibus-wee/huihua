@@ -8,7 +8,7 @@ import process from 'node:process'
 import { DatabaseSync } from 'node:sqlite'
 import { it } from 'node:test'
 
-import type { ScanEvent, Session, SessionEvent, SessionRef } from '../src/index.ts'
+import type { ScanEvent, Session, SessionEvent, SessionFrame, SessionRef, UsageFactItem } from '../src/index.ts'
 import {
   createSessionRegistry,
   defineProvider,
@@ -1050,4 +1050,108 @@ void it('Claude Desktop sidecar supplies recorded title and preserves distinct n
   assert.equal((await sessions.read(scan.refs[0])).title, 'User rename')
   await put(sidecar, JSON.stringify({ sessionId: 'local_desktop', cliSessionId: 'foreign', title: 'Foreign title' }))
   assert.equal((await sessions.read(scan.refs[0])).title, 'User rename')
+})
+
+void it('Claude subagent transcripts have independent native identities and retain parent lineage and sidecars', async (t) => {
+  const root = await directory(t)
+  const project = join(root, '.claude/projects/project')
+  const parent = 'native-parent'
+  const parentPath = join(project, `${parent}.jsonl`)
+  await put(parentPath, JSON.stringify({ type: 'user', sessionId: parent, message: { content: 'parent' } }))
+  const agents = ['child-a', 'child-b']
+  for (const agentId of agents) {
+    const path = join(project, parent, 'subagents', `agent-${agentId}.jsonl`)
+    const rows = [
+      { type: 'user', sessionId: parent, agentId, isSidechain: true, uuid: 'user', message: { content: 'task' } },
+      { type: 'assistant', sessionId: parent, agentId, isSidechain: true, parentUuid: 'user', message: { content: 'answer', usage: { input_tokens: 2, output_tokens: 3 } } },
+    ]
+    await put(path, rows.map(row => JSON.stringify(row)).join('\n'))
+    if (agentId === 'child-a')
+      await put(path.replace('.jsonl', '.meta.json'), JSON.stringify({ agentType: 'Explore', description: 'synthetic task', toolUseId: 'spawn-a', spawnDepth: 1, requestShape: 'background', future: { retained: true } }))
+  }
+  const scan = await sessions.scan({ providers: ['claude'], homeDir: root })
+  assert.deepEqual(scan.failures, [])
+  assert.deepEqual(scan.refs.map(ref => ref.id).sort(), [...agents, parent].sort())
+  assert.equal((await sessions.read(scan.refs.find(ref => ref.id === parent)!)).parentSessionId, undefined)
+  for (const agentId of agents) {
+    const ref = scan.refs.find(ref => ref.id === agentId)!
+    const session = await sessions.read(ref)
+    assertSessionContract(session)
+    assert.equal(session.id, agentId)
+    assert.equal(session.parentSessionId, parent)
+    assert.equal(session.metadata.sessionId, parent)
+    assert.equal(session.metadata.agentId, agentId)
+    assert.deepEqual(session.diagnostics, [])
+    const opened = await sessions.open(ref)
+    assert.deepEqual(await opened.snapshot(), session)
+    assert.deepEqual(await sessions.parse('claude', { path: ref.source.path }), session)
+    assert.ok(opened.consumeUsage)
+    const usage: SessionFrame[] = []
+    await opened.consumeUsage((frame) => {
+      usage.push(frame)
+    })
+    assert.equal(usage.filter(frame => frame.type === 'event').length, 1)
+    assert.ok(usage.some(frame => frame.type === 'metadata' && frame.patch.parentSessionId === parent))
+    assert.ok(usage.every(frame => frame.type !== 'diagnostic' && frame.type !== 'record'))
+    assert.ok(opened.consumeUsageFacts)
+    const facts: UsageFactItem[] = []
+    await opened.consumeUsageFacts((fact) => {
+      facts.push(fact)
+    })
+    assert.equal(facts.filter(fact => fact.type === 'usage').length, 1)
+    assert.ok(facts.some(fact => fact.type === 'metadata' && fact.patch.parentSessionId === parent))
+    assert.ok(facts.every(fact => fact.type !== 'diagnostic'))
+    const transcript = session.records.filter(record => record.source.path === ref.source.path)
+    assert.equal(transcript.length, 2)
+    assert.ok(session.events.filter(event => event.type !== 'system').every(event => event.providerMetadata.sessionId === parent && event.providerMetadata.agentId === agentId))
+    const supplied = await sessions.parse('claude', { jsonl: await readFile(ref.source.path, 'utf8'), source: ref.source.path })
+    assert.equal(supplied.id, agentId)
+    assert.equal(supplied.parentSessionId, parent)
+    assert.deepEqual(supplied.records.map(record => record.native), transcript.map(record => record.native))
+    assert.equal(supplied.records.length, 2, 'acquired JSONL must not open a sidecar through its provenance label')
+    if (agentId === 'child-a') {
+      const sidecar = JSON.parse(await readFile(ref.source.path.replace('.jsonl', '.meta.json'), 'utf8')) as unknown
+      assert.deepEqual(session.metadata.subagent, sidecar)
+      assert.deepEqual(session.records[0]?.native, sidecar)
+      assert.equal(session.records[0]?.source.path, ref.source.path.replace('.jsonl', '.meta.json'))
+      assert.equal(session.events[0]?.type, 'system')
+      assert.equal(supplied.metadata.subagent, undefined)
+    }
+  }
+})
+
+void it('Claude subagent identity requires native evidence and preserves explicit legacy lineage', async () => {
+  const base = { type: 'user', sessionId: 'native-session', message: { content: 'task' } }
+  for (const native of [
+    base,
+    { ...base, isSidechain: true },
+    { ...base, agentId: 'agent-only' },
+    { ...base, agentId: 'not-sidechain', isSidechain: false },
+  ]) {
+    const session = await sessions.parse('claude', { jsonl: JSON.stringify(native), source: '/untrusted/parent/subagents/agent-guessed.jsonl' })
+    assert.equal(session.id, 'native-session')
+    assert.equal(session.parentSessionId, undefined)
+    assert.deepEqual(session.records[0]?.native, native)
+  }
+  const legacy = await sessions.parse('claude', { path: resolve('fixtures/claude/subagent.jsonl') })
+  assert.equal(legacy.id, 'claude-session')
+  assert.equal(legacy.parentSessionId, 'parent-session')
+  const native = { ...base, agentId: 'native-agent', isSidechain: true }
+  const jsonl = JSON.stringify(native)
+  const data = Buffer.from(jsonl)
+  async function* bytes() {
+    for (const byte of data) yield Uint8Array.of(byte)
+  }
+  for (const input of [{ jsonl }, { jsonl: data }, { jsonl: bytes() }]) {
+    const session = await sessions.parse('claude', input)
+    assert.equal(session.id, 'native-agent')
+    assert.equal(session.parentSessionId, 'native-session')
+    assert.deepEqual(session.records[0]?.native, native)
+  }
+  const conflict = { ...native, sessionId: 'foreign-session', agentId: 'foreign-agent' }
+  const mixed = await sessions.parse('claude', { jsonl: `${jsonl}\n${JSON.stringify(conflict)}` })
+  assert.equal(mixed.id, 'native-agent')
+  assert.equal(mixed.parentSessionId, 'native-session')
+  assert.deepEqual(mixed.records.map(record => record.native), [native, conflict])
+  assert.ok(mixed.diagnostics.some(diagnostic => diagnostic.message.includes('selected identity is authoritative')))
 })
