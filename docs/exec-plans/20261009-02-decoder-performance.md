@@ -46,10 +46,10 @@ is inferred from overlapping ranges or from one configuration's median alone.
 Aggregation is now linear in candidate occurrences and skipped when metadata is omitted.
 All callbacks still run independently of output selection, with original evidence and incremental events.
 Final decoder metadata is deliberately published once at successful EOF.
-Raw measurements and limitations are recorded in docs/decoder-performance.md and its linked JSON.
+Measured results and limitations are recorded in docs/decoder-performance.md.
 Full repository acceptance passes with 445 tests and installed JavaScript/TypeScript verification.
 The measured production source hashes still match the final implementation.
-PR #30 contains the implementation, raw trials and performance report, with the final contract
+PR #30 contains the implementation and performance report, with the final contract
 and validation summarized in its description.
 
 ## Context and Orientation
@@ -91,8 +91,7 @@ No native store, dependency lockfile or v1 golden changes.
 
 ## Artifacts and Notes
 
-docs/decoder-performance.md will describe workloads, machine, commands and measured limitations.
-docs/benchmarks/decoder-performance.json will retain raw trials and source identities.
+docs/decoder-performance.md describes workloads, machine, commands and measured limitations.
 
 ## Interfaces and Dependencies
 

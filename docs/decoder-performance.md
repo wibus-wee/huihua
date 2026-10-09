@@ -21,8 +21,7 @@ Decoder invocation no longer creates a forwarding closure for every decoder on e
 
 ## Method and limits
 
-[Raw measurements](benchmarks/decoder-performance.json) contain all 150 trials, commands,
-source hashes, runtime details and the benchmark harness hash.
+The measurement covered 150 fresh-process trials across 15 configurations.
 The baseline is fe3c370abfb0b70225dae846139996396a12a8af, the original PR #30 implementation.
 Each configuration has five fresh-process trials; before/fixed order alternates within each pair.
 Variants execute sequentially using the same tools/bench-stream.ts harness and 64 KiB acquired chunks.
