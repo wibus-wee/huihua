@@ -1,22 +1,24 @@
 import type { DecoderContribution, DecoderInput, DecoderReplay, SessionDecoder } from '../contracts/decoder.ts'
+import type { FrameSelection } from '../contracts/session.ts'
 import type { RawRecord, SessionSource } from '../contracts/source.ts'
 import type { Ingestion } from './ingestion.ts'
 
 interface DecoderNamespace {
-  readonly metadata?: { readonly record: number, readonly data: Readonly<Record<string, unknown>> }
-  readonly parentSessionIds?: readonly { readonly record: number, readonly id: string }[]
+  metadata?: { readonly record: number, readonly data: Readonly<Record<string, unknown>> }
+  parentSessionIds?: { readonly record: number, readonly id: string }[]
 }
 
 /** One runner per replay; no source acquisition or mutable provider state lives here. */
 export class DecoderRunner {
   readonly #replays: { id: string, replay: DecoderReplay }[]
   readonly #records = new WeakSet<RawRecord>()
-  readonly #namespaces = new Map<string, DecoderNamespace>()
+  readonly #namespaces: Map<string, DecoderNamespace> | undefined
   readonly #parents = new Set<string>()
   readonly #ingest: Ingestion
 
-  constructor(decoders: readonly SessionDecoder[], context: { provider: string, source: SessionSource }, ingest: Ingestion) {
+  constructor(decoders: readonly SessionDecoder[], context: { provider: string, source: SessionSource }, ingest: Ingestion, selection: FrameSelection = {}) {
     this.#ingest = ingest
+    this.#namespaces = selection.metadata !== false && (selection.metadataKeys === undefined || selection.metadataKeys.includes('metadata')) ? new Map() : undefined
     this.#replays = decoders.map(({ id, create }) => {
       try {
         return { id, replay: create(context) }
@@ -30,7 +32,7 @@ export class DecoderRunner {
   decode(input: DecoderInput): void {
     this.#records.add(input.record)
     for (const { id, replay } of this.#replays)
-      this.#run(id, 'decode', () => replay.decode(input))
+      this.#run(id, replay, input)
     // A contribution may refer to an earlier row; the native parser keeps its current row.
     this.#ingest.associate(input.record)
   }
@@ -38,8 +40,10 @@ export class DecoderRunner {
   finish(): void {
     for (const { id, replay } of this.#replays) {
       if (replay.finish)
-        this.#run(id, 'finish', () => replay.finish!())
+        this.#run(id, replay)
     }
+    if (this.#namespaces !== undefined && this.#namespaces.size > 0)
+      this.#ingest.patch({ metadata: { decoders: Object.fromEntries(this.#namespaces) } })
     if (this.#parents.size === 0)
       return
     const native = this.#ingest.parentSessionIds()
@@ -55,14 +59,14 @@ export class DecoderRunner {
     }
   }
 
-  #run(id: string, phase: string, callback: () => readonly DecoderContribution[]): void {
+  #run(id: string, replay: DecoderReplay, input?: DecoderInput): void {
     try {
-      const contributions = callback()
+      const contributions = input === undefined ? replay.finish!() : replay.decode(input)
       for (const contribution of contributions)
         this.#apply(id, contribution)
     }
     catch (cause) {
-      throw new Error(`decoder ${id} failed during ${phase}`, { cause })
+      throw new Error(`decoder ${id} failed during ${input === undefined ? 'finish' : 'decode'}`, { cause })
     }
   }
 
@@ -79,19 +83,28 @@ export class DecoderRunner {
         })
         return
       case 'metadata':
-        this.#namespaces.set(id, { ...this.#namespaces.get(id), metadata: { record: record.sequence, data: contribution.data } })
+        if (this.#namespaces !== undefined)
+          this.#namespace(id).metadata = { record: record.sequence, data: contribution.data }
         break
       case 'parent_session': {
         if (typeof contribution.id !== 'string' || contribution.id.trim() === '')
           throw new TypeError('parent-session candidate must have a nonempty ID')
         this.#parents.add(contribution.id)
-        const previous = this.#namespaces.get(id)
-        this.#namespaces.set(id, { ...previous, parentSessionIds: [...previous?.parentSessionIds ?? [], { record: record.sequence, id: contribution.id }] })
+        if (this.#namespaces !== undefined)
+          (this.#namespace(id).parentSessionIds ??= []).push({ record: record.sequence, id: contribution.id })
         break
       }
       default:
         throw new TypeError('unrecognized decoder contribution')
     }
-    this.#ingest.patch({ metadata: { decoders: Object.fromEntries(this.#namespaces) } })
+  }
+
+  #namespace(id: string): DecoderNamespace {
+    let namespace = this.#namespaces!.get(id)
+    if (namespace === undefined) {
+      namespace = {}
+      this.#namespaces!.set(id, namespace)
+    }
+    return namespace
   }
 }

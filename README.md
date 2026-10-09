@@ -304,10 +304,13 @@ Each contribution references a record from that replay, including contributions 
 An event contribution adds an existing canonical event body; core assigns its envelope, sequence
 and providerMetadata.decoder.
 A metadata contribution publishes a complete extension-owned snapshot under
-metadata.decoders[id].metadata as { record, data }; subsequent snapshots replace that decoder's snapshot.
+metadata.decoders[id].metadata as { record, data }; the latest contribution becomes that decoder's final snapshot.
 A parent_session contribution carries an explicit parent ID and is retained under
 metadata.decoders[id].parentSessionIds with its evidence record number.
 Core publishes parentSessionId at EOF only when decoder candidates agree and native lineage is absent.
+Decoder metadata and candidate provenance are aggregated privately and published once at successful EOF.
+Event contributions are delivered incrementally; early return or failure does not publish a final aggregate.
+When metadata is unselected, core skips namespace construction while still validating lineage and contributions.
 Native lineage takes precedence; disagreement produces a diagnostic and preserves candidates.
 metadata.decoders is reserved for this integration when decoders are configured.
 

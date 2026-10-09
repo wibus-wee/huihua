@@ -98,3 +98,7 @@ Native evidence is passed by reference under a read-only contract, without freez
 No builtin title/path heuristic or pi-subagents decoder is shipped.
 tests/decoders.test.ts uses an explicitly synthetic example.subagents customType to verify the
 extension mechanism; it is not a third-party producer compatibility fixture.
+Decoder metadata and parent-candidate provenance are final aggregate state published once at
+successful EOF; event contributions remain incremental.
+Private append-only candidate lists preserve all evidence without repeatedly copying published prefixes.
+Omitted metadata delivery skips aggregate construction without changing decoder input or lineage validation.

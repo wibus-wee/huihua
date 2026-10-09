@@ -529,7 +529,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
   async function* ingestLines(ref: SessionRef, lines: AsyncIterable<NativeLine>, options: ReadOptions = {}, companions = false, selection?: FrameSelection, consumer?: FrameConsumer, usageContext = false, facts?: { consumer: UsageFactConsumer, options: UsageFactOptions }): AsyncGenerator<SessionFrame> {
     const ingest = new Ingestion(adapter.id, selection, usageContext, facts?.options)
     const parser = adapter.parser?.() ?? { parse: adapter.parse }
-    const runner = decoders.length === 0 ? undefined : new DecoderRunner(decoders, { provider: adapter.id, source: ref.source }, ingest)
+    const runner = decoders.length === 0 ? undefined : new DecoderRunner(decoders, { provider: adapter.id, source: ref.source }, ingest, selection)
     async function* sources(): AsyncGenerator<Omit<NativeLine, 'position'> & { path: string, position?: number }> {
       if (companions) {
         for (const path of await adapter.metadataFiles?.(ref.source.path) ?? []) {
@@ -548,7 +548,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
     let createdKnown = ref.createdAt !== undefined
     let workspace = ref.workspace
     const metadataKeys = selection?.metadata === false ? [] : selection?.metadataKeys
-    const mappingKeys = runner === undefined ? metadataKeys : undefined
+    const mappingKeys: FrameSelection['metadataKeys'] = runner === undefined || metadataKeys === undefined || metadataKeys.includes('parentSessionId') ? metadataKeys : [...metadataKeys, 'parentSessionId']
     const wantsUpdatedAt = metadataKeys === undefined || metadataKeys.includes('updatedAt')
     const wantsMetadata = metadataKeys === undefined || metadataKeys.includes('metadata')
     for await (const line of companions && adapter.metadataFiles ? sources() : lines) {

@@ -286,12 +286,16 @@ void it('late native lineage overrides decoder candidates in all selection and d
   const path = join(root, 'session.jsonl')
   const data = [entry, { type: 'parent', id: 'native-parent' }, { type: 'usage', timestamp: 42 }].map(value => JSON.stringify(value)).join('\n')
   await writeFile(path, data)
+  const demands: FrameSelection['metadataKeys'][] = []
   const provider = jsonlProvider({
     id: 'native',
     usageContext: true,
     roots: () => [path],
     decoders: [exampleDecoder()],
-    metadata: (records, _path, _context, keys) => keys === undefined || keys.includes('parentSessionId') ? { ...(object(records[0]).type === 'parent' ? { parentSessionId: 'native-parent' } : {}) } : {},
+    metadata(records, _path, _context, keys) {
+      demands.push(keys)
+      return keys === undefined || keys.includes('parentSessionId') ? { ...(object(records[0]).type === 'parent' ? { parentSessionId: 'native-parent' } : {}) } : {}
+    },
     parse(ingest, native) {
       const value = object(native)
       if (value.type === 'usage')
@@ -307,7 +311,9 @@ void it('late native lineage overrides decoder candidates in all selection and d
   const full = await framesOf(opened.stream())
   const selection: FrameSelection = { events: ['usage'], records: false, metadataKeys: ['parentSessionId'] }
   assert.deepEqual(await framesOf(opened.select!(selection)), select(full, selection))
+  demands.length = 0
   assert.deepEqual(await framesOf(opened.select!({ events: [], records: false, metadata: false })), select(full, { events: [], records: false, metadata: false }))
+  assert.deepEqual(demands, [['parentSessionId'], ['parentSessionId'], ['parentSessionId']], 'lineage validation must not request unrelated unselected metadata')
   const consumed: SessionFrame[] = []
   await opened.consumeUsage!((frame) => {
     consumed.push(frame)
@@ -394,4 +400,28 @@ void it('empty input finalizes once and finish failures retain decoder identity 
   assert.equal(finished, 1)
   await assert.rejects(provider.parse({ jsonl: '' }), error => error instanceof Error && error.cause === cause && error.message === 'decoder empty failed during finish')
   assert.equal(finished, 2)
+})
+
+void it('decoder aggregates publish once at successful EOF with every candidate and latest metadata', async () => {
+  const rows = [header, ...Array.from({ length: 64 }, (_, index) => ({ ...entry, id: `candidate-${index}` }))]
+  const frames = await framesOf(createPiProvider({ decoders: [exampleDecoder()] }).stream({ jsonl: rows.map(row => JSON.stringify(row)).join('\n') }))
+  const aggregates = frames.filter(frame => frame.type === 'metadata' && frame.patch.metadata?.decoders !== undefined)
+  assert.equal(aggregates.length, 1, 'growing candidate lists must not be published on every row')
+  const aggregate = aggregates[0]!
+  assert.equal(aggregate.type, 'metadata')
+  if (aggregate.type !== 'metadata')
+    throw new Error('missing aggregate')
+  const namespace = object(object(aggregate.patch.metadata?.decoders)['example/subagents'])
+  assert.deepEqual(object(namespace.metadata).data, { count: 64 })
+  assert.deepEqual(namespace.parentSessionIds, Array.from({ length: 64 }, (_, index) => ({ record: index + 1, id: 'parent' })))
+  assert.ok(frames.indexOf(aggregate) > frames.findLastIndex(frame => frame.type === 'record' || frame.type === 'event'))
+
+  const prefix: SessionFrame[] = []
+  for await (const frame of createPiProvider({ decoders: [exampleDecoder()] }).stream({ jsonl })) {
+    prefix.push(frame)
+    if (frame.type === 'event' && frame.event.providerMetadata.decoder !== undefined)
+      break
+  }
+  assert.ok(prefix.some(frame => frame.type === 'event' && frame.event.type === 'subagent'))
+  assert.equal(prefix.some(frame => frame.type === 'metadata' && frame.patch.metadata?.decoders !== undefined), false)
 })

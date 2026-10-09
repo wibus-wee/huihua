@@ -286,12 +286,17 @@ Decoder authors should recognize their own extension envelope rather than repeat
 Metadata snapshots live in metadata.decoders[id].metadata as { record, data }.
 This is complete state from that decoder, not an arbitrary Partial<Session> patch.
 Core replaces the submitting decoder's snapshot and combines independent namespaces; previous
-frames retain their previous namespace values.
+contributions are private state until normal EOF publishes the latest snapshots once.
 Parent candidates remain in that namespace's parentSessionIds list with their record numbers.
+Candidate lists append privately without copying their growing prefixes, and no published array is mutated.
+Event contributions stay incremental; aggregate metadata and candidate provenance are final EOF output.
+Early return, cancellation and failures retain their emitted native/event prefix without a final aggregate.
+When the consumer omits metadata, the runner skips namespaces and candidate evidence arrays;
+it still validates contribution ownership and retains distinct parent IDs for conflict detection.
 metadata.decoders is reserved when the integration is enabled; adapters must not use that key for native metadata.
 Native parent facts are tracked before delivery selection, including patches emitted by the mapper.
-Configured decoders require full mapper metadata to validate lineage even when metadata frames
-or parentSessionId are unselected; providers without decoders retain demand-driven mapping.
+Configured decoders request parentSessionId alongside selected mapper keys to validate lineage
+even when that field is unselected; other metadata retains demand-driven mapping.
 At EOF, native lineage takes precedence; without it, one agreed candidate becomes parentSessionId.
 Disagreement adds a PartialParse diagnostic and retains candidates without silently choosing a decoder.
 Canonical decoder lineage is delayed because existing metadata patches cannot retract a fact.
@@ -317,6 +322,7 @@ A transform/waterfall pipeline permits replacement and order-dependent interpret
 Existing JSONL acquisition and typed callbacks meet this scope without a general plugin framework.
 [Decoder tests](../tests/decoders.test.ts), architecture policy and installed-package consumers
 enforce isolation, provenance, selection, EOF and compatibility.
+[Decoder performance](decoder-performance.md) records the opt-in aggregation adjustment and measurements.
 
 ### Selective frame delivery
 
