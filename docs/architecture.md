@@ -249,6 +249,81 @@ SQLite pager and codec internals.
 The export is additive: contracts, registry dispatch, provider subpaths and agent-session/v1
 are unchanged.
 
+### Additive JSONL decoders
+
+[contracts/decoder.ts](../src/contracts/decoder.ts) owns the optional SessionDecoder contract,
+exported from huihua/ingest.
+[shared/decoders.ts](../src/shared/decoders.ts) owns contribution validation and combination;
+the existing shared JSONL replay loop owns its lifecycle.
+Providers opt in through JsonlAdapter.decoders, and the independent Pi subpath exposes
+createPiProvider({ decoders }) alongside the unchanged default piProvider.
+Registry dispatch and the SessionProvider SPI remain unchanged.
+
+Decoder configuration belongs to a provider; mutable correlation state belongs inside create(),
+which runs once per invocation of the existing ingestion replay, including concurrent invocations.
+decode() receives original record references, or a gap input for a malformed row.
+Input text and bytes are independent of output selection: configured decoders require full
+record envelopes even when the consumer omits record frames.
+The default path retains existing compact evidence-free behavior.
+finish() runs after successful source EOF and the native parser's finish(), before ingestion
+emits unmatched-tool diagnostics.
+Source errors, decoder errors, cancellation and early return do not call finish().
+Existing acquisition owns resource cleanup; decoders have no acquisition, async or disposal API.
+EOF establishes complete input, not agent success, failure or completion.
+
+Contributions can add existing EventBody values, publish a decoder-owned metadata snapshot, or
+submit an explicit parent-session ID.
+Every contribution references a RawRecord previously delivered to its replay; a weak identity
+set validates ownership without retaining all native records.
+Core assigns event envelopes from that evidence, sequence numbers and providerMetadata.decoder.
+Contributed tool calls/results use decoder-specific tool scopes so extension IDs cannot satisfy
+unrelated native calls or another decoder's calls.
+Contributions can refer to earlier evidence at EOF without fabricating a last-record association.
+Native mapper events and unknown fallback remain unchanged; contributions append in configuration order.
+There is no record claiming, deduplication or replacement hook.
+Decoder authors should recognize their own extension envelope rather than repeat builtin mapping.
+
+Metadata snapshots live in metadata.decoders[id].metadata as { record, data }.
+This is complete state from that decoder, not an arbitrary Partial<Session> patch.
+Core replaces the submitting decoder's snapshot and combines independent namespaces; previous
+contributions are private state until normal EOF publishes the latest snapshots once.
+Parent candidates remain in that namespace's parentSessionIds list with their record numbers.
+Candidate lists append privately without copying their growing prefixes, and no published array is mutated.
+Event contributions stay incremental; aggregate metadata and candidate provenance are final EOF output.
+Early return, cancellation and failures retain their emitted native/event prefix without a final aggregate.
+When the consumer omits metadata, the runner skips namespaces and candidate evidence arrays;
+it still validates contribution ownership and retains distinct parent IDs for conflict detection.
+metadata.decoders is reserved when the integration is enabled; adapters must not use that key for native metadata.
+Native parent facts are tracked before delivery selection, including patches emitted by the mapper.
+Configured decoders request parentSessionId alongside selected mapper keys to validate lineage
+even when that field is unselected; other metadata retains demand-driven mapping.
+At EOF, native lineage takes precedence; without it, one agreed candidate becomes parentSessionId.
+Disagreement adds a PartialParse diagnostic and retains candidates without silently choosing a decoder.
+Canonical decoder lineage is delayed because existing metadata patches cannot retract a fact.
+
+These are ordinary trusted library callbacks under a read-only contract.
+Private decoder state may mutate; original evidence and published contributions must not.
+Core does not deep-freeze, clone, sandbox or swallow failures.
+Errors name the decoder and lifecycle phase, retain their cause, and propagate through existing
+source cleanup.
+Configuration rejects empty or duplicate decoder IDs.
+No new dependency, schema version, discovery policy or default mapping semantics are introduced.
+
+The design borrows per-run creation/reporting from
+[ESLint rules](https://eslint.org/docs/latest/extend/custom-rules), host-owned combination from
+[CodeMirror facets](https://github.com/codemirror/state/blob/9c801279cb83011e6f92af778f4443406e8f1200/src/facet.ts),
+and separation of physical evidence from extension meaning from
+[Arrow extension types](https://arrow.apache.org/docs/format/Columnar.html#extension-types).
+[WHATWG transform streams](https://streams.spec.whatwg.org#transformer-api) distinguish normal flush
+from cancellation; the existing generator already supplies that boundary here.
+An assembled-provider read() wrapper misses other replay entry points; exporting mutable builtin
+adapters exposes their mapping internals without establishing contribution ownership.
+A transform/waterfall pipeline permits replacement and order-dependent interpretation of rewritten inputs.
+Existing JSONL acquisition and typed callbacks meet this scope without a general plugin framework.
+[Decoder tests](../tests/decoders.test.ts), architecture policy and installed-package consumers
+enforce isolation, provenance, selection, EOF and compatibility.
+[Decoder performance](decoder-performance.md) records the opt-in aggregation adjustment and measurements.
+
 ### Selective frame delivery
 
 `OpenSession.select(selection)` is an optional public capability for file-backed JSONL handles.
