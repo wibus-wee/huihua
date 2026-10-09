@@ -9,15 +9,18 @@ import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import { writeReviewPacket } from './review.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
-import { assertNoProducerDrift, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
+import { assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
 export function assertCodexRead(store: NativeStore, session: Session): void {
   assert.equal(session.id, store.id)
+  assert.equal(session.provider, 'codex')
+  assert.deepEqual(session.source, { path: store.path, format: 'jsonl' })
   assert.equal(session.records.length, store.rows.length, 'Codex raw record count')
   for (const [index, row] of store.rows.entries()) {
     const at = `${store.path}:${row.position}`
     const record = session.records[index]!
     assert.equal(record.sequence, index, at)
+    assert.equal(record.provider, 'codex', at)
     assert.equal(record.source.position, row.position, at)
     assert.equal(record.source.path, store.path, at)
     assert.equal(record.text, row.text, at)
@@ -63,6 +66,8 @@ export function assertCodexRead(store: NativeStore, session: Session): void {
     assert(event.record >= 0 && event.record < store.rows.length)
     assert.deepEqual(event.timestamp, { format: 'rfc3339', value: store.rows[event.record]!.native.timestamp })
   }
+  assert(session.diagnostics.every(diagnostic => diagnostic.code === 'PartialParse'), 'unexpected Codex diagnostics')
+  assert.equal(session.diagnostics.length, session.events.filter(event => event.type === 'unknown').length, 'missing/extra Codex unknown diagnostics')
 }
 
 export function assertCodexScenario(store: NativeStore, session: Session): void {
@@ -110,7 +115,7 @@ async function main(): Promise<void> {
   try {
     await simulator.ready()
     progress.stage = 'producer'
-    const template = await openaiJson(`${base}/v1/responses`, { model: 'gpt-5.4', input: 'synthetic template' })
+    const template = await simulator.template('openai')
     await json(`${control}/reset`, {})
     const tool = { id: 'item_codex_read', type: 'function_call', call_id: 'huihua_codex_read', name: 'exec_command', arguments: JSON.stringify({ cmd: 'cat synthetic.txt', yield_time_ms: 1000, max_output_tokens: 1000 }), status: 'completed' }
     const message = (id: string, text: string) => ({ id, type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text, annotations: [], logprobs: [] }] })
@@ -121,7 +126,10 @@ async function main(): Promise<void> {
     await runCodex(['exec', '--skip-git-repo-check', '--json', 'HUIHUA_CODEX_FIRST'], 'first')
     await json(`${control}/enqueue`, { provider: 'openai', exchanges: [responseExchange('resume', 'HUIHUA_CODEX_RESUME', message('msg_codex_resume', 'HUIHUA_CODEX_RESUMED'), template)] })
     await runCodex(['exec', 'resume', '--last', '--skip-git-repo-check', '--json', 'HUIHUA_CODEX_RESUME'], 'resume')
-    await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
+    const ledger = await json(`${control}/requests`)
+    await writeFile(join(root, 'ledger.json'), JSON.stringify(ledger, null, 2))
+    assertSimulatorRequests(ledger, ['HUIHUA_CODEX_FIRST', 'HUIHUA_CODEX_TOOL_RESULT', 'HUIHUA_CODEX_RESUME'].map(marker => ({ path: '/v1/responses', marker })))
+    await simulator.assertExhausted()
     progress.stage = 'native-inventory'
     const wires = await findWires(join(config, 'sessions'))
     assert.equal(wires.length, 1, 'resume must retain one independently inventoried Codex rollout')
@@ -226,11 +234,6 @@ async function main(): Promise<void> {
     }
   }
 
-  async function openaiJson(url: string, body: unknown): Promise<Record<string, unknown>> {
-    const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'authorization': 'Bearer synthetic-test-key' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) })
-    assert(response.ok, await response.clone().text())
-    return await response.json() as Record<string, unknown>
-  }
   function responseExchange(label: string, marker: string, item: Record<string, unknown>, template: Record<string, unknown>) {
     const response = { ...template, id: `resp_${label}`, output: [item] }
     return { label, request: { method: 'POST', path: '/v1/responses', bodyTextIncludes: [marker] }, response: { kind: 'stream', steps: [

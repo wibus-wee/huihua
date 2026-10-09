@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
@@ -12,9 +12,94 @@ import { sessions } from '../src/index.ts'
 import { activeProviders, manifest, selectProviders } from '../tools/producer-compat/catalog.ts'
 import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
-import { assertKimiReplies } from '../tools/producer-compat/kimi.ts'
+import { assertKimiFacts, assertKimiReplies } from '../tools/producer-compat/kimi.ts'
+import { inventoryStore } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
-import { assertNoProducerDrift, NativeDriftError, nativeFieldPaths } from '../tools/producer-compat/runtime.ts'
+import { assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
+
+await test('test launcher disables automatic model replies and checks unconsumed exchanges', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'huihua-simulator-launch-'))
+  await mkdir(join(directory, 'src'))
+  await mkdir(join(directory, 'node_modules/tsx/dist'), { recursive: true })
+  await writeFile(join(directory, 'node_modules/tsx/dist/loader.mjs'), '')
+  // Stub only the external package's public lifecycle API; no model/schema/parser fake.
+  await writeFile(join(directory, 'src/index.ts'), `
+    import assert from 'node:assert/strict'
+    export async function startModelApiSimulator(options) {
+      assert.equal(options.autoRespond, false)
+      let pending = 0
+      return {
+        controller: {
+          enqueue() { pending++ }, reset() { pending = 0 }, requests() { return [] },
+          assertExhausted() { assert.equal(pending, 0, 'unconsumed exchange') }
+        }, close: async () => {}
+      }
+    }
+  `)
+  const port = 19731
+  const simulator = startSimulator(directory, port)
+  try {
+    await simulator.ready()
+    await simulator.assertExhausted()
+    await json(`http://127.0.0.1:${port + 1}/_simulator/enqueue`, {})
+    await assert.rejects(simulator.assertExhausted(), /unconsumed exchange/)
+    await json(`http://127.0.0.1:${port + 1}/_simulator/reset`, {})
+    await simulator.assertExhausted()
+  }
+  finally {
+    await simulator.stop(join(directory, 'simulator.log'))
+    assert.deepEqual(JSON.parse(await readFile(join(directory, 'ledger.json'), 'utf8')), { requests: [] })
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+await test('model request ledger rejects extra, missing, reordered and wrong-protocol turns', () => {
+  const plan = [{ path: '/v1/messages', marker: 'first' }, { path: '/v1/messages', marker: 'resumed' }]
+  const requests = plan.map(({ path, marker }) => ({ method: 'POST', path, body: { stream: true, messages: [{ role: 'user', content: marker }] } }))
+  assertSimulatorRequests({ requests }, plan)
+  assert.throws(() => assertSimulatorRequests({ requests: requests.slice(1) }, plan), /model requests/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, requests[0]!] }, plan), /model requests/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests].reverse() }, plan), /marker/)
+  assert.throws(() => assertSimulatorRequests({ requests: requests.map(request => ({ ...request, path: '/v1/responses' })) }, plan), /protocol/)
+  assert.throws(() => assertSimulatorRequests({ requests: requests.map(request => ({ ...request, body: { ...request.body, stream: false } })) }, plan), /streaming/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, { method: 'GET', path: '/unreviewed-endpoint' }] }, plan), /auxiliary/)
+})
+
+await test('shared live audit rejects user, usage and envelope loss with native records intact', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'huihua-live-facts-'))
+  try {
+    const directory = join(home, '.pi/agent/sessions/synthetic')
+    await mkdir(directory, { recursive: true })
+    const path = join(directory, 'session.jsonl')
+    const rows = [
+      { type: 'session', version: 3, id: 'native', timestamp: '2026-01-01T00:00:00Z', cwd: '/synthetic' },
+      { type: 'message', id: 'user', timestamp: '2026-01-01T00:00:01Z', message: { role: 'user', content: [{ type: 'text', text: 'HUIHUA_PI_FIRST' }] } },
+      { type: 'message', id: 'assistant', timestamp: '2026-01-01T00:00:02Z', message: { role: 'assistant', model: 'native-model', content: [{ type: 'text', text: 'HUIHUA_PI_REPLY' }], usage: { input: 3, output: 2, nested: { future: 7 } } } },
+    ]
+    await writeFile(path, rows.map(row => `${JSON.stringify(row)}\n`).join(''))
+    const inventory = await inventoryStore('pi', home)
+    const scan = await sessions.scan({ providers: ['pi'], homeDir: home })
+    const session = await sessions.read(scan.refs[0]!)
+    inventory.assertRecords(session)
+    for (const type of ['user_message', 'usage'])
+      assert.throws(() => inventory.assertRecords({ ...session, events: session.events.filter(event => event.type !== type) }), /./, type)
+    assert.throws(() => inventory.assertRecords({ ...session, events: session.events.map(({ timestamp: _time, ...event }) => event) }), /./, 'timestamp')
+    assert.throws(() => inventory.assertRecords({ ...session, id: 'foreign' }), /./, 'identity')
+    const mutations: [string, (input: Session) => Session][] = [
+      ['usage payload', input => ({ ...input, events: input.events.map(event => event.type === 'usage' ? { ...event, data: { usage: {} } } : event) })],
+      ['usage association', input => ({ ...input, events: input.events.map(event => event.type === 'usage' ? { ...event, record: 1 } : event) })],
+      ['assistant model', input => ({ ...input, events: input.events.map(event => event.type === 'assistant_message' ? { ...event, data: { ...event.data, model: 'foreign' } } : event) })],
+      ['raw bytes', input => ({ ...input, records: input.records.map(record => ({ ...record, text: '{}' })) })],
+      ['physical line', input => ({ ...input, records: input.records.map(record => ({ ...record, source: { ...record.source, position: 0 } })) })],
+      ['workspace', input => ({ ...input, workspace: { path: 'foreign' } })],
+      ['parent', input => ({ ...input, parentSessionId: 'foreign' })],
+      ['diagnostics', input => ({ ...input, diagnostics: [{ code: 'PartialParse', message: 'unreviewed' }] })],
+    ]
+    for (const [name, mutate] of mutations)
+      assert.throws(() => inventory.assertRecords(mutate(session)), /./, name)
+  }
+  finally { await rm(home, { recursive: true, force: true }) }
+})
 
 await test('independent native inventory detects omissions hidden by the old summary', async () => {
   const home = await mkdtemp(join(tmpdir(), 'huihua-audit-test-'))
@@ -162,6 +247,33 @@ await test('Claude subagent journey rejects absent children and broken native sp
     mutate(copy)
     assert.throws(() => assertSubagentScenario(copy, 'parent'), /subagent scenario/, name)
   }
+})
+
+await test('Kimi native facts reject missing user messages, usage mirrors and broken associations', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'huihua-kimi-facts-'))
+  try {
+    const path = join(directory, 'agents/main/wire.jsonl')
+    await mkdir(join(directory, 'agents/main'), { recursive: true })
+    const state = { id: 'native', createdAt: 1000, updatedAt: 2000, agents: {} }
+    const rows = [
+      { type: 'metadata', protocol_version: '1.5', time: 1000 },
+      { type: 'context.append_message', time: 1100, message: { role: 'user', content: [{ type: 'text', text: 'prompt' }] } },
+      { type: 'usage.record', time: 1200, usage: { inputOther: 3, output: 2 } },
+      { type: 'context.append_loop_event', time: 1300, event: { type: 'content.part', part: { type: 'text', text: 'reply' } } },
+      { type: 'context.append_loop_event', time: 1400, event: { type: 'step.end', usage: { inputOther: 3, output: 2 } } },
+    ]
+    await writeFile(join(directory, 'state.json'), JSON.stringify(state))
+    await writeFile(path, rows.map(row => JSON.stringify(row)).join('\n'))
+    const scan = await sessions.scan({ providers: ['kimi'], roots: { kimi: [directory] } })
+    const session = await sessions.read(scan.refs[0]!)
+    assertKimiFacts(rows, state, session)
+    for (const type of ['user_message', 'usage'])
+      assert.throws(() => assertKimiFacts(rows, state, { ...session, events: session.events.filter(event => event.type !== type) }), /./, type)
+    const usage = session.events.find(event => event.type === 'usage')!
+    assert.throws(() => assertKimiFacts(rows, state, { ...session, events: [...session.events, { ...usage, sequence: session.events.length, record: 5, timestamp: { format: 'unix_millis', value: 1400 } }] }), /usage/)
+    assert.throws(() => assertKimiFacts(rows, state, { ...session, events: session.events.map(event => ({ ...event, timestamp: { format: 'unix_millis' as const, value: 0 } })) }), /time/)
+  }
+  finally { await rm(directory, { recursive: true, force: true }) }
 })
 
 await test('Kimi native reply oracle rejects missing, duplicated and changed assistant content', async () => {

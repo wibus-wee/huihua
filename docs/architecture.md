@@ -860,6 +860,14 @@ A separate reporter depends on the entire matrix and remains the only writer.
 Codex retains its narrow evidence allowlist and synthetic-job-only sandbox override.
 The shared simulator lifecycle owns startup, readiness, logs and bounded shutdown;
 provider config, model protocol, tool scenario and native assertions remain provider-owned.
+It launches the pinned simulator's public API with automatic responses disabled on the producer
+listener and retains the small existing loopback control interface.
+Template synthesis uses a separate setup-only listener; it never supplies unplanned producer turns.
+Each existing runner verifies its own ordered request plan and exhausted exchange queue.
+The independent native oracles additionally require the produced user text, native model/usage
+facts and source associations across the existing read surfaces.
+This extends the current helpers and provider-specific assertions without a scenario framework,
+production imports or new primitives.
 This reuses the existing runtime module instead of adding a composite Action or plugin framework.
 
 Native compatibility drift is typed test evidence in the existing runtime/report modules.

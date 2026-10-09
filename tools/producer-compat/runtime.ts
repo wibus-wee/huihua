@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
+import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
 import { join } from 'node:path'
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
+import { pathToFileURL } from 'node:url'
 
 export function required(name: string): string {
   const value = process.env[name]
@@ -11,9 +14,26 @@ export function required(name: string): string {
   return value
 }
 export async function json(url: string, body?: unknown): Promise<Record<string, unknown>> {
-  const response = await fetch(url, { headers: { 'content-type': 'application/json', 'x-api-key': 'synthetic-test-key', 'anthropic-version': '2023-06-01' }, ...(body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000) })
+  const response = await fetch(url, { headers: { 'content-type': 'application/json', 'authorization': 'Bearer synthetic-test-key', 'x-api-key': 'synthetic-test-key', 'anthropic-version': '2023-06-01' }, ...(body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000) })
   assert(response.ok, `${url}: ${response.status} ${await response.clone().text()}`)
   return await response.json() as Record<string, unknown>
+}
+
+export function assertSimulatorRequests(ledger: Record<string, unknown>, expected: { path: string, marker: string }[]): void {
+  assert(Array.isArray(ledger.requests), 'missing simulator request ledger')
+  const requests = ledger.requests as { method: string, path: string, body?: Record<string, unknown> }[]
+  const modelPaths = ['/v1/messages', '/v1/responses', '/v1/chat/completions']
+  const model = requests.filter(request => modelPaths.includes(request.path))
+  assert.equal(model.length, expected.length, 'unexpected/missing model requests')
+  for (const [index, plan] of expected.entries()) {
+    const actual = model[index]!
+    assert.equal(actual.method, 'POST', `model request ${index}: method`)
+    assert.equal(actual.path, plan.path, `model request ${index}: protocol`)
+    assert.equal(actual.body?.stream, true, `model request ${index}: streaming`)
+    assert(JSON.stringify(actual.body).includes(plan.marker), `model request ${index}: missing scenario marker ${plan.marker}`)
+  }
+  for (const request of requests.filter(request => !modelPaths.includes(request.path)))
+    assert((request.method === 'GET' && /^\/v1\/models(?:\/[^/]+)?$/.test(request.path)) || (request.method === 'POST' && ['/v1/messages/count_tokens', '/v1/responses/input_tokens'].includes(request.path)), `unexpected auxiliary request: ${request.method} ${request.path}`)
 }
 export function exchange(label: string, marker: string, block: Record<string, unknown>, stop: string, template: Record<string, unknown>) {
   const delta = block.type === 'tool_use' ? { type: 'input_json_delta', partial_json: JSON.stringify(block.input) } : { type: 'text_delta', text: block.text }
@@ -102,7 +122,7 @@ export function nativeFieldPaths(stores: NativeStore[], grouped = true): string[
 
 // Shared infrastructure only; provider protocols and reading assertions stay in their scenarios.
 export function startSimulator(directory: string, port: number) {
-  const server = spawn(process.execPath, ['--import', join(directory, 'node_modules/tsx/dist/loader.mjs'), join(directory, 'run.ts'), String(port)], { stdio: ['ignore', 'pipe', 'pipe'] })
+  const server = spawn(process.execPath, ['--import', join(directory, 'node_modules/tsx/dist/loader.mjs'), import.meta.filename, directory, String(port)], { stdio: ['ignore', 'pipe', 'pipe'] })
   let log = ''
   let spawnError: Error | undefined
   server.on('error', (error) => {
@@ -116,6 +136,12 @@ export function startSimulator(directory: string, port: number) {
   })
   const closed = new Promise<void>(resolve => server.once('close', () => resolve()))
   return {
+    async template(protocol = 'anthropic'): Promise<Record<string, unknown>> {
+      return json(`http://127.0.0.1:${port + 1}/_simulator/template`, { protocol })
+    },
+    async assertExhausted(): Promise<void> {
+      await json(`http://127.0.0.1:${port + 1}/_simulator/assert-exhausted`, {})
+    },
     async ready(): Promise<void> {
       for (let attempt = 0; ; attempt++) {
         if (spawnError)
@@ -132,6 +158,12 @@ export function startSimulator(directory: string, port: number) {
       }
     },
     async stop(logPath: string): Promise<void> {
+      try {
+        await writeFile(join(logPath, '..', 'ledger.json'), JSON.stringify(await json(`http://127.0.0.1:${port + 1}/_simulator/requests`), null, 2))
+      }
+      catch (error) {
+        log += `\nCould not preserve request ledger: ${String(error)}\n`
+      }
       server.kill('SIGINT')
       await Promise.race([closed, delay(1000)])
       if (server.exitCode === null && server.signalCode === null) {
@@ -141,6 +173,76 @@ export function startSimulator(directory: string, port: number) {
       await writeFile(logPath, log)
     },
   }
+}
+
+// Launch the pinned simulator's public API with automatic model replies disabled.
+// Template synthesis uses a separate setup-only listener, never the producer endpoint.
+async function runSimulator(directory: string, port: number): Promise<void> {
+  interface Simulator {
+    anthropicBaseUrl: string
+    openaiBaseUrl: string
+    controller: { enqueue: (scenario: unknown) => void, reset: () => void, requests: () => unknown, assertExhausted: () => void }
+    close: () => Promise<void>
+  }
+  const api = await import(pathToFileURL(join(directory, 'src/index.ts')).href) as { startModelApiSimulator: (options: { port?: number, autoRespond: boolean }) => Promise<Simulator> }
+  const simulator = await api.startModelApiSimulator({ port, autoRespond: false })
+  const control = createServer((request, response) => {
+    void (async () => {
+      const chunks = []
+      for await (const chunk of request)
+        chunks.push(Buffer.from(chunk as Uint8Array))
+      const body = Buffer.concat(chunks).toString('utf8')
+      const input = body ? JSON.parse(body) as Record<string, unknown> : {}
+      let output: unknown = { ok: true }
+      switch (`${request.method} ${request.url}`) {
+        case 'GET /_simulator/requests':
+          output = { requests: simulator.controller.requests() }
+          break
+        case 'POST /_simulator/enqueue':
+          simulator.controller.enqueue(input)
+          break
+        case 'POST /_simulator/reset':
+          simulator.controller.reset()
+          break
+        case 'POST /_simulator/assert-exhausted':
+          simulator.controller.assertExhausted()
+          break
+        case 'POST /_simulator/template': {
+          assert(['anthropic', 'openai'].includes(String(input.protocol)))
+          const bootstrap = await api.startModelApiSimulator({ autoRespond: true })
+          try {
+            output = input.protocol === 'anthropic'
+              ? await json(`${bootstrap.anthropicBaseUrl}/v1/messages`, { model: 'claude-sonnet-4-5', max_tokens: 64, messages: [{ role: 'user', content: 'synthetic template' }] })
+              : await json(`${bootstrap.openaiBaseUrl}/responses`, { model: 'gpt-5.4', input: 'synthetic template' })
+          }
+          finally { await bootstrap.close() }
+          break
+        }
+        default: throw new Error(`Unexpected control request: ${request.method} ${request.url}`)
+      }
+      response.writeHead(200, { 'content-type': 'application/json' })
+      response.end(JSON.stringify(output))
+    })().catch((error: unknown) => {
+      response.writeHead(400, { 'content-type': 'application/json' })
+      response.end(JSON.stringify({ error: String(error) }))
+    })
+  })
+  await new Promise<void>((resolve, reject) => {
+    control.once('error', reject)
+    control.listen(port + 1, '127.0.0.1', resolve)
+  })
+  process.once('SIGINT', () => {
+    void simulator.close().finally(() => control.close())
+  })
+}
+
+if (import.meta.main)
+  await runSimulator(requiredArg(2), Number(requiredArg(3)))
+
+function requiredArg(index: number): string {
+  const value = process.argv[index]
+  assert(value !== undefined && value !== '', `missing simulator argument ${index}`)
+  return value
 }
 
 export function chatExchange(label: string, marker: string, reply: string) {

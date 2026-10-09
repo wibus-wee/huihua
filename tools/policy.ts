@@ -95,6 +95,13 @@ export async function policy(): Promise<void> {
   const nativeAudit = await readFile('tools/producer-compat/native.ts', 'utf8')
   assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(nativeAudit))
   assert(nativeAudit.includes('from \'node:sqlite\''))
+  const simulatorRuntime = await readFile('tools/producer-compat/runtime.ts', 'utf8')
+  assert(simulatorRuntime.includes('port, autoRespond: false'), 'producer listener must reject unplanned model requests')
+  for (const runner of ['claude', 'codex', 'kimi', 'live', 'recording']) {
+    const source = await readFile(`tools/producer-compat/${runner}.ts`, 'utf8')
+    assert(source.includes('assertSimulatorRequests(ledger,'), `${runner}: missing deterministic request audit`)
+    assert(source.includes('await simulator.assertExhausted()'), `${runner}: missing unconsumed-exchange check`)
+  }
   assert(producerJobs.compatibility!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
   assert(producerWorkflow.includes('needs: [compatibility]'))
   assert(producerWorkflow.includes('issues: write'))

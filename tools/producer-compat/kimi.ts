@@ -9,7 +9,7 @@ import type { Session } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import { writeReviewPacket } from './review.ts'
-import { exchange, json, required, startSimulator } from './runtime.ts'
+import { assertSimulatorRequests, exchange, json, required, startSimulator } from './runtime.ts'
 
 // Scenario-local oracle over real writer records, not Huihua's parsing output.
 export function assertKimiReplies(rows: unknown[], events: Session['events']): void {
@@ -34,6 +34,63 @@ export function assertKimiReplies(rows: unknown[], events: Session['events']): v
   assert.deepEqual(expected, ['HUIHUA_KIMI_REPLY', 'HUIHUA_KIMI_RESUMED'], 'native replies do not match the simulator scenario')
   const actual = events.flatMap(event => event.type === 'assistant_message' ? event.data.content.filter(block => block.type === 'text').map(block => block.data) : [])
   assert.deepEqual(actual, expected, 'Kimi assistant replies missing, duplicated, reordered or changed in Huihua output')
+}
+
+export function assertKimiFacts(rows: Record<string, unknown>[], state: Record<string, unknown>, session: Session): void {
+  assert.equal(session.id, state.id, 'Kimi native identity')
+  assert.equal(session.provider, 'kimi')
+  assert.deepEqual(session.records.map(record => record.native), [state, ...rows], 'Kimi raw native records changed or missing')
+  const stamp = (value: unknown) => value === undefined ? undefined : { format: typeof value === 'number' ? 'unix_millis' : 'rfc3339', value }
+  assert.deepEqual(session.createdAt, stamp(state.createdAt), 'Kimi native createdAt')
+  assert.deepEqual(session.updatedAt, stamp(rows.map(row => row.time).filter(value => value !== undefined).at(-1) ?? state.updatedAt), 'Kimi native updatedAt')
+  assert.equal(session.parentSessionId, state.forkedFrom, 'Kimi native parent')
+  const messages: { record: number, role: string, text: unknown }[] = []
+  const usages: { record: number, usage: unknown }[] = []
+  for (const [index, native] of [state, ...rows].entries()) {
+    const record = session.records[index]!
+    assert.equal(record.sequence, index)
+    assert.equal(record.provider, 'kimi')
+    const events = session.events.filter(event => event.record === index)
+    assert(events.length > 0, 'Kimi native row has no event')
+    for (const event of events) {
+      assert.deepEqual(event.timestamp, stamp(event.type === 'unknown' ? native.timestamp : native.time), `Kimi native time at record ${index}`)
+      if (event.type === 'unknown')
+        assert.deepEqual(event.data.payload, native, 'Kimi unknown evidence')
+    }
+    if (native.type === 'context.append_message') {
+      const message = native.message as { role: string, content: { type: string, text?: string }[], usage?: unknown }
+      if (message.role === 'user' || message.role === 'assistant') {
+        for (const part of message.content) {
+          assert.equal(part.type, 'text', 'unreviewed Kimi live content')
+          messages.push({ record: index, role: message.role, text: part.text })
+        }
+        if ('usage' in message)
+          usages.push({ record: index, usage: message.usage })
+      }
+    }
+    if (native.type === 'context.append_loop_event') {
+      const event = native.event as { type: string, part?: { type: string, text?: string } }
+      if (event.type === 'content.part') {
+        assert.equal(event.part?.type, 'text', 'unreviewed Kimi live part')
+        messages.push({ record: index, role: 'assistant', text: event.part.text })
+      }
+    }
+    if (native.type === 'usage.record')
+      usages.push({ record: index, usage: native.usage ?? null })
+  }
+  for (const [index, event] of session.events.entries()) {
+    assert.equal(event.sequence, index)
+    assert(Number.isInteger(event.record) && event.record >= 0 && event.record < session.records.length, 'Kimi native event association')
+  }
+  assert.deepEqual(session.events.flatMap(event => event.type === 'user_message' || event.type === 'assistant_message'
+    ? event.data.content.map((block) => {
+        assert.equal(block.type, 'text')
+        return { record: event.record, role: event.type === 'user_message' ? 'user' : 'assistant', text: block.data }
+      })
+    : []), messages, 'Kimi native user/assistant text association')
+  assert.deepEqual(session.events.flatMap(event => event.type === 'usage' ? [{ record: event.record, usage: event.data.usage }] : []), usages, 'Kimi native usage association')
+  assert(session.diagnostics.every(diagnostic => diagnostic.code === 'PartialParse'), 'unexpected Kimi diagnostics')
+  assert.equal(session.diagnostics.length, session.events.filter(event => event.type === 'unknown').length, 'missing/extra Kimi unknown diagnostics')
 }
 async function main(): Promise<void> {
   const simulatorDir = resolve(required('SIMULATOR_DIR'))
@@ -70,7 +127,7 @@ async function main(): Promise<void> {
   try {
     await simulator.ready()
     progress.stage = 'producer'
-    const template = await json(`${base}/v1/messages`, { model: 'claude-sonnet-4-5', max_tokens: 64, messages: [{ role: 'user', content: 'synthetic template' }] })
+    const template = await simulator.template()
     await json(`${control}/reset`, {})
     for (const turn of [
       { prompt: 'HUIHUA_KIMI_FIRST', reply: 'HUIHUA_KIMI_REPLY', args: [] },
@@ -81,17 +138,20 @@ async function main(): Promise<void> {
       await writeFile(join(root, `${turn.prompt}.jsonl`), stdout)
       assert(stdout.includes(turn.reply), 'producer did not return the scenario reply')
     }
-    await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
+    const ledger = await json(`${control}/requests`)
+    await writeFile(join(root, 'ledger.json'), JSON.stringify(ledger, null, 2))
+    assertSimulatorRequests(ledger, ['HUIHUA_KIMI_FIRST', 'HUIHUA_KIMI_RESUME'].map(marker => ({ path: '/v1/messages', marker })))
+    await simulator.assertExhausted()
     progress.stage = 'native-inventory'
     const wires = await findWires(config)
     assert.equal(wires.length, 1, 'resume must use one independently inventoried native agent wire')
     const path = wires[0]!
     const text = await readFile(path, 'utf8')
     const rows = text.split('\n').filter(line => line.trim() !== '').map(line => JSON.parse(line) as unknown)
-    const state = JSON.parse(await readFile(join(dirname(dirname(dirname(path))), 'state.json'), 'utf8')) as { id: string }
+    const state = JSON.parse(await readFile(join(dirname(dirname(dirname(path))), 'state.json'), 'utf8')) as Record<string, unknown>
     assert.equal(typeof state.id, 'string')
     progress.auditedSessions = wires.length
-    progress.auditedRecords = rows.length
+    progress.auditedRecords = rows.length + 1
     await writeFile(join(root, 'native-inventory.json'), JSON.stringify({ path, state, rows }, null, 2))
     progress.stage = 'scan'
     const scan = await sessions.scan({ providers: ['kimi'], homeDir: home })
@@ -117,7 +177,7 @@ async function main(): Promise<void> {
       await writeFile(join(root, `${kind}.json`), JSON.stringify(session, null, 2))
       if (kind === 'read')
         await writeReviewPacket('kimi', root, session)
-      assert.deepEqual(session.records.map(record => record.native), [state, ...rows], 'Kimi raw native records changed or missing')
+      assertKimiFacts(rows as Record<string, unknown>[], state, session)
       assertKimiReplies(rows, session.events)
       progress.completed.push(kind)
     }

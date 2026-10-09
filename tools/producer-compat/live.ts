@@ -7,7 +7,7 @@ import process from 'node:process'
 
 import { auditNativeStore } from './native.ts'
 import type { CompatibilityProgress } from './report.ts'
-import { chatExchange, exchange, json, required, startSimulator } from './runtime.ts'
+import { assertSimulatorRequests, chatExchange, exchange, json, required, startSimulator } from './runtime.ts'
 
 async function main(): Promise<void> {
   const provider = required('COMPAT_PROVIDER')
@@ -111,11 +111,12 @@ supports_backend_search = false
   let resumeId: string | undefined
   try {
     await simulator.ready()
-    const template = await json(`${base}/v1/messages`, { model: 'claude-sonnet-4-5', max_tokens: 64, messages: [{ role: 'user', content: 'synthetic template' }] })
+    const template = await simulator.template()
     await json(`${control}/reset`, {})
     // Cline --id explicitly discards the prompt and forces interactive mode in 3.0.70.
     // Certify first-turn storage, and expose the missing resume journey in the manifest.
     const turns = provider === 'cline' ? ['FIRST'] : ['FIRST', 'RESUME']
+    const requestPlan: { path: string, marker: string }[] = []
     for (const [index, label] of turns.entries()) {
       progress.stage = index ? 'producer-resume' : 'producer'
       const prompt = `${provider === 'cline' ? 'Reply to ' : ''}HUIHUA_${provider.toUpperCase()}_${label}`
@@ -124,6 +125,7 @@ supports_backend_search = false
       if (['copilot', 'openclaw'].includes(provider))
         standardAnthropic(response)
       const chat = ['fx', 'grok', 'droid', 'hermes'].includes(provider)
+      requestPlan.push({ path: chat ? '/v1/chat/completions' : '/v1/messages', marker: prompt })
       await json(`${control}/enqueue`, { provider: chat ? 'openai' : 'anthropic', exchanges: [chat ? chatExchange(label, prompt, reply) : response] })
       const continuation = !index || provider === 'openclaw' ? [] : ['deepseek', 'droid'].includes(provider) ? ['--session-id', resumeId!] : provider === 'fx' ? ['--resume', 'last'] : ['--continue']
       const promptArgs = ['qwen', 'copilot'].includes(provider) ? ['--prompt', prompt] : provider === 'openclaw' ? ['--message', prompt] : provider === 'grok' ? ['-p', prompt] : provider === 'hermes' ? ['-z', prompt] : [prompt]
@@ -143,7 +145,10 @@ supports_backend_search = false
         resumeId = session.sessionId
       }
     }
-    await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
+    const ledger = await json(`${control}/requests`)
+    await writeFile(join(root, 'ledger.json'), JSON.stringify(ledger, null, 2))
+    assertSimulatorRequests(ledger, requestPlan)
+    await simulator.assertExhausted()
     await auditNativeStore(provider, home, root, progress)
     progress.completed.push('scenario')
     progress.stage = 'passed'
