@@ -11,6 +11,27 @@ import { writeReviewPacket } from './review.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
 import { assertNoProducerDrift, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
+// Complete reviewed shapes, not a union of optional removed/added fields.
+// Keep the pinned shape intact: partial hybrids must still fail review.
+export function assertCodexBaseline(actual: DriftSummary, baseline: DriftSummary & {
+  reviewedPathVariants?: Pick<DriftSummary, 'fieldPaths' | 'groupedFieldPaths'>[]
+}): void {
+  let closest: NativeDriftError | undefined
+  for (const shape of [baseline, ...(baseline.reviewedPathVariants ?? [])]) {
+    try {
+      assertNoProducerDrift(actual, { ...baseline, ...shape })
+      return
+    }
+    catch (error) {
+      if (!(error instanceof NativeDriftError))
+        throw error
+      if (closest === undefined || error.drift.added.length + error.drift.removed.length < closest.drift.added.length + closest.drift.removed.length)
+        closest = error
+    }
+  }
+  throw closest
+}
+
 export function assertCodexRead(store: NativeStore, session: Session): void {
   assert.equal(session.id, store.id)
   assert.equal(session.records.length, store.rows.length, 'Codex raw record count')
@@ -182,7 +203,7 @@ async function main(): Promise<void> {
     const report = { unknown, structured, fieldPaths: nativeFieldPaths([store], false), groupedFieldPaths: nativeFieldPaths([store]), diagnostics: session.diagnostics }
     await writeFile(join(root, 'drift-report.json'), JSON.stringify(report, null, 2))
     const baseline = JSON.parse(await readFile(new URL('./baselines/codex.json', import.meta.url), 'utf8')) as DriftSummary & { diagnosticCodes: string[] }
-    assertNoProducerDrift(report, baseline)
+    assertCodexBaseline(report, baseline)
     assert.deepEqual(session.diagnostics.map(diagnostic => diagnostic.code).sort(), baseline.diagnosticCodes)
     progress.completed.push('baseline')
     progress.stage = 'passed'
