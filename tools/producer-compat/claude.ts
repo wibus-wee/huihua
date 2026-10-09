@@ -11,7 +11,7 @@ import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import { writeReviewPacket } from './review.ts'
 import type { DriftSummary, NativeStore } from './runtime.ts'
-import { assertNoProducerDrift, exchange, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
+import { assertNoProducerDrift, assertSimulatorRequests, exchange, json, NativeDriftError, nativeFieldPaths, required, startSimulator } from './runtime.ts'
 
 interface ClaudeStore extends NativeStore {
   parentSessionId?: string
@@ -298,7 +298,7 @@ async function main(): Promise<void> {
   try {
     await simulator.ready()
     stage = 'scenario-setup'
-    const template = await json(`${base}/v1/messages`, { model: 'claude-sonnet-4-5', max_tokens: 64, messages: [{ role: 'user', content: 'synthetic template' }] })
+    const template = await simulator.template()
     await json(`${control}/reset`, {})
     const tool = { type: 'tool_use', id: 'huihua_tool_1', name: 'Read', input: { file_path: file } }
     await json(`${control}/enqueue`, { provider: 'anthropic', exchanges: [
@@ -423,8 +423,8 @@ async function main(): Promise<void> {
     assertNoProducerDrift(report, baseline)
     const childBaseline = JSON.parse(await readFile(new URL('./baselines/claude-subagents.json', import.meta.url), 'utf8')) as DriftSummary
     assertNoProducerDrift(subagents, childBaseline)
-    const requests = ledger.requests as { method: string, path: string }[]
-    assert.equal(requests.filter(request => request.method === 'POST' && request.path === '/v1/messages').length, 9, 'unexpected model requests or simulator fallback during the deterministic journeys')
+    assertSimulatorRequests(ledger, [firstPrompt, toolText, 'HUIHUA_PRODUCER_RESUME', secondPrompt, 'HUIHUA_SUBAGENT_PARENT', subagentJourney[0]!.prompt, subagentJourney[0]!.reply, subagentJourney[1]!.prompt, subagentJourney[1]!.reply].map(marker => ({ path: '/v1/messages', marker })))
+    await simulator.assertExhausted()
     assert.equal(session.diagnostics.length, Object.values(unknown).reduce((sum, count) => sum + count, 0), 'unexpected diagnostics beyond known unknown records')
     assert(session.diagnostics.every(diagnostic => diagnostic.code === 'PartialParse' && diagnostic.message.startsWith('unrecognized native record ')))
     progress.completed.push('baseline')

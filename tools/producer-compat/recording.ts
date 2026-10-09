@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url'
 
 import { auditNativeStore } from './native.ts'
 import type { CompatibilityProgress } from './report.ts'
-import { exchange, json, required, startSimulator } from './runtime.ts'
+import { assertSimulatorRequests, exchange, json, NativeDriftError, required, startSimulator } from './runtime.ts'
 
 async function main(): Promise<void> {
   const provider = required('COMPAT_PROVIDER')
@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   const env = { PATH: process.env.PATH ?? '', HOME: home, ANTHROPIC_API_KEY: 'synthetic-test-key', ANTHROPIC_BASE_URL: base, PI_OFFLINE: '1' }
   try {
     await simulator.ready()
-    const template = await json(`${base}/v1/messages`, { model: 'claude-sonnet-4-5', max_tokens: 64, messages: [{ role: 'user', content: 'synthetic template' }] })
+    const template = await simulator.template()
     await json(`${control}/reset`, {})
     const marker = `HUIHUA_${provider.toUpperCase()}_FIRST`
     await json(`${control}/enqueue`, { provider: 'anthropic', exchanges: [exchange(provider, marker, { type: 'text', text: `HUIHUA_${provider.toUpperCase()}_REPLY`, citations: null }, 'end_turn', template)] })
@@ -61,13 +61,18 @@ async function main(): Promise<void> {
         })
       })
     }
-    await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
+    const ledger = await json(`${control}/requests`)
+    await writeFile(join(root, 'ledger.json'), JSON.stringify(ledger, null, 2))
+    assertSimulatorRequests(ledger, [{ path: '/v1/messages', marker }])
+    await simulator.assertExhausted()
     await auditNativeStore(provider, home, root, progress)
     progress.completed.push('scenario')
     progress.stage = 'passed'
   }
   catch (error) {
     progress.error = String(error)
+    if (error instanceof NativeDriftError)
+      progress.drift = error.drift
     process.exitCode = 1
   }
   finally {

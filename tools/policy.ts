@@ -80,6 +80,12 @@ export async function policy(): Promise<void> {
   const producerJobs = (parseAllDocuments(producerWorkflow)[0]!.toJS() as { jobs: Record<string, { steps: { 'continue-on-error'?: boolean, 'name'?: string }[], strategy?: { matrix: { provider: string } } }> }).jobs
   assert.equal(producerJobs.compatibility!.strategy!.matrix.provider, `\${{ fromJSON(needs.catalog.outputs.providers) }}`)
   assert(activeProviders.length > 3)
+  for (const provider of activeProviders) {
+    const checks: readonly string[] = provider.checks
+    assert(checks.includes('baseline'), `${provider.id} must detect native field drift`)
+    const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider.id}.json`, 'utf8')) as { fieldPaths?: string[], groupedFieldPaths?: string[] }
+    assert((baseline.fieldPaths?.length ?? 0) > 0 && (baseline.groupedFieldPaths?.length ?? 0) > 0, `${provider.id} must have independently observed native fields`)
+  }
   assert.equal(manifest.selection.fallback, 'all')
   assert(producerWorkflow.includes('has_providers'))
   assert(producerWorkflow.includes('producer compatibility result'))
@@ -93,8 +99,17 @@ export async function policy(): Promise<void> {
   assert(manifest.selection.qualityOnly.prefixes.includes('tests/'))
   assert(manifest.selection.qualityOnly.files.includes('tools/policy.ts'))
   const nativeAudit = await readFile('tools/producer-compat/native.ts', 'utf8')
+  assert(nativeAudit.includes('await assertNativeBaseline(provider,'), 'shared native lanes must execute their reviewed field baseline')
+  assert(kimiAudit.includes('await assertNativeBaseline(\'kimi\','), 'Kimi must execute its reviewed field baseline')
   assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(nativeAudit))
   assert(nativeAudit.includes('from \'node:sqlite\''))
+  const simulatorRuntime = await readFile('tools/producer-compat/runtime.ts', 'utf8')
+  assert(simulatorRuntime.includes('port, autoRespond: false'), 'producer listener must reject unplanned model requests')
+  for (const runner of ['claude', 'codex', 'kimi', 'live', 'recording']) {
+    const source = await readFile(`tools/producer-compat/${runner}.ts`, 'utf8')
+    assert(source.includes('assertSimulatorRequests(ledger,'), `${runner}: missing deterministic request audit`)
+    assert(source.includes('await simulator.assertExhausted()'), `${runner}: missing unconsumed-exchange check`)
+  }
   assert(producerJobs.compatibility!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
   assert(producerWorkflow.includes('needs: [compatibility]'))
   assert(producerWorkflow.includes('issues: write'))

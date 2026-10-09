@@ -30,6 +30,21 @@ Use SIMULATOR_PORT to select another pair.
 The explicit queued replies and expected final text prevent an automatic fallback reply from passing.
 The CLI reports synthetic model-cost estimates; no paid model endpoint is configured.
 
+All existing runners launch the pinned simulator's public API with `autoRespond: false` on the
+producer listener, rather than its permissive standalone demo runner.
+Only template synthesis uses an isolated setup-only automatic listener.
+Every runner checks its ordered model-request markers, protocol and streaming flag and requires
+all queued exchanges to be consumed; missing, extra or mismatched turns fail.
+Auxiliary requests remain restricted to explicitly recognized model/token-count endpoints and
+must receive an explicitly queued response if the producer requires them.
+Failed producer runs preserve their request ledger during shutdown.
+Grok's initial title, per-turn summaries and resumed title refresh, and Hermes's non-streaming
+title calls, receive explicitly queued HTTP 400 metadata-service responses in this text/resume
+journey.
+Their exact order, protocol, streaming mode and purpose markers are audited alongside
+the successful conversation requests; ignored metadata failures cannot conceal unexpected calls.
+Successful title/summary generation is not certified by this journey.
+
 ## Checks and evidence
 
 `tools/producer-compat/claude.ts` independently walks the isolated HOME with Node fs and decodes
@@ -78,6 +93,43 @@ preservation alone does not establish normalization support.
 Diagnostics still distinguish known
 unsupported metadata.
 Source generation/inventory failures are not labeled Huihua parser defects.
+
+The shared native audits now compare both user and assistant text and native model fields,
+complete native usage payloads and their record associations, record/event sequences, source
+identity and unexpected or missing unknown diagnostics.
+Physical JSONL evidence retains exact line endings and physical positions; companion evidence
+uses its own source path and complete bytes.
+Provider-specific timestamp checks cover the formats exercised by these journeys.
+Kimi separately verifies context user messages, loop text, usage records and timestamps; usage
+mirrors in `step.end` must not become additional usage events.
+These checks do not certify ungenerated tool, permission, reasoning or lifecycle scenarios, or
+infer usage from raw-only metadata.
+Every enabled producer now has a reviewed structural baseline from real synthetic CLI evidence.
+Native field renames, removals, nesting changes, added fields and type changes fail with explicit
+added/removed paths, grouped by native record kind; no baseline is automatically accepted.
+SQLite checks observe decoded JSON payloads as well as table columns.
+Unknown-event growth, structured fallback growth and changed diagnostic counts also fail.
+This detects upstream format drift that could break Huihua reading; a shape-only change is a
+review signal, not proof of a reader defect.
+Semantic native-to-Huihua assertions still detect wrong interpretation when field types stay the same.
+Baselines certify the fields produced by the declared journey, not ungenerated provider features.
+In a copy of the pinned Pi CLI capture, renaming both user messages' `message.role` to
+`message.speaker` made Huihua emit zero user messages while the prior native audit still passed.
+The new baseline rejected the changed record layout.
+This is an upstream-field-change regression, distinct from corrupt or truncated input files.
+Twelve independent captures also passed their reviewed baselines; Kimi's observed optional
+`lastTurnReason:string` is narrowly allowlisted without accepting other types.
+
+On 2026-10-09, the pinned real Pi, Qwen, Copilot, OpenCode, Cline, ACP/Qwen, OAR/Pi and
+DeepSeek captures were compared against the prior audit and these strengthened assertions.
+All eight intact captures passed.
+Across 29 output mutations, the prior raw-only audit accepted every case and the new audit
+rejected every case: lost user messages or usage, changed assistant models, and wrong evidence
+sources.
+Event sequences remained contiguous during event-removal mutations and native records remained
+unchanged, so semantic failures did not depend on incidental sequence holes or missing raw data.
+The original unqueued-model-request reproduction returned HTTP 200; the strict producer listener
+returns HTTP 400 instead.
 
 The test requires discovery without scan failures, preserved user/assistant sentinels, exact tool
 arguments, matching call/result IDs and ordering, successful tool output, and equality between
