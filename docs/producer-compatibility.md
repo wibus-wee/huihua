@@ -38,6 +38,12 @@ all queued exchanges to be consumed; missing, extra or mismatched turns fail.
 Auxiliary requests remain restricted to explicitly recognized model/token-count endpoints and
 must receive an explicitly queued response if the producer requires them.
 Failed producer runs preserve their request ledger during shutdown.
+Grok's initial title, per-turn summaries and resumed title refresh, and Hermes's non-streaming
+title calls, receive explicitly queued HTTP 400 metadata-service responses in this text/resume
+journey.
+Their exact order, protocol, streaming mode and purpose markers are audited alongside
+the successful conversation requests; ignored metadata failures cannot conceal unexpected calls.
+Successful title/summary generation is not certified by this journey.
 
 ## Checks and evidence
 

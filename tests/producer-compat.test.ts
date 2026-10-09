@@ -63,6 +63,11 @@ await test('model request ledger rejects extra, missing, reordered and wrong-pro
   assert.throws(() => assertSimulatorRequests({ requests: requests.map(request => ({ ...request, path: '/v1/responses' })) }, plan), /protocol/)
   assert.throws(() => assertSimulatorRequests({ requests: requests.map(request => ({ ...request, body: { ...request.body, stream: false } })) }, plan), /streaming/)
   assert.throws(() => assertSimulatorRequests({ requests: [...requests, { method: 'GET', path: '/unreviewed-endpoint' }] }, plan), /auxiliary/)
+  const metadata = { method: 'POST', path: '/v1/chat/completions', body: { messages: [{ role: 'system', content: 'You name chat sessions' }, { role: 'user', content: 'first' }] } }
+  const metadataPlan = [...plan, { path: metadata.path, marker: 'first', stream: false, bodyIncludes: 'You name chat sessions' }]
+  assertSimulatorRequests({ requests: [...requests, metadata] }, metadataPlan)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, { ...metadata, body: { ...metadata.body, stream: true } }] }, metadataPlan), /streaming/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, { ...metadata, body: { messages: [{ role: 'user', content: 'first' }] } }] }, metadataPlan), /purpose/)
 })
 
 await test('shared live audit rejects user, usage and envelope loss with native records intact', async () => {

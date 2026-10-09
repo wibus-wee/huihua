@@ -19,7 +19,7 @@ export async function json(url: string, body?: unknown): Promise<Record<string, 
   return await response.json() as Record<string, unknown>
 }
 
-export function assertSimulatorRequests(ledger: Record<string, unknown>, expected: { path: string, marker: string }[]): void {
+export function assertSimulatorRequests(ledger: Record<string, unknown>, expected: { path: string, marker: string, stream?: boolean, bodyIncludes?: string }[]): void {
   assert(Array.isArray(ledger.requests), 'missing simulator request ledger')
   const requests = ledger.requests as { method: string, path: string, body?: Record<string, unknown> }[]
   const modelPaths = ['/v1/messages', '/v1/responses', '/v1/chat/completions']
@@ -29,8 +29,10 @@ export function assertSimulatorRequests(ledger: Record<string, unknown>, expecte
     const actual = model[index]!
     assert.equal(actual.method, 'POST', `model request ${index}: method`)
     assert.equal(actual.path, plan.path, `model request ${index}: protocol`)
-    assert.equal(actual.body?.stream, true, `model request ${index}: streaming`)
+    assert.equal(actual.body?.stream ?? false, plan.stream ?? true, `model request ${index}: streaming`)
     assert(JSON.stringify(actual.body).includes(plan.marker), `model request ${index}: missing scenario marker ${plan.marker}`)
+    if (plan.bodyIncludes !== undefined)
+      assert(JSON.stringify(actual.body).includes(plan.bodyIncludes), `model request ${index}: missing purpose ${plan.bodyIncludes}`)
   }
   for (const request of requests.filter(request => !modelPaths.includes(request.path)))
     assert((request.method === 'GET' && /^\/v1\/models(?:\/[^/]+)?$/.test(request.path)) || (request.method === 'POST' && ['/v1/messages/count_tokens', '/v1/responses/input_tokens'].includes(request.path)), `unexpected auxiliary request: ${request.method} ${request.path}`)
