@@ -590,3 +590,11 @@ synthetic CI, where the existing runner already has its reviewed CI-only overrid
 After the narrow update, fresh 2.1.292 and 2.1.295 runs both passed every required
 stage, including five independently audited sessions each, native child lineage,
 tool roundtrip, resume, exact request ledger and exhausted simulator queue.
+
+[Fresh GitHub-hosted Codex validation](https://github.com/wibus-wee/huihua/actions/runs/37956554952)
+passed both manifest-pinned 0.161.0 and current 0.162.0 against the refreshed code.
+Both jobs independently produced native stores and passed tool roundtrip, resume,
+scan/read/snapshot/records/events, semantic, native-shape and diagnostic assertions.
+The temporary two-lane workflow was removed after retaining its CI evidence.
+Final changes are limited to the compatibility code, reviewed baselines, regression
+checks and their documentation; the ordinary workflow remains unchanged.
