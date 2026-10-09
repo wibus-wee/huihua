@@ -18,14 +18,32 @@ A test-only independent inventory reads their bytes for comparison.
 The simulator and CLI are installed separately from Huihua's dependency graph.
 This adds no runtime dependency or alternate production parser.
 
-Each attempt creates a fresh HOME/config/workspace, uses a synthetic key and loopback model URL,
-and launches Claude in bare mode with nonessential traffic disabled and only Read allowed.
-The scenario reads a generated sentinel file; no real credentials or user stores are inherited.
+Each attempt creates a fresh HOME/config/workspace and uses a synthetic key and loopback model URL.
+The original Read/resume journey keeps bare mode with only Read allowed.
+A separate parent session enables only Agent, disables external setting sources, and runs two
+foreground general-purpose subagents sequentially; bare mode disables Agent even when requested.
+Nonessential traffic is disabled throughout.
+The scenarios use generated sentinels; no real credentials or user stores are inherited.
 The simulator CLI's model and control listeners use adjacent loopback ports; the default test ports
 are 18887/18888.
 Use SIMULATOR_PORT to select another pair.
 The explicit queued replies and expected final text prevent an automatic fallback reply from passing.
 The CLI reports synthetic model-cost estimates; no paid model endpoint is configured.
+
+All existing runners launch the pinned simulator's public API with `autoRespond: false` on the
+producer listener, rather than its permissive standalone demo runner.
+Only template synthesis uses an isolated setup-only automatic listener.
+Every runner checks its ordered model-request markers, protocol and streaming flag and requires
+all queued exchanges to be consumed; missing, extra or mismatched turns fail.
+Auxiliary requests remain restricted to explicitly recognized model/token-count endpoints and
+must receive an explicitly queued response if the producer requires them.
+Failed producer runs preserve their request ledger during shutdown.
+Grok's initial title, per-turn summaries and resumed title refresh, and Hermes's non-streaming
+title calls, receive explicitly queued HTTP 400 metadata-service responses in this text/resume
+journey.
+Their exact order, protocol, streaming mode and purpose markers are audited alongside
+the successful conversation requests; ignored metadata failures cannot conceal unexpected calls.
+Successful title/summary generation is not certified by this journey.
 
 ## Checks and evidence
 
@@ -34,6 +52,15 @@ JSONL with TextDecoder and JSON.parse.
 It does not import Huihua's walker, line framer, provider,
 or mapper.
 Expected session IDs come from the scenario, not scan output.
+Child IDs come from native `agentId` with `isSidechain: true`; their native `sessionId` identifies
+the parent.
+The child filename corroborates this identity and never supplies it.
+The child journey requires both native transcripts and exact sibling `.meta.json` files.
+Each sidecar's `toolUseId` must match the parent's Agent call and successful result, whose native
+`toolUseResult.agentId` must match the child.
+Child replies must reach the parent, and the parent must persist its completion sentinel.
+Exactly nine model requests cover the original four exchanges and the five subagent exchanges;
+extra turns or missing native children cannot pass through a simulator fallback.
 Unexpected JSONL without
 one native identity fails inventory review rather than disappearing through the provider's filters.
 This deliberately small oracle supports this isolated Claude scenario only; it is not a discovery
@@ -49,11 +76,15 @@ framework or a second general provider implementation.
   same-record text, model, tool arguments/results, call IDs, error flags and complete native usage;
   unsupported record types retain complete unknown payloads.
   Check created/updated/workspace facts.
+- Compare companion records against their complete native bytes and actual source paths, without
+  inventing a physical JSONL line; check child `id`, `parentSessionId` and sidecar metadata.
 - Run the independent assertions against read, snapshot, streamed records and streamed events;
   agreement between Huihua interfaces alone is not the oracle.
 - Negative output mutations cover missing/duplicate/reordered rows, lost fields/text, wrong physical
   lines, missing events, wrong associations/times/identity and corrupted text/tool/usage/unknown data.
   These tests alter copies of outputs, never the live Agent stores.
+  Subagent mutations additionally cover absent children/sidecars, colliding identities, lost parent
+  lineage, broken spawn references and failed or unfinished child results.
 
 The semantic assertions intentionally cover the produced text/tool/usage surface, not every
 possible Claude block.
@@ -63,12 +94,51 @@ Diagnostics still distinguish known
 unsupported metadata.
 Source generation/inventory failures are not labeled Huihua parser defects.
 
+The shared native audits now compare both user and assistant text and native model fields,
+complete native usage payloads and their record associations, record/event sequences, source
+identity and unexpected or missing unknown diagnostics.
+Physical JSONL evidence retains exact line endings and physical positions; companion evidence
+uses its own source path and complete bytes.
+Provider-specific timestamp checks cover the formats exercised by these journeys.
+Kimi separately verifies context user messages, loop text, usage records and timestamps; usage
+mirrors in `step.end` must not become additional usage events.
+These checks do not certify ungenerated tool, permission, reasoning or lifecycle scenarios, or
+infer usage from raw-only metadata.
+Every enabled producer now has a reviewed structural baseline from real synthetic CLI evidence.
+Native field renames, removals, nesting changes, added fields and type changes fail with explicit
+added/removed paths, grouped by native record kind; no baseline is automatically accepted.
+SQLite checks observe decoded JSON payloads as well as table columns.
+Unknown-event growth, structured fallback growth and changed diagnostic counts also fail.
+This detects upstream format drift that could break Huihua reading; a shape-only change is a
+review signal, not proof of a reader defect.
+Semantic native-to-Huihua assertions still detect wrong interpretation when field types stay the same.
+Baselines certify the fields produced by the declared journey, not ungenerated provider features.
+In a copy of the pinned Pi CLI capture, renaming both user messages' `message.role` to
+`message.speaker` made Huihua emit zero user messages while the prior native audit still passed.
+The new baseline rejected the changed record layout.
+This is an upstream-field-change regression, distinct from corrupt or truncated input files.
+Twelve independent captures also passed their reviewed baselines; Kimi's observed optional
+`lastTurnReason:string` is narrowly allowlisted without accepting other types.
+
+On 2026-10-09, the pinned real Pi, Qwen, Copilot, OpenCode, Cline, ACP/Qwen, OAR/Pi and
+DeepSeek captures were compared against the prior audit and these strengthened assertions.
+All eight intact captures passed.
+Across 29 output mutations, the prior raw-only audit accepted every case and the new audit
+rejected every case: lost user messages or usage, changed assistant models, and wrong evidence
+sources.
+Event sequences remained contiguous during event-removal mutations and native records remained
+unchanged, so semantic failures did not depend on incidental sequence holes or missing raw data.
+The original unqueued-model-request reproduction returned HTTP 200; the strict producer listener
+returns HTTP 400 instead.
+
 The test requires discovery without scan failures, preserved user/assistant sentinels, exact tool
 arguments, matching call/result IDs and ordering, successful tool output, and equality between
 read(), open().snapshot() and open().events().
 It reports unknown types/counts, diagnostics, structured fallback blocks and value-free native
 field/type paths, collected directly from disk before Huihua parsing.
-The checked-in baseline comes from the pinned real producer, not an invented store.
+The checked-in baselines come from the pinned real producer, not an invented store.
+The original Read/resume baseline remains separate from `baselines/claude-subagents.json`, which
+covers the new parent, both children and their companions together.
 Paths are additionally grouped by outer native record type so a field in one record type cannot
 mask its disappearance or type change in another.
 New unknown types, increased unknown counts, structured fallback growth, extra diagnostics or
@@ -118,6 +188,23 @@ parse result.
 Codex is not silently skipped or marked green in this workflow; no Codex CI lane is
 claimed yet.
 Tool failures, cancellation, compaction and other providers remain future scenarios.
+Claude background, nested and resumed subagents are not certified by the foreground journey.
+
+## Foreground subagent baseline provenance
+
+On 2026-10-09 Claude Code 2.1.292 and simulator 4357945b88d16a1a3155c39305ce135dc66b9510
+generated five sessions and 72 evidence records, including two real `.meta.json` companions,
+from nine model requests in a fresh isolated HOME.
+The new parent and children contributed 213 field/type paths and 258 per-record-type paths.
+Review covered native child identity/sidechain envelopes, both Agent inputs and results, companion
+spawn references, tool schemas and foreground completion; all four Huihua read surfaces passed.
+The already-reviewed optional gitStatus and permissionDecision metadata paths remain optional;
+child IDs, parent lineage, companion fields and spawn/result associations remain required.
+The harness has no baseline-update mode and never writes the producer's transcripts or companions.
+Running this same real journey with the pre-fix adapter at 991d2f5 failed discovery because both
+child refs used the parent ID.
+The adapter after #25 passes discovery and all independent evidence checks; this regression
+therefore exercises the actual #24 failure rather than only a hand-authored child example.
 
 ## Cross-host calibration
 
@@ -474,3 +561,32 @@ native paths: six sessions, 120 rows total.
 Codex scenario assertions also pass.
 Replay does not
 claim a fresh CLI execution; synthetic historical captures are inputs, never repaired stores.
+
+### Refresh against v0.4.4
+
+The PR refresh retains main dd63e93's exact simulator request ledger, exhausted-queue
+checks, independent native oracles and foreground Claude subagent journey.
+Fresh local runs of Claude 2.1.292 and 2.1.295 both passed scan/read/snapshot/record/event
+and scenario assertions before exposing a separate subagent-baseline mismatch:
+three parent `atis-latch` and `last-prompt` records instead of the earlier two.
+The reviewed upper bounds are three, not an unbounded allowance; unknown kinds and
+fourth occurrences still fail.
+Records are retained without deduplication.
+Claude 2.1.295 additionally writes `assistant.requestedModel:string` and
+`user.toolUseResult.canContinueAgent:boolean` in this journey.
+Only those typed
+metadata paths are optional.
+Native child identity, spawn/result association and
+response text checks remain required; the new boolean remains native evidence.
+The focused regression failed before this baseline update.
+
+Local Codex 0.161.0 and 0.162.0 attempts stopped before producing sessions because
+the cloud sandbox helper rejected its app-server socket directory.
+No sandbox
+setting was changed to bypass that failure.
+Fresh verification uses GitHub-hosted
+synthetic CI, where the existing runner already has its reviewed CI-only override.
+
+After the narrow update, fresh 2.1.292 and 2.1.295 runs both passed every required
+stage, including five independently audited sessions each, native child lineage,
+tool roundtrip, resume, exact request ledger and exhausted simulator queue.

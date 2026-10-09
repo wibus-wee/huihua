@@ -7,7 +7,7 @@ import process from 'node:process'
 
 import { auditNativeStore } from './native.ts'
 import type { CompatibilityProgress } from './report.ts'
-import { chatExchange, exchange, json, required, startSimulator } from './runtime.ts'
+import { assertSimulatorRequests, chatExchange, exchange, json, NativeDriftError, required, startSimulator } from './runtime.ts'
 
 async function main(): Promise<void> {
   const provider = required('COMPAT_PROVIDER')
@@ -111,11 +111,12 @@ supports_backend_search = false
   let resumeId: string | undefined
   try {
     await simulator.ready()
-    const template = await json(`${base}/v1/messages`, { model: 'claude-sonnet-4-5', max_tokens: 64, messages: [{ role: 'user', content: 'synthetic template' }] })
+    const template = await simulator.template()
     await json(`${control}/reset`, {})
     // Cline --id explicitly discards the prompt and forces interactive mode in 3.0.70.
     // Certify first-turn storage, and expose the missing resume journey in the manifest.
     const turns = provider === 'cline' ? ['FIRST'] : ['FIRST', 'RESUME']
+    const requestPlan: Parameters<typeof assertSimulatorRequests>[1] = []
     for (const [index, label] of turns.entries()) {
       progress.stage = index ? 'producer-resume' : 'producer'
       const prompt = `${provider === 'cline' ? 'Reply to ' : ''}HUIHUA_${provider.toUpperCase()}_${label}`
@@ -124,7 +125,30 @@ supports_backend_search = false
       if (['copilot', 'openclaw'].includes(provider))
         standardAnthropic(response)
       const chat = ['fx', 'grok', 'droid', 'hermes'].includes(provider)
+      // These metadata services deliberately fail in this text/resume journey.
+      // Queue their observed requests too, so ignored failures cannot hide extra turns.
+      if (provider === 'grok' && !index) {
+        const title = 'generating the session title'
+        requestPlan.push({ path: '/v1/responses', marker: prompt, bodyIncludes: title })
+        await json(`${control}/enqueue`, { provider: 'openai', exchanges: [metadataFailure(`${label}-title`, '/v1/responses', prompt, title)] })
+      }
+      requestPlan.push({ path: chat ? '/v1/chat/completions' : '/v1/messages', marker: prompt })
       await json(`${control}/enqueue`, { provider: chat ? 'openai' : 'anthropic', exchanges: [chat ? chatExchange(label, prompt, reply) : response] })
+      if (provider === 'grok') {
+        const summary = 'ultra-short dashboard line'
+        requestPlan.push({ path: '/v1/chat/completions', marker: prompt, bodyIncludes: summary })
+        await json(`${control}/enqueue`, { provider: 'openai', exchanges: [metadataFailure(`${label}-summary`, '/v1/chat/completions', prompt, summary)] })
+        if (index) {
+          const refresh = 'Generate a session title for the conversation above'
+          requestPlan.push({ path: '/v1/chat/completions', marker: prompt, bodyIncludes: refresh })
+          await json(`${control}/enqueue`, { provider: 'openai', exchanges: [metadataFailure(`${label}-title-refresh`, '/v1/chat/completions', prompt, refresh)] })
+        }
+      }
+      if (provider === 'hermes') {
+        const title = 'You name chat sessions'
+        requestPlan.push({ path: '/v1/chat/completions', marker: prompt, stream: false, bodyIncludes: title })
+        await json(`${control}/enqueue`, { provider: 'openai', exchanges: [metadataFailure(`${label}-title`, '/v1/chat/completions', prompt, title)] })
+      }
       const continuation = !index || provider === 'openclaw' ? [] : ['deepseek', 'droid'].includes(provider) ? ['--session-id', resumeId!] : provider === 'fx' ? ['--resume', 'last'] : ['--continue']
       const promptArgs = ['qwen', 'copilot'].includes(provider) ? ['--prompt', prompt] : provider === 'openclaw' ? ['--message', prompt] : provider === 'grok' ? ['-p', prompt] : provider === 'hermes' ? ['-z', prompt] : [prompt]
       const stdout = await run(bin, [...args, ...continuation, ...promptArgs], env, workspace, join(root, label))
@@ -143,13 +167,18 @@ supports_backend_search = false
         resumeId = session.sessionId
       }
     }
-    await writeFile(join(root, 'ledger.json'), JSON.stringify(await json(`${control}/requests`), null, 2))
+    const ledger = await json(`${control}/requests`)
+    await writeFile(join(root, 'ledger.json'), JSON.stringify(ledger, null, 2))
+    assertSimulatorRequests(ledger, requestPlan)
+    await simulator.assertExhausted()
     await auditNativeStore(provider, home, root, progress)
     progress.completed.push('scenario')
     progress.stage = 'passed'
   }
   catch (error) {
     progress.error = String(error)
+    if (error instanceof NativeDriftError)
+      progress.drift = error.drift
     process.exitCode = 1
   }
   finally {
@@ -158,6 +187,9 @@ supports_backend_search = false
     await writeFile(`${output}.progress.json`, JSON.stringify(progress, null, 2))
     console.log(JSON.stringify({ ...progress, artifacts: root }))
   }
+}
+function metadataFailure(label: string, path: string, marker: string, purpose: string) {
+  return { label, request: { method: 'POST', path, bodyTextIncludes: [marker, purpose] }, response: { kind: 'json', status: 400, body: { error: { type: 'invalid_request_error', message: 'Synthetic metadata service unavailable' } } } }
 }
 function standardAnthropic(response: ReturnType<typeof exchange>): void {
   // The template is the beta profile;

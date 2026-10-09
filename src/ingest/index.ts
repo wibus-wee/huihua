@@ -5,6 +5,7 @@
  * SessionProvider SPI in contracts/provider.ts remains sufficient on its own;
  * nothing here is required to implement it.
  */
+export type { DecoderContribution, DecoderInput, DecoderReplay, SessionDecoder } from '../contracts/decoder.ts'
 export { positiveLimit, scanFailure } from '../contracts/provider.ts'
 export type { JsonlAdapter, JsonlCandidate } from '../shared/ingestion.ts'
 export {

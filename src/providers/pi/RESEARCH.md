@@ -66,3 +66,39 @@ Never derive parentSessionId from directory names or
 reinterpret parentSession as an ID.
 The behavior regression covers default/explicit directory roots, nested child identity,
 artifact rejection, malformed/late headers, bounded prefixes, future versions and explicit acquisition.
+
+## Optional extension decoders (2026-10-09)
+
+### Official facts
+
+The official SessionManager defines custom entries with customType/data and custom messages with
+customType/content/details/display in the session's existing entry envelope.
+An extension-owned payload supplies its own semantics; the envelope does not establish universal
+subagent IDs or parent-session IDs.
+Custom messages are distinct persisted records, not evidence of an ordinary user or assistant role.
+
+### Third-party compatibility experience
+
+The [follow-up on Huihua #27](https://github.com/wibus-wee/huihua/issues/27#issuecomment-6075857150)
+demonstrates a consumer wrapper that postprocesses read() using private paths.
+That override does not reach the inherited parse(), stream() or open() mapping pipeline.
+The reporter's short run ID also illustrates why a private path/name decoder belongs to its
+consumer rather than core Pi lineage policy.
+No confirmed universally persisted pi-subagents parent record is assumed by this implementation.
+
+### Huihua decisions
+
+createPiProvider({ decoders }) configures additive interpretation in the existing shared JSONL replay.
+Every invocation creates private callbacks; scan certification and the default piProvider stay unchanged.
+Decoder input preserves every record, physical order and branch edge without selecting an LLM context.
+Core retains builtin unknown events and diagnostics even when a decoder adds extension meaning.
+The integration accepts explicit canonical event bodies, namespaced metadata and parent-session
+candidates referenced to their source records, rather than arbitrary mutable Session patches.
+Native evidence is passed by reference under a read-only contract, without freezing or copying it.
+No builtin title/path heuristic or pi-subagents decoder is shipped.
+tests/decoders.test.ts uses an explicitly synthetic example.subagents customType to verify the
+extension mechanism; it is not a third-party producer compatibility fixture.
+Decoder metadata and parent-candidate provenance are final aggregate state published once at
+successful EOF; event contributions remain incremental.
+Private append-only candidate lists preserve all evidence without repeatedly copying published prefixes.
+Omitted metadata delivery skips aggregate construction without changing decoder input or lineage validation.

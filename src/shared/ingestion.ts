@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { resolve } from 'node:path'
 
+import type { SessionDecoder } from '../contracts/decoder.ts'
 import type { Diagnostic, ErrorCode } from '../contracts/diagnostic.ts'
 import { SessionError } from '../contracts/diagnostic.ts'
 import type {
@@ -30,6 +31,7 @@ import type {
 } from '../contracts/session.ts'
 import { SESSION_SCHEMA } from '../contracts/session.ts'
 import type { RawRecord } from '../contracts/source.ts'
+import { DecoderRunner } from './decoders.ts'
 import { readJson } from './json-file.ts'
 import type { NativeLine } from './jsonl.ts'
 import { header, jsonLines, jsonLinesFrom } from './jsonl.ts'
@@ -45,6 +47,7 @@ export class Ingestion {
   #usageFacts: UsageFactItem[] | undefined
   readonly #factOptions: UsageFactOptions | undefined
   readonly #pending = new Map<string, string>()
+  #parents: Set<string> | undefined
   readonly #provider: string
   readonly #selectedEvents: ReadonlySet<EventType> | undefined
   readonly #records: boolean
@@ -66,13 +69,14 @@ export class Ingestion {
     native: unknown,
     source: RawRecord['source'],
     evidence: { text?: string, bytes?: readonly number[] } = {},
+    complete = false,
   ): RawRecord {
     const record: RawRecord = {
       sequence: this.#record++,
       provider: this.#provider,
       native,
       source,
-      ...(this.#records
+      ...(this.#records || complete
         ? {
             ...optional('type', string(object(native).type)),
             ...optional('text', evidence.text),
@@ -199,6 +203,8 @@ export class Ingestion {
   }
 
   patch(patch: Extract<SessionFrame, { type: 'metadata' }>['patch']): void {
+    if (patch.parentSessionId !== undefined)
+      (this.#parents ??= new Set()).add(patch.parentSessionId)
     if (!this.#metadata)
       return
     if (this.#metadataKeys === undefined) {
@@ -212,6 +218,11 @@ export class Ingestion {
     }
     if (selected !== undefined)
       (this.#usageFacts ?? this.#frames).push({ type: 'metadata', patch: selected })
+  }
+
+  /** Observed mapper lineage remains authoritative even when metadata delivery is omitted. */
+  parentSessionIds(): ReadonlySet<string> {
+    return this.#parents ?? new Set()
   }
 
   drain(): SessionFrame[] {
@@ -449,6 +460,8 @@ export interface JsonlCandidate {
 }
 export interface JsonlAdapter {
   id: string
+  /** Additive interpretation; every replay creates fresh decoder callbacks. */
+  decoders?: readonly SessionDecoder[]
   /** Provider mapping supplies recorded model/identity context needed by an evidence-free usage consumer. */
   usageContext?: true
   roots: (options: ScanOptions) => readonly string[] | Promise<readonly string[]>
@@ -469,6 +482,13 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
   parse: (input: JsonlInput, options?: ReadOptions) => Promise<Session>
   stream: (input: JsonlInput, options?: ReadOptions) => AsyncIterable<SessionFrame>
 } {
+  const decoders = [...adapter.decoders ?? []]
+  const decoderIds = new Set<string>()
+  for (const decoder of decoders) {
+    if (decoder.id.trim() === '' || decoderIds.has(decoder.id))
+      throw new TypeError(`invalid or duplicate decoder ID: ${decoder.id}`)
+    decoderIds.add(decoder.id)
+  }
   const open = async (
     ref: SessionRef,
     options: ReadOptions = {},
@@ -509,6 +529,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
   async function* ingestLines(ref: SessionRef, lines: AsyncIterable<NativeLine>, options: ReadOptions = {}, companions = false, selection?: FrameSelection, consumer?: FrameConsumer, usageContext = false, facts?: { consumer: UsageFactConsumer, options: UsageFactOptions }): AsyncGenerator<SessionFrame> {
     const ingest = new Ingestion(adapter.id, selection, usageContext, facts?.options)
     const parser = adapter.parser?.() ?? { parse: adapter.parse }
+    const runner = decoders.length === 0 ? undefined : new DecoderRunner(decoders, { provider: adapter.id, source: ref.source }, ingest, selection)
     async function* sources(): AsyncGenerator<Omit<NativeLine, 'position'> & { path: string, position?: number }> {
       if (companions) {
         for (const path of await adapter.metadataFiles?.(ref.source.path) ?? []) {
@@ -527,14 +548,16 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
     let createdKnown = ref.createdAt !== undefined
     let workspace = ref.workspace
     const metadataKeys = selection?.metadata === false ? [] : selection?.metadataKeys
+    const mappingKeys: FrameSelection['metadataKeys'] = runner === undefined || metadataKeys === undefined || metadataKeys.includes('parentSessionId') ? metadataKeys : [...metadataKeys, 'parentSessionId']
     const wantsUpdatedAt = metadataKeys === undefined || metadataKeys.includes('updatedAt')
     const wantsMetadata = metadataKeys === undefined || metadataKeys.includes('metadata')
     for await (const line of companions && adapter.metadataFiles ? sources() : lines) {
       const linePath = 'path' in line ? line.path : ref.source.path
-      ingest.record(
+      const record = ingest.record(
         line.native,
         { path: linePath, ...optional('position', 'position' in line ? line.position : undefined) },
         line,
+        runner !== undefined,
       )
       if (line.malformed) {
         parser.malformed?.()
@@ -545,7 +568,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         )
       }
       else {
-        let facts = adapter.metadata([line.native], ref.source.path, { fileBacked: companions }, metadataKeys)
+        let facts = adapter.metadata([line.native], ref.source.path, { fileBacked: companions }, mappingKeys)
         if (
           facts.id !== undefined
           && selectedId !== undefined
@@ -587,6 +610,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
           })
         }
       }
+      runner?.decode({ type: line.malformed ? 'gap' : 'record', record })
       if (facts !== undefined) {
         for (const fact of ingest.drainUsage()) {
           options.signal?.throwIfAborted()
@@ -614,6 +638,7 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
     }
     options.signal?.throwIfAborted()
     parser.finish?.(ingest)
+    runner?.finish()
     const tail = ingest.finish()
     if (facts !== undefined) {
       for (const fact of ingest.drainUsage()) {

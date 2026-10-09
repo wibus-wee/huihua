@@ -10,12 +10,126 @@ import { fileURLToPath } from 'node:url'
 import type { Session } from '../src/index.ts'
 import { sessions } from '../src/index.ts'
 import { activeProviders, manifest, selectProviders } from '../tools/producer-compat/catalog.ts'
-import { assertDiscovery, assertNativeRead, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
+import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexBaseline, assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
-import { assertKimiReplies } from '../tools/producer-compat/kimi.ts'
+import { assertKimiFacts, assertKimiReplies } from '../tools/producer-compat/kimi.ts'
+import { inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import type { DriftSummary } from '../tools/producer-compat/runtime.ts'
-import { assertNoProducerDrift, NativeDriftError, nativeFieldPaths } from '../tools/producer-compat/runtime.ts'
+import { assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
+
+await test('test launcher disables automatic model replies and checks unconsumed exchanges', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'huihua-simulator-launch-'))
+  await mkdir(join(directory, 'src'))
+  await mkdir(join(directory, 'node_modules/tsx/dist'), { recursive: true })
+  await writeFile(join(directory, 'node_modules/tsx/dist/loader.mjs'), '')
+  // Stub only the external package's public lifecycle API; no model/schema/parser fake.
+  await writeFile(join(directory, 'src/index.ts'), `
+    import assert from 'node:assert/strict'
+    export async function startModelApiSimulator(options) {
+      assert.equal(options.autoRespond, false)
+      let pending = 0
+      return {
+        controller: {
+          enqueue() { pending++ }, reset() { pending = 0 }, requests() { return [] },
+          assertExhausted() { assert.equal(pending, 0, 'unconsumed exchange') }
+        }, close: async () => {}
+      }
+    }
+  `)
+  const port = 19731
+  const simulator = startSimulator(directory, port)
+  try {
+    await simulator.ready()
+    await simulator.assertExhausted()
+    await json(`http://127.0.0.1:${port + 1}/_simulator/enqueue`, {})
+    await assert.rejects(simulator.assertExhausted(), /unconsumed exchange/)
+    await json(`http://127.0.0.1:${port + 1}/_simulator/reset`, {})
+    await simulator.assertExhausted()
+  }
+  finally {
+    await simulator.stop(join(directory, 'simulator.log'))
+    assert.deepEqual(JSON.parse(await readFile(join(directory, 'ledger.json'), 'utf8')), { requests: [] })
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+await test('model request ledger rejects extra, missing, reordered and wrong-protocol turns', () => {
+  const plan = [{ path: '/v1/messages', marker: 'first' }, { path: '/v1/messages', marker: 'resumed' }]
+  const requests = plan.map(({ path, marker }) => ({ method: 'POST', path, body: { stream: true, messages: [{ role: 'user', content: marker }] } }))
+  assertSimulatorRequests({ requests }, plan)
+  assert.throws(() => assertSimulatorRequests({ requests: requests.slice(1) }, plan), /model requests/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, requests[0]!] }, plan), /model requests/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests].reverse() }, plan), /marker/)
+  assert.throws(() => assertSimulatorRequests({ requests: requests.map(request => ({ ...request, path: '/v1/responses' })) }, plan), /protocol/)
+  assert.throws(() => assertSimulatorRequests({ requests: requests.map(request => ({ ...request, body: { ...request.body, stream: false } })) }, plan), /streaming/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, { method: 'GET', path: '/unreviewed-endpoint' }] }, plan), /auxiliary/)
+  const metadata = { method: 'POST', path: '/v1/chat/completions', body: { messages: [{ role: 'system', content: 'You name chat sessions' }, { role: 'user', content: 'first' }] } }
+  const metadataPlan = [...plan, { path: metadata.path, marker: 'first', stream: false, bodyIncludes: 'You name chat sessions' }]
+  assertSimulatorRequests({ requests: [...requests, metadata] }, metadataPlan)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, { ...metadata, body: { ...metadata.body, stream: true } }] }, metadataPlan), /streaming/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, { ...metadata, body: { messages: [{ role: 'user', content: 'first' }] } }] }, metadataPlan), /purpose/)
+})
+
+await test('shared live audit rejects user, usage and envelope loss with native records intact', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'huihua-live-facts-'))
+  try {
+    const directory = join(home, '.pi/agent/sessions/synthetic')
+    await mkdir(directory, { recursive: true })
+    const path = join(directory, 'session.jsonl')
+    const rows = [
+      { type: 'session', version: 3, id: 'native', timestamp: '2026-01-01T00:00:00Z', cwd: '/synthetic' },
+      { type: 'message', id: 'user', timestamp: '2026-01-01T00:00:01Z', message: { role: 'user', content: [{ type: 'text', text: 'HUIHUA_PI_FIRST' }] } },
+      { type: 'message', id: 'assistant', timestamp: '2026-01-01T00:00:02Z', message: { role: 'assistant', model: 'native-model', content: [{ type: 'text', text: 'HUIHUA_PI_REPLY' }], usage: { input: 3, output: 2, nested: { future: 7 } } } },
+    ]
+    await writeFile(path, rows.map(row => `${JSON.stringify(row)}\n`).join(''))
+    const inventory = await inventoryStore('pi', home)
+    const scan = await sessions.scan({ providers: ['pi'], homeDir: home })
+    const session = await sessions.read(scan.refs[0]!)
+    inventory.assertRecords(session)
+    const baseline = nativeDriftSummary('pi', rows, session)
+    for (const mutate of [
+      (native: Record<string, unknown>) => {
+        native.speaker = native.role
+        delete native.role
+      },
+      (native: Record<string, unknown>) => { native.content = { text: 'HUIHUA_PI_FIRST' } },
+      (native: Record<string, unknown>) => { native.content = [{ type: 'text', text: 123 }] },
+    ]) {
+      const changed = structuredClone(rows)
+      mutate(changed[1]!.message!)
+      assert.throws(() => assertNoProducerDrift(nativeDriftSummary('pi', changed, session), baseline), NativeDriftError, 'native field rename/nesting/type changes must not silently pass')
+    }
+    for (const type of ['user_message', 'usage'])
+      assert.throws(() => inventory.assertRecords({ ...session, events: session.events.filter(event => event.type !== type) }), /./, type)
+    assert.throws(() => inventory.assertRecords({ ...session, events: session.events.map(({ timestamp: _time, ...event }) => event) }), /./, 'timestamp')
+    assert.throws(() => inventory.assertRecords({ ...session, id: 'foreign' }), /./, 'identity')
+    const mutations: [string, (input: Session) => Session][] = [
+      ['usage payload', input => ({ ...input, events: input.events.map(event => event.type === 'usage' ? { ...event, data: { usage: {} } } : event) })],
+      ['usage association', input => ({ ...input, events: input.events.map(event => event.type === 'usage' ? { ...event, record: 1 } : event) })],
+      ['assistant model', input => ({ ...input, events: input.events.map(event => event.type === 'assistant_message' ? { ...event, data: { ...event.data, model: 'foreign' } } : event) })],
+      ['raw bytes', input => ({ ...input, records: input.records.map(record => ({ ...record, text: '{}' })) })],
+      ['physical line', input => ({ ...input, records: input.records.map(record => ({ ...record, source: { ...record.source, position: 0 } })) })],
+      ['workspace', input => ({ ...input, workspace: { path: 'foreign' } })],
+      ['parent', input => ({ ...input, parentSessionId: 'foreign' })],
+      ['diagnostics', input => ({ ...input, diagnostics: [{ code: 'PartialParse', message: 'unreviewed' }] })],
+    ]
+    for (const [name, mutate] of mutations)
+      assert.throws(() => inventory.assertRecords(mutate(session)), /./, name)
+    // A changed input field can fool an oracle that derives expected roles from that same field.
+    const renamed = structuredClone(rows) as Record<string, unknown>[]
+    const user = renamed[1]!.message as Record<string, unknown>
+    user.speaker = user.role
+    delete user.role
+    await writeFile(path, renamed.map(row => `${JSON.stringify(row)}\n`).join(''))
+    const changedInventory = await inventoryStore('pi', home)
+    const changedSession = await sessions.read(scan.refs[0]!)
+    changedInventory.assertRecords(changedSession)
+    assert.equal(changedSession.events.filter(event => event.type === 'user_message').length, 0)
+    assert.throws(() => assertNoProducerDrift(nativeDriftSummary('pi', renamed, changedSession), baseline), NativeDriftError)
+  }
+  finally { await rm(home, { recursive: true, force: true }) }
+})
 
 await test('independent native inventory detects omissions hidden by the old summary', async () => {
   const home = await mkdtemp(join(tmpdir(), 'huihua-audit-test-'))
@@ -96,6 +210,102 @@ await test('same-record semantic checks reject loss even when raw evidence is in
   finally { await rm(root, { recursive: true, force: true }) }
 })
 
+await test('Claude native audit distinguishes parent and child identity and checks companion evidence', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-audit-subagents-'))
+  try {
+    const path = join(root, 'parent', 'subagents', 'agent-child.jsonl')
+    const companion = path.replace('.jsonl', '.meta.json')
+    await mkdir(join(root, 'parent', 'subagents'), { recursive: true })
+    const metadata = { agentType: 'general-purpose', description: 'Synthetic child', toolUseId: 'spawn', spawnDepth: 1, requestShape: 'foreground', requestNonInteractive: true }
+    await writeFile(companion, JSON.stringify(metadata))
+    await writeFile(path, `${JSON.stringify({ type: 'user', uuid: 'child-user', sessionId: 'parent', agentId: 'child', isSidechain: true, message: { content: 'task' } })}\n`)
+    const stores = await inventoryNativeStores(root)
+    assert.equal(stores[0]!.id, 'child')
+    const scan = await sessions.scan({ providers: ['claude'], roots: { claude: [root] } })
+    assertDiscovery(stores, scan, ['child'])
+    const session = await sessions.read(scan.refs[0]!)
+    assertNativeRead(stores[0]!, session)
+    assert.throws(() => assertNativeRead(stores[0]!, { ...session, id: 'parent' }), /session id/)
+    assert.throws(() => assertNativeRead(stores[0]!, { ...session, parentSessionId: 'foreign' }), /parentSessionId/)
+    assert.throws(() => assertNativeRead(stores[0]!, { ...session, metadata: { ...session.metadata, subagent: {} } }), /companion/)
+    assert.throws(() => assertNativeRead(stores[0]!, { ...session, records: session.records.slice(1) }), /record count/)
+    const wrongSource = { ...session, records: session.records.map((record, index) => index ? record : { ...record, source: { path: 'wrong' } }) }
+    assert.throws(() => assertNativeRead(stores[0]!, wrongSource), /source/)
+  }
+  finally { await rm(root, { recursive: true, force: true }) }
+})
+
+await test('Claude subagent journey rejects absent children and broken native spawn references', () => {
+  type Stores = Awaited<ReturnType<typeof inventoryNativeStores>>
+  const rows = (native: Record<string, unknown>[]) => native.map((value, index) => ({ native: value, text: JSON.stringify(value), position: index + 1 }))
+  const stores: Stores = [{ path: '/synthetic/parent.jsonl', id: 'parent', rows: [] }]
+  for (const [index, ordinal] of ['FIRST', 'SECOND'].entries()) {
+    const id = `child-${index}`
+    const callId = `huihua_spawn_${index + 1}`
+    const description = `${index === 0 ? 'First' : 'Second'} synthetic compatibility child`
+    const prompt = `HUIHUA_CHILD_${ordinal}`
+    const reply = `${prompt}_REPLY`
+    stores[0]!.rows.push(...rows([
+      { type: 'assistant', message: { content: [{ type: 'tool_use', id: callId, name: 'Agent', input: { description, prompt, subagent_type: 'general-purpose', run_in_background: false } }] } },
+      { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: callId, content: reply }] }, toolUseResult: { agentId: id, status: 'completed' } },
+    ]))
+    stores.push({ path: `/synthetic/parent/subagents/agent-${id}.jsonl`, id, parentSessionId: 'parent', rows: rows([
+      { type: 'user', message: { content: prompt } },
+      { type: 'assistant', message: { content: [{ type: 'text', text: reply }] } },
+    ]), companion: { path: `/synthetic/parent/subagents/agent-${id}.meta.json`, text: '', native: { agentType: 'general-purpose', description, toolUseId: callId, spawnDepth: 1, requestShape: 'foreground', requestNonInteractive: true } } })
+  }
+  stores[0]!.rows.push(...rows([{ type: 'assistant', message: { content: 'HUIHUA_SUBAGENTS_COMPLETE' } }]))
+  assert.deepEqual(assertSubagentScenario(stores, 'parent'), ['child-0', 'child-1'])
+  const mutations: [string, (input: Stores) => void][] = [
+    ['missing child', input => input.pop()],
+    ['colliding identity', (input) => { input[1]!.id = 'parent' }],
+    ['wrong parent', (input) => { input[1]!.parentSessionId = 'foreign' }],
+    ['missing companion', (input) => { delete input[1]!.companion }],
+    ['wrong spawn reference', (input) => { input[1]!.companion!.native.toolUseId = 'foreign' }],
+    ['missing child reply', (input) => { input[1]!.rows.pop() }],
+    ['missing parent call', (input) => { input[0]!.rows.shift() }],
+    ['failed tool result', (input) => { input[0]!.rows[1]!.native.message = { content: [{ type: 'tool_result', tool_use_id: 'huihua_spawn_1', content: 'HUIHUA_CHILD_FIRST_REPLY', is_error: true }] } }],
+    ['wrong result agent', (input) => { input[0]!.rows[1]!.native.toolUseResult = { agentId: 'foreign', status: 'completed' } }],
+    ['swapped sibling results', (input) => {
+      input[0]!.rows[1]!.native.toolUseResult = { agentId: 'child-1', status: 'completed' }
+      input[0]!.rows[3]!.native.toolUseResult = { agentId: 'child-0', status: 'completed' }
+    }],
+    ['unfinished agent', (input) => { input[0]!.rows[1]!.native.toolUseResult = { agentId: 'child-0', status: 'running' } }],
+  ]
+  for (const [name, mutate] of mutations) {
+    const copy = structuredClone(stores)
+    mutate(copy)
+    assert.throws(() => assertSubagentScenario(copy, 'parent'), /subagent scenario/, name)
+  }
+})
+
+await test('Kimi native facts reject missing user messages, usage mirrors and broken associations', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'huihua-kimi-facts-'))
+  try {
+    const path = join(directory, 'agents/main/wire.jsonl')
+    await mkdir(join(directory, 'agents/main'), { recursive: true })
+    const state = { id: 'native', createdAt: 1000, updatedAt: 2000, agents: {} }
+    const rows = [
+      { type: 'metadata', protocol_version: '1.5', time: 1000 },
+      { type: 'context.append_message', time: 1100, message: { role: 'user', content: [{ type: 'text', text: 'prompt' }] } },
+      { type: 'usage.record', time: 1200, usage: { inputOther: 3, output: 2 } },
+      { type: 'context.append_loop_event', time: 1300, event: { type: 'content.part', part: { type: 'text', text: 'reply' } } },
+      { type: 'context.append_loop_event', time: 1400, event: { type: 'step.end', usage: { inputOther: 3, output: 2 } } },
+    ]
+    await writeFile(join(directory, 'state.json'), JSON.stringify(state))
+    await writeFile(path, rows.map(row => JSON.stringify(row)).join('\n'))
+    const scan = await sessions.scan({ providers: ['kimi'], roots: { kimi: [directory] } })
+    const session = await sessions.read(scan.refs[0]!)
+    assertKimiFacts(rows, state, session)
+    for (const type of ['user_message', 'usage'])
+      assert.throws(() => assertKimiFacts(rows, state, { ...session, events: session.events.filter(event => event.type !== type) }), /./, type)
+    const usage = session.events.find(event => event.type === 'usage')!
+    assert.throws(() => assertKimiFacts(rows, state, { ...session, events: [...session.events, { ...usage, sequence: session.events.length, record: 5, timestamp: { format: 'unix_millis', value: 1400 } }] }), /usage/)
+    assert.throws(() => assertKimiFacts(rows, state, { ...session, events: session.events.map(event => ({ ...event, timestamp: { format: 'unix_millis' as const, value: 0 } })) }), /time/)
+  }
+  finally { await rm(directory, { recursive: true, force: true }) }
+})
+
 await test('Kimi native reply oracle rejects missing, duplicated and changed assistant content', async () => {
   const messages = ['HUIHUA_KIMI_REPLY', 'HUIHUA_KIMI_RESUMED'].map(text => ({ role: 'assistant', content: [{ type: 'text', text }] }))
   const rows = messages.map(message => ({ type: 'agent.message.appended', message: { message } }))
@@ -153,6 +363,16 @@ await test('reviewed optional paths accept new metadata without hiding type drif
   })
 })
 
+await test('SQLite drift observations include decoded payloads and bounded binary types', () => {
+  const session = { id: 'native', events: [], diagnostics: [] } as unknown as Session
+  const rows = [{ id: 'native' }, { id: 'message', data: '{"role":"user","content":"first"}' }]
+  const baseline = nativeDriftSummary('opencode', rows, session)
+  const changed = [rows[0]!, { ...rows[1], data: '{"role":"user","text":"first"}' }]
+  assert.throws(() => assertNoProducerDrift(nativeDriftSummary('opencode', changed, session), baseline), NativeDriftError)
+  const bytes = nativeFieldPaths([{ id: 'native', path: '', rows: [{ native: { compressed: new Uint8Array([1, 2]) }, position: 1, text: '' }] }], false)
+  assert.deepEqual(bytes, ['$.compressed:bytes', '$:object'])
+})
+
 await test('provider manifest covers the registry without turning blocked or partial journeys green', () => {
   assert.deepEqual(manifest.providers.map(provider => provider.id).sort(), sessions.providers().map(provider => provider.id).sort())
   assert.equal(new Set(manifest.providers.map(provider => provider.id)).size, manifest.providers.length)
@@ -161,6 +381,7 @@ await test('provider manifest covers the registry without turning blocked or par
     if (provider.ci) {
       assert(provider.install !== undefined)
       assert(provider.checks.includes('read'))
+      assert(provider.checks.includes('baseline'), `${provider.id} must detect upstream native field drift`)
       assert(provider.runner !== undefined)
     }
     else {
@@ -170,11 +391,11 @@ await test('provider manifest covers the registry without turning blocked or par
   }
   const partial = { stage: 'passed', completed: ['scan', 'read', 'snapshot', 'records', 'events'], auditedSessions: 1, auditedRecords: 2 }
   assert.equal(laneResult('cline', 'pinned', '3.0.70', 'test', 'success', partial).verdict, 'incomplete')
-  const complete = { ...partial, completed: [...partial.completed, 'scenario'] }
+  const complete = { ...partial, completed: [...partial.completed, 'scenario', 'baseline'] }
   const summary = renderCompatibilitySummary(complete, 'success', 'cline')
   assert.match(summary, /first-turn store only/)
   assert.doesNotMatch(summary, /Text \/ tool roundtrip \/ resume.*PASS/)
-  assert.doesNotMatch(summary, /Native shape.*PASS/)
+  assert.match(summary, /Native shape.*PASS/)
   const report = renderDailyReport([], '2026-10-08', 'https://github.com/wibus-wee/huihua/actions', 'test')
   assert.match(report, /cursor: NOT CERTIFIED|cursor\*\*: NOT CERTIFIED/)
   assert.match(report, new RegExp(`0/${activeProviders.length * 2} covered lanes passed`))
@@ -326,4 +547,16 @@ await test('reviewed Claude requestedModel metadata stays raw and cannot replace
   assertNoProducerDrift({ ...baseline, fieldPaths: [...baseline.fieldPaths, '$.requestedModel:string'], groupedFieldPaths: [...baseline.groupedFieldPaths, '"assistant":$.requestedModel:string'] }, baseline)
   assert.throws(() => assertNoProducerDrift({ ...baseline, groupedFieldPaths: [...baseline.groupedFieldPaths, '"assistant":$.requestedModel:number'] }, baseline), NativeDriftError)
   assert.throws(() => assertNoProducerDrift({ ...baseline, groupedFieldPaths: [...baseline.groupedFieldPaths, '"user":$.requestedModel:string'] }, baseline), NativeDriftError)
+})
+
+await test('reviewed Claude child metadata is narrow and unknown repetition stays bounded', async () => {
+  const baseline = JSON.parse(await readFile(new URL('../tools/producer-compat/baselines/claude-subagents.json', import.meta.url), 'utf8')) as DriftSummary & { groupedFieldPaths: string[] }
+  const latest = { ...baseline, unknown: { ...baseline.unknown, 'atis-latch': 3, 'last-prompt': 3 }, fieldPaths: [...baseline.fieldPaths, '$.requestedModel:string', '$.toolUseResult.canContinueAgent:boolean'], groupedFieldPaths: [...baseline.groupedFieldPaths, '"assistant":$.requestedModel:string', '"user":$.toolUseResult.canContinueAgent:boolean'] }
+  assertNoProducerDrift(latest, baseline)
+  assertNoProducerDrift(baseline, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'atis-latch': 4 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'last-prompt': 4 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, new_kind: 1 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: [...latest.groupedFieldPaths, '"user":$.toolUseResult.canContinueAgent:string'] }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.filter(path => path !== '"user":$.toolUseResult.agentId:string') }, baseline), NativeDriftError)
 })

@@ -8,6 +8,7 @@ import type { Session } from '../../src/index.ts'
 import { sessions } from '../../src/index.ts'
 import type { CompatibilityProgress } from './report.ts'
 import { writeFailedReviewPacket, writeReviewPacket } from './review.ts'
+import { assertNativeBaseline, nativeReadSummary } from './runtime.ts'
 
 type Row = Record<string, unknown>
 interface Inventory {
@@ -19,6 +20,7 @@ interface Inventory {
     text: string
   }[]
   assertRecords: (session: Session) => void
+  evidence?: { path: string, position?: number, text: string }[]
 }
 function object(value: unknown): Row {
   assert(value !== null && typeof value === 'object' && !Array.isArray(value), 'unreviewed native object shape')
@@ -32,6 +34,9 @@ function textParts(value: unknown): string[] {
     assert.equal(typeof row.text, 'string')
     return row.text as string
   })
+}
+function physicalEvidence(path: string, source: string) {
+  return (source.match(/[^\n]*\n|[^\n]+$/g) ?? []).map((text, index) => ({ path, position: index + 1, text })).filter(row => row.text.trim())
 }
 export async function auditNativeStore(provider: string, home: string, root: string, progress: CompatibilityProgress): Promise<void> {
   progress.stage = 'native-inventory'
@@ -48,6 +53,7 @@ export async function auditNativeStore(provider: string, home: string, root: str
   progress.completed.push('scan')
   const ref = scan.refs[0]!
   const handle = await sessions.open(ref)
+  let read: Session | undefined
   for (const kind of ['read', 'snapshot', 'records', 'events']) {
     progress.stage = kind
     let session: Session
@@ -82,10 +88,51 @@ export async function auditNativeStore(provider: string, home: string, root: str
       assert(event.record >= 0 && event.record < session.records.length, 'event points outside native evidence')
     if (kind === 'read')
       await writeReviewPacket(provider, root, session)
+    if (kind === 'read')
+      read = session
     progress.completed.push(kind)
   }
+  assert(read)
+  await assertNativeBaseline(provider, nativeDriftSummary(provider, inventory.rows, read), root, progress)
 }
-async function inventoryStore(provider: string, home: string): Promise<Inventory> {
+
+// Observe native layouts before Huihua mapping, including JSON stored inside SQLite columns.
+export function nativeDriftSummary(provider: string, rows: Row[], session: Session) {
+  const observed = rows.map((row, index) => {
+    if (provider === 'opencode' && index > 0)
+      return { row, decoded: object(JSON.parse(String(row.data))) }
+    if (provider === 'openclaw' && index > 0) {
+      const text = typeof row.event_json === 'string' ? row.event_json : execFileSync('zstd', ['-d', '-c'], { input: row.event_zstd as Uint8Array, encoding: 'utf8' })
+      return { row, decoded: object(JSON.parse(text)) }
+    }
+    if (provider === 'hermes' && typeof row.content === 'string' && row.content.startsWith('\0json:'))
+      return { row, decoded: JSON.parse(row.content.slice(6)) as unknown }
+    return row
+  })
+  const kind = (native: Row) => {
+    const row = native.row === undefined ? native : object(native.row)
+    const decoded = native.decoded === undefined ? {} : object(native.decoded)
+    const message = row.message === undefined ? {} : object(row.message)
+    const event = row.event === undefined ? {} : object(row.event)
+    const params = row.params === undefined ? {} : object(row.params)
+    const update = params.update === undefined ? {} : object(params.update)
+    const recording = row.record === undefined ? {} : object(row.record)
+    const body = recording.body === undefined ? {} : object(recording.body)
+    return JSON.stringify([row.type ?? row.kind ?? row.role ?? row.method ?? 'state', message.role ?? null, event.type ?? (provider === 'fx' ? Object.keys(event).join(',') : null), update.sessionUpdate ?? null, recording.kind ?? null, body.kind ?? null, decoded.type ?? decoded.role ?? null, provider === 'opencode' ? typeof row.message_id === 'string' ? 'part' : 'message' : null])
+  }
+  return nativeReadSummary([{ path: '', id: session.id, rows: observed.map((native, index) => ({ native, position: index + 1, text: '' })) }], session, kind)
+}
+export async function inventoryStore(provider: string, home: string): Promise<Inventory> {
+  const inventory = await readInventory(provider, home)
+  const assertRecords = inventory.assertRecords
+  inventory.assertRecords = (session) => {
+    assertRecords(session)
+    assertNativeFacts(provider, inventory, session)
+  }
+  return inventory
+}
+
+async function readInventory(provider: string, home: string): Promise<Inventory> {
   if (['acp', 'oar'].includes(provider))
     return recordingInventory(provider, dirname(home))
   const files = await walk(home)
@@ -109,9 +156,14 @@ async function inventoryStore(provider: string, home: string): Promise<Inventory
   let rows: Row[]
   let id: string
   const texts: Inventory['texts'] = []
+  let evidence: Inventory['evidence']
   if (provider === 'cline') {
-    const state = object(JSON.parse(await readFile(path, 'utf8')))
-    const messages = object(JSON.parse(await readFile(path.replace(/\.json$/, '.messages.json'), 'utf8')))
+    const stateText = await readFile(path, 'utf8')
+    const messagesPath = path.replace(/\.json$/, '.messages.json')
+    const messagesText = await readFile(messagesPath, 'utf8')
+    const state = object(JSON.parse(stateText))
+    const messages = object(JSON.parse(messagesText))
+    evidence = [{ path, text: stateText }, { path: messagesPath, text: messagesText }]
     rows = [state, messages]
     assert.equal(state.messages_path, path.replace(/\.json$/, '.messages.json'))
     assert.equal(typeof state.session_id, 'string')
@@ -126,7 +178,9 @@ async function inventoryStore(provider: string, home: string): Promise<Inventory
   else {
     // Independent native decoder: not Huihua's JSONL/zstd implementation.
     const source = provider === 'deepseek' ? execFileSync('zstd', ['-d', '-c', path], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }) : await readFile(path, 'utf8')
-    rows = source.split('\n').filter(line => line.trim()).map(line => object(JSON.parse(line)))
+    const physical = physicalEvidence(path, source)
+    rows = physical.map(row => object(JSON.parse(row.text)))
+    evidence = physical
     const first = rows[0]!
     const nativeId = provider === 'qwen' ? first.sessionId : provider === 'copilot' ? object(first.data).sessionId : first.id
     assert.equal(typeof nativeId, 'string')
@@ -152,9 +206,176 @@ async function inventoryStore(provider: string, home: string): Promise<Inventory
       texts.push(...content.map(text => ({ record, text })))
     })
   }
-  return { path, id, rows, texts, assertRecords(session) {
+  return { path, id, rows, texts, ...(evidence === undefined ? {} : { evidence }), assertRecords(session) {
     assert.deepEqual(session.records.map(record => record.native), rows, 'native records were changed or lost')
   } }
+}
+
+// Independent assertions for the existing text journeys, not a second provider mapper.
+// Only facts explicitly present in the inventoried format are required.
+function assertNativeFacts(provider: string, inventory: Inventory, session: Session): void {
+  assert.equal(session.id, inventory.id, 'native session identity')
+  assert.equal(session.provider, provider, 'native session provider')
+  assert.equal(session.source.path, inventory.path, 'native session source')
+  const format = provider === 'deepseek' ? 'jsonl_zstd' : ['cline', 'fx'].includes(provider) ? `${provider}_json` : ['opencode', 'openclaw', 'hermes'].includes(provider) ? `${provider}_sqlite` : 'jsonl'
+  assert.equal(session.source.format, format, 'native source format')
+  for (const [index, record] of session.records.entries()) {
+    assert.equal(record.sequence, index, 'native record sequence')
+    assert.equal(record.provider, provider, 'native record provider')
+    const evidence = inventory.evidence?.[index]
+    if (evidence) {
+      assert.deepEqual(record.source, { path: evidence.path, ...(evidence.position === undefined ? {} : { position: evidence.position }) }, 'native physical source')
+      assert.equal(record.text, evidence.text, 'native raw text')
+    }
+  }
+  for (const [index, event] of session.events.entries()) {
+    assert.equal(event.sequence, index, 'native event sequence')
+    assert(Number.isInteger(event.record) && event.record >= 0 && event.record < inventory.rows.length, 'native event association')
+  }
+  assert(session.diagnostics.every(diagnostic => diagnostic.code === 'PartialParse'), 'unexpected producer-read diagnostics')
+  assert.equal(session.diagnostics.length, session.events.filter(event => event.type === 'unknown').length, 'missing/extra native unknown diagnostics')
+  const header = inventory.rows[0]!
+  if (['pi', 'droid', 'deepseek'].includes(provider)) {
+    assert.equal(session.workspace?.path, header.cwd, 'native workspace')
+    const created = provider === 'deepseek' ? header.createdAt : header.timestamp
+    assert.deepEqual(session.createdAt, created === undefined ? undefined : { format: typeof created === 'number' ? 'unix_millis' : 'rfc3339', value: created }, 'native createdAt')
+    assert.equal(session.parentSessionId, provider === 'deepseek' ? header.parentSessionId ?? header.parentSession : undefined, 'native parent lineage')
+  }
+  const messages: { record: number, role: string, text: string[], model?: string }[] = []
+  const usages: { record: number, usage: unknown }[] = []
+  const message = (record: number, native: Row, content = native.content, model = native.model) => {
+    if (native.role !== 'user' && native.role !== 'assistant')
+      return
+    if (content !== undefined)
+      messages.push({ record, role: native.role, text: typeof content === 'string' ? [content] : textParts(content), ...(typeof model === 'string' && native.role === 'assistant' ? { model } : {}) })
+    if ('usage' in native)
+      usages.push({ record, usage: native.usage })
+    else if ('metrics' in native)
+      usages.push({ record, usage: native.metrics })
+  }
+  const time = (record: number, value: unknown) => {
+    const expected = value === undefined || value === null ? undefined : { format: typeof value === 'number' ? 'unix_millis' : 'rfc3339', value }
+    for (const event of session.events.filter(event => event.record === record))
+      assert.deepEqual(event.timestamp, expected, `native timestamp at record ${record}`)
+  }
+  const infos = new Map<string, Row>()
+  for (const [record, row] of inventory.rows.entries()) {
+    if (['pi', 'droid'].includes(provider)) {
+      time(record, row.timestamp)
+      if (row.type === 'message')
+        message(record, object(row.message))
+    }
+    else if (provider === 'qwen') {
+      time(record, row.timestamp)
+      if (row.type === 'user' || row.type === 'assistant') {
+        const parts = object(row.message).parts
+        assert(Array.isArray(parts))
+        message(record, { role: row.type }, parts.map(part => ({ type: 'text', text: object(part).text })), row.model)
+        if ('usageMetadata' in row)
+          usages.push({ record, usage: row.usageMetadata })
+      }
+    }
+    else if (provider === 'copilot') {
+      time(record, row.timestamp)
+      const data = object(row.data)
+      if (row.type === 'user.message' || row.type === 'assistant.message')
+        message(record, { role: row.type === 'user.message' ? 'user' : 'assistant' }, data.content, data.model)
+      if (row.type === 'assistant.usage' || row.type === 'session.usage_checkpoint' || (row.type === 'session.shutdown' && ('modelMetrics' in data || 'tokenDetails' in data)))
+        usages.push({ record, usage: data })
+    }
+    else if (provider === 'deepseek') {
+      time(record, row.time ?? row.time0)
+      const data = row.data === undefined ? {} : object(row.data)
+      if (row.type === 'user/message' || row.type === 'assistant/message') {
+        const native = row.type === 'user/message' ? data : object(data.message)
+        message(record, { role: row.type === 'user/message' ? 'user' : 'assistant' }, native.content, native.source === undefined ? undefined : object(native.source).model)
+        if ('usage' in data)
+          usages.push({ record, usage: data.usage })
+      }
+    }
+    else if (provider === 'cline' && Array.isArray(row.messages)) {
+      for (const native of row.messages)
+        message(record, object(native), object(native).content, object(native).model ?? (object(native).modelInfo === undefined ? undefined : object(object(native).modelInfo).id))
+    }
+    else if (provider === 'hermes' && row.role !== undefined) {
+      const content = typeof row.content === 'string' && row.content.startsWith('\0json:') ? JSON.parse(row.content.slice(6)) as unknown : row.content
+      message(record, row, content)
+      time(record, typeof row.timestamp === 'number' ? Math.round(row.timestamp * 1000) : row.timestamp)
+    }
+    else if (provider === 'openclaw' && record > 0) {
+      const text = typeof row.event_json === 'string' ? row.event_json : execFileSync('zstd', ['-d', '-c'], { input: row.event_zstd as Uint8Array, encoding: 'utf8' })
+      const native = object(JSON.parse(text))
+      time(record, native.type === 'message' ? native.timestamp ?? object(native.message).timestamp : row.timestamp)
+      if (native.type === 'message')
+        message(record, object(native.message))
+    }
+    else if (provider === 'opencode' && record > 0) {
+      const native = object(JSON.parse(String(row.data)))
+      time(record, row.time_created ?? object(native.time).created)
+      if (typeof row.message_id !== 'string') {
+        infos.set(String(row.id), native)
+        if ('tokens' in native)
+          usages.push({ record, usage: { tokens: native.tokens, cost: native.cost ?? null } })
+      }
+      else if (native.type === 'text') {
+        const info = infos.get(row.message_id)
+        assert(info, 'native part has no message metadata')
+        message(record, { role: info.role }, native.text, info.modelID)
+      }
+      else if (native.type === 'step-finish') {
+        usages.push({ record, usage: native })
+      }
+    }
+    else if (provider === 'fx' && row.event !== undefined) {
+      const event = object(row.event)
+      const kind = Object.keys(event)[0]!
+      const data = object(event[kind])
+      time(record, row.timestamp_ms)
+      if (['user', 'assistant', 'steering'].includes(kind))
+        message(record, { role: kind === 'assistant' ? 'assistant' : 'user' }, data.text)
+    }
+    else if (['grok', 'acp'].includes(provider)) {
+      const params = row.params === undefined ? {} : object(row.params)
+      if (row.method === 'session/update') {
+        const update = object(params.update)
+        if (['user_message_chunk', 'agent_message_chunk'].includes(String(update.sessionUpdate)))
+          message(record, { role: update.sessionUpdate === 'agent_message_chunk' ? 'assistant' : 'user' }, [object(update.content)])
+        if (update.sessionUpdate === 'usage_update')
+          usages.push({ record, usage: update })
+      }
+      if (row.method === 'session/prompt' && Array.isArray(params.prompt))
+        message(record, { role: 'user' }, params.prompt)
+    }
+    else if (provider === 'oar' && row.kind === 'record') {
+      const native = object(row.record)
+      const body = object(native.body)
+      time(record, native.receivedAt)
+      if (native.kind === 'request' && native.direction === 'toRuntime' && ['prompt', 'steer', 'queue'].includes(String(body.kind)))
+        message(record, { role: 'user' }, body.input)
+      if (Array.isArray(body.events)) {
+        for (const event of body.events) {
+          const item = object(event)
+          if (item.kind === 'text_delta')
+            message(record, { role: 'assistant' }, item.text)
+          if (item.kind === 'user_message')
+            message(record, { role: 'user' }, item.input)
+          if (item.kind === 'usage')
+            usages.push({ record, usage: item.usage })
+        }
+      }
+    }
+  }
+  for (const role of ['user', 'assistant']) {
+    const expected = messages.filter(message => message.role === role).flatMap(({ record, text, model }) => text.map(text => ({ record, text, ...(model === undefined ? {} : { model }) })))
+    const actual = session.events.flatMap(event => event.type === `${role}_message` && (event.type === 'user_message' || event.type === 'assistant_message')
+      ? event.data.content.map((block) => {
+          assert.equal(block.type, 'text', 'unreviewed live message content')
+          return { record: event.record, text: block.data, ...('model' in event.data ? { model: event.data.model } : {}) }
+        })
+      : [])
+    assert.deepEqual(actual, expected, `native ${role} text/model/record association`)
+  }
+  assert.deepEqual(session.events.flatMap(event => event.type === 'usage' ? [{ record: event.record, usage: event.data.usage }] : []), usages, 'native usage payload/record association')
 }
 function sqliteInventory(provider: string, files: string[]): Inventory {
   const matches = files.filter(path => basename(path) === (provider === 'openclaw' ? 'openclaw-agent.sqlite' : provider === 'hermes' ? 'state.db' : 'opencode.db'))
@@ -243,9 +464,12 @@ async function companionInventory(provider: string, files: string[]): Promise<In
   const matches = files.filter(path => provider === 'fx' ? path.includes('/.fx/sessions/') && path.endsWith('/session.json') : path.includes('/.grok/sessions/') && path.endsWith('/updates.jsonl'))
   assert.equal(matches.length, 1)
   const path = matches[0]!
-  const state = object(JSON.parse(await readFile(provider === 'fx' ? path : join(dirname(path), 'summary.json'), 'utf8')))
+  const statePath = provider === 'fx' ? path : join(dirname(path), 'summary.json')
+  const stateText = await readFile(statePath, 'utf8')
+  const state = object(JSON.parse(stateText))
   const content = await readFile(provider === 'fx' ? join(dirname(path), 'events.jsonl') : path, 'utf8')
-  const rows = [state, ...content.split('\n').filter(line => line.trim()).map(line => object(JSON.parse(line)))]
+  const physical = physicalEvidence(provider === 'fx' ? join(dirname(path), 'events.jsonl') : path, content)
+  const rows = [state, ...physical.map(row => object(JSON.parse(row.text)))]
   const id = String(provider === 'fx' ? state.id : object(state.info).id)
   const texts: Inventory['texts'] = []
   rows.slice(1).forEach((row, index) => {
@@ -267,7 +491,7 @@ async function companionInventory(provider: string, files: string[]): Promise<In
       }
     }
   })
-  return { path, id, rows, texts, assertRecords(session) {
+  return { path, id, rows, texts, evidence: [{ path: statePath, text: stateText }, ...physical], assertRecords(session) {
     assert.deepEqual(session.records.map(record => record.native), rows)
   } }
 }
@@ -275,7 +499,8 @@ async function companionInventory(provider: string, files: string[]): Promise<In
 async function recordingInventory(provider: string, root: string): Promise<Inventory> {
   const path = join(root, provider === 'acp' ? 'session.acp.jsonl' : 'session.voyage.jsonl')
   const content = await readFile(path, 'utf8')
-  const rows = content.split('\n').filter(line => line.trim()).map(line => object(JSON.parse(line)))
+  const evidence = physicalEvidence(path, content)
+  const rows = evidence.map(row => object(JSON.parse(row.text)))
   let id: string | undefined
   const texts: Inventory['texts'] = []
   rows.forEach((row, record) => {
@@ -315,7 +540,7 @@ async function recordingInventory(provider: string, root: string): Promise<Inven
     }
   })
   assert(id !== undefined)
-  return { path, id, rows, texts, assertRecords(session) {
+  return { path, id, rows, texts, evidence, assertRecords(session) {
     assert.deepEqual(session.records.map(record => record.native), rows)
   } }
 }

@@ -114,6 +114,10 @@ export async function packageCheck(): Promise<void> {
       for await(const frame of directOpened.stream())expectedFrames.push(frame);
       assert.deepEqual(frames,expectedFrames);assert.throws(()=>streamed[Symbol.asyncIterator](),TypeError);
       const {codexProvider}=await import('huihua/providers/codex');const providerFrames=[];
+      const {createPiProvider}=await import('huihua/providers/pi');
+      const decodedPi=createPiProvider({decoders:[{id:'package-smoke',create:()=>({decode:({type,record})=>type==='record'&&record.native.type==='custom'?[{type:'event',record,event:{type:'subagent',data:{agentId:'worker',kind:'started',metadata:{}}}}]:[]})}]});
+      const piSession=await decodedPi.parse({jsonl:'{"type":"custom","customType":"package-smoke","data":{}}'});
+      assertSessionContract(piSession);assert.equal(piSession.records.length,1);assert.equal(observe.subagentsOf(piSession)[0].providerMetadata.decoder,'package-smoke');
       for await(const frame of codexProvider.stream({jsonl:bytes,source:${JSON.stringify(fixture)}}))providerFrames.push(frame);
       assert.deepEqual(providerFrames,frames);
       const recorded=await sessions.parse('oar',{jsonl:await readFile(${JSON.stringify(resolve('fixtures/oar/voyage.jsonl'))})});assert.equal(recorded.id,'root');assert.equal(toolCallsOf(recorded).length,1);
@@ -152,7 +156,8 @@ export async function packageCheck(): Promise<void> {
       `
       import {sessions,defineProvider,type Provider,type SessionEvent,type SessionFrame,type SessionProvider,type ScanEvent,type ScanFailure,type ScanResult,type ErrorCode,type FrameSelection,type FrameConsumer,type UsageFactConsumer,type UsageFactItem} from 'huihua';
       import {createSessionRegistry,SessionRegistry} from 'huihua/registry';
-      import {jsonlProvider,type Ingestion,type JsonlAdapter,type JsonlCandidate} from 'huihua/ingest';
+      import {jsonlProvider,type Ingestion,type JsonlAdapter,type JsonlCandidate,type SessionDecoder,type DecoderInput,type DecoderContribution,type DecoderReplay} from 'huihua/ingest';
+      import {createPiProvider,type PiProviderOptions} from 'huihua/providers/pi';
       import {codexProvider} from 'huihua/providers/codex';
       import {conversationOf,eventsOf,fileChangesOf,subagentsOf,toolCallsOf,toolResultsOf} from 'huihua/observe';
       const provider=defineProvider(codexProvider);
@@ -196,6 +201,9 @@ export async function packageCheck(): Promise<void> {
       const kitAdapter:JsonlAdapter={id:'kit',roots:()=>[],metadata:()=>({}),parse:(lines:Ingestion)=>{void lines;}};
       const kitRegistry:SessionRegistry=createSessionRegistry([jsonlProvider(kitAdapter)]);void kitRegistry;
       const candidate:JsonlCandidate|undefined=undefined;void candidate;
+      const decoder:SessionDecoder={id:'consumer',create:()=>{const replay:DecoderReplay={decode:(input:DecoderInput):readonly DecoderContribution[]=>input.type==='gap'?[]:[{type:'metadata',record:input.record,data:{observed:true}}]};return replay;}};
+      const piOptions:PiProviderOptions={decoders:[decoder]};const configuredPi=createPiProvider(piOptions);
+      const configuredFrames:AsyncIterable<SessionFrame>=configuredPi.stream({jsonl:''});void configuredFrames;
       const adapter:SessionProvider=provider;
       if(adapter.stream){const customFrames:AsyncIterable<SessionFrame>=adapter.stream({jsonl:''});void customFrames;}
       for await(const frame of frames){if(frame.type==='event'){const event:SessionEvent=frame.event;void event;}}

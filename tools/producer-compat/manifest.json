@@ -6,7 +6,7 @@
     "packageManager": "pnpm@11.24.0"
   },
   "commonGaps": [
-    "Cancellation, compaction, archive transitions, subagents and arbitrary historical/corrupt stores are not exercised by these acquisition journeys.",
+    "Cancellation, compaction, archive transitions and arbitrary historical/corrupt stores are not exercised. Subagents are exercised only by the Claude foreground journey.",
     "Primitive review packets are generated but no external LLM review is executed."
   ],
   "providers": [
@@ -19,11 +19,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Live Qwen ACP recording \u00b7 first turn",
+      "journey": "Live Qwen ACP recording \u00b7 first turn \u00b7 native baseline",
       "gaps": [
-        "No resume/tool roundtrip/native-shape baseline. This certifies the recorded format and producer pair, not every ACP server or OAR runtime."
+        "No resume/tool roundtrip. This certifies the recorded format and producer pair, not every ACP server or OAR runtime."
       ],
       "runner": "recording.ts",
       "protocol": "anthropic-messages",
@@ -93,8 +94,10 @@
         "scenario",
         "baseline"
       ],
-      "journey": "Text \u00b7 Read tool \u00b7 resume \u00b7 native baseline",
-      "gaps": [],
+      "journey": "Text \u00b7 Read tool \u00b7 resume \u00b7 two foreground subagents \u00b7 native baselines",
+      "gaps": [
+        "Background, nested and resumed subagents are not exercised."
+      ],
       "artifact": "synthetic-producer-compatibility",
       "evidence": "/tmp/huihua-producer-*/",
       "scopeLabel": "scope:provider:claude",
@@ -106,7 +109,8 @@
         ],
         "files": [
           "tools/producer-compat/claude.ts",
-          "tools/producer-compat/baselines/claude.json"
+          "tools/producer-compat/baselines/claude.json",
+          "tools/producer-compat/baselines/claude-subagents.json"
         ]
       }
     },
@@ -128,11 +132,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 first-turn store only",
+      "journey": "Text \u00b7 first-turn store only \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline.",
+        "No tool roundtrip.",
         "Cline 3.0.70 --id forces interactive mode and drops the prompt; --json resume is rejected. Only first-turn storage is certified."
       ],
       "artifact": "synthetic-cline-compatibility",
@@ -206,11 +211,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-copilot-compatibility",
       "evidence": "{0}/huihua-live-copilot-*/",
@@ -268,11 +274,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-deepseek-compatibility",
       "evidence": "{0}/huihua-live-deepseek-*/",
@@ -330,11 +337,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-droid-compatibility",
       "evidence": "{0}/huihua-live-droid-*/",
@@ -371,11 +379,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-fx-compatibility",
       "evidence": "{0}/huihua-live-fx-*/",
@@ -412,11 +421,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-grok-compatibility",
       "evidence": "{0}/huihua-live-grok-*/",
@@ -442,11 +452,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "runner": "live.ts",
       "protocol": "openai-chat-completions",
@@ -490,11 +501,12 @@
         "read",
         "snapshot",
         "records",
-        "events"
+        "events",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-kimi-compatibility",
       "evidence": "/tmp/huihua-kimi-*/",
@@ -543,11 +555,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Official OAR writer \u00b7 live Pi text",
+      "journey": "Official OAR writer \u00b7 live Pi text \u00b7 native baseline",
       "gaps": [
-        "No resume/tool roundtrip/native-shape baseline. This certifies the recorded format and producer pair, not every ACP server or OAR runtime."
+        "No resume/tool roundtrip. This certifies the recorded format and producer pair, not every ACP server or OAR runtime."
       ],
       "runner": "recording.ts",
       "protocol": "anthropic-messages",
@@ -591,11 +604,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-openclaw-compatibility",
       "evidence": "{0}/huihua-live-openclaw-*/",
@@ -630,11 +644,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-opencode-compatibility",
       "evidence": "{0}/huihua-live-opencode-*/",
@@ -669,11 +684,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-pi-compatibility",
       "evidence": "{0}/huihua-live-pi-*/",
@@ -708,11 +724,12 @@
         "snapshot",
         "records",
         "events",
-        "scenario"
+        "scenario",
+        "baseline"
       ],
-      "journey": "Text \u00b7 resume",
+      "journey": "Text \u00b7 resume \u00b7 native baseline",
       "gaps": [
-        "No tool roundtrip or reviewed native-shape baseline."
+        "No tool roundtrip."
       ],
       "artifact": "synthetic-qwen-compatibility",
       "evidence": "{0}/huihua-live-qwen-*/",

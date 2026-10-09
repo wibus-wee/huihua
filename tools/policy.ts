@@ -62,6 +62,13 @@ export async function policy(): Promise<void> {
   const producerWorkflow = await readFile('.github/workflows/producer-compat.yml', 'utf8')
   assert.match(manifest.simulator.commit, /^[a-f\d]{40}$/)
   assert.equal(manifest.simulator.commit, '4357945b88d16a1a3155c39305ce135dc66b9510')
+  const childBaselinePath = 'tools/producer-compat/baselines/claude-subagents.json'
+  const childBaseline = JSON.parse(await readFile(childBaselinePath, 'utf8')) as { producer: string, simulatorCommit: string }
+  const claudeLane = manifest.providers.find(provider => provider.id === 'claude')!
+  assert(claudeLane.paths.files.includes(childBaselinePath), 'Claude child baseline must select the live Claude lane')
+  assert.equal(childBaseline.simulatorCommit, manifest.simulator.commit)
+  assert.equal(childBaseline.producer, `${claudeLane.install!.package}@${claudeLane.install!.version}`)
+  assert(producerHarness.includes('assertSubagentScenario(stores, subagentSessionId)'))
   assert(producerWorkflow.includes('manifest.json'))
   assert(producerWorkflow.includes('contents: read'))
 
@@ -73,6 +80,12 @@ export async function policy(): Promise<void> {
   const producerJobs = (parseAllDocuments(producerWorkflow)[0]!.toJS() as { jobs: Record<string, { steps: { 'continue-on-error'?: boolean, 'name'?: string }[], strategy?: { matrix: { provider: string } } }> }).jobs
   assert.equal(producerJobs.compatibility!.strategy!.matrix.provider, `\${{ fromJSON(needs.catalog.outputs.providers) }}`)
   assert(activeProviders.length > 3)
+  for (const provider of activeProviders) {
+    const checks: readonly string[] = provider.checks
+    assert(checks.includes('baseline'), `${provider.id} must detect native field drift`)
+    const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider.id}.json`, 'utf8')) as { fieldPaths?: string[], groupedFieldPaths?: string[] }
+    assert((baseline.fieldPaths?.length ?? 0) > 0 && (baseline.groupedFieldPaths?.length ?? 0) > 0, `${provider.id} must have independently observed native fields`)
+  }
   assert.equal(manifest.selection.fallback, 'all')
   assert(producerWorkflow.includes('has_providers'))
   assert(producerWorkflow.includes('producer compatibility result'))
@@ -86,8 +99,17 @@ export async function policy(): Promise<void> {
   assert(manifest.selection.qualityOnly.prefixes.includes('tests/'))
   assert(manifest.selection.qualityOnly.files.includes('tools/policy.ts'))
   const nativeAudit = await readFile('tools/producer-compat/native.ts', 'utf8')
+  assert(nativeAudit.includes('await assertNativeBaseline(provider,'), 'shared native lanes must execute their reviewed field baseline')
+  assert(kimiAudit.includes('await assertNativeBaseline(\'kimi\','), 'Kimi must execute its reviewed field baseline')
   assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(nativeAudit))
   assert(nativeAudit.includes('from \'node:sqlite\''))
+  const simulatorRuntime = await readFile('tools/producer-compat/runtime.ts', 'utf8')
+  assert(simulatorRuntime.includes('port, autoRespond: false'), 'producer listener must reject unplanned model requests')
+  for (const runner of ['claude', 'codex', 'kimi', 'live', 'recording']) {
+    const source = await readFile(`tools/producer-compat/${runner}.ts`, 'utf8')
+    assert(source.includes('assertSimulatorRequests(ledger,'), `${runner}: missing deterministic request audit`)
+    assert(source.includes('await simulator.assertExhausted()'), `${runner}: missing unconsumed-exchange check`)
+  }
   assert(producerJobs.compatibility!.steps.every(step => step['continue-on-error'] !== true), 'live compatibility failures must remain red')
   assert(producerWorkflow.includes('needs: [compatibility]'))
   assert(producerWorkflow.includes('issues: write'))
@@ -178,12 +200,26 @@ export async function policy(): Promise<void> {
   assert.match(ingestion, /adapter\.usageContext === true/, 'only format owners may advertise sufficient native usage context')
   assert.match(ingestion, /Pick<RawRecord, 'sequence' \| 'provider' \| 'native' \| 'source'>/, 'the internal cursor must not retain native text/byte evidence when records are omitted')
   assert.match(ingestion, /this\.#factOptions\?\.acceptTimestamp/, 'date pushdown must belong to synchronous consumer policy inside the existing mapper')
-  assert.match(ingestion, /adapter\.metadata\(\[line\.native\], ref\.source\.path, \{ fileBacked: companions \}, metadataKeys\)/, 'demand must reach the same provider mapper, not another parser')
+  assert.match(ingestion, /adapter\.metadata\(\[line\.native\], ref\.source\.path, \{ fileBacked: companions \}, mappingKeys\)/, 'demand must reach the same provider mapper, not another parser')
+  assert.match(ingestion, /mappingKeys: FrameSelection\['metadataKeys'\] = runner === undefined \|\| metadataKeys === undefined \|\| metadataKeys\.includes\('parentSessionId'\)/, 'configured decoders request native lineage alongside selected keys, not all unselected metadata')
+  assert.match(ingestion, /new DecoderRunner\(decoders/, 'decoder state belongs to each invocation of the existing replay loop')
+  assert.match(ingestion, /runner\?\.decode\(\{ type: line\.malformed \? 'gap' : 'record', record \}\)/, 'decoder gaps and evidence belong to the same native replay')
+  assert.match(ingestion, /throwIfAborted\(\)[\s\S]*?parser\.finish\?\.\(ingest\)\s+runner\?\.finish\(\)/, 'decoder finalization belongs after validated EOF and native finalization')
+  const decoderContract = await readFile('src/contracts/decoder.ts', 'utf8')
+  assert.doesNotMatch(decoderContract, /Ingestion|Partial<Session>/, 'decoders cannot receive a writable ingestion cursor or arbitrary session patches')
+  const decoderRunner = await readFile('src/shared/decoders.ts', 'utf8')
+  assert.match(decoderRunner, /new WeakSet<RawRecord>/, 'contributions must validate replay ownership without retaining native rows')
+  assert.equal(Array.from(decoderRunner.matchAll(/Object\.fromEntries/g)).length, 1, 'decoder namespaces are materialized once at EOF')
+  assert.match(decoderRunner, /parentSessionIds \?\?= \[\]\)\.push/, 'private parent candidates append without copying growing lists')
+  assert.doesNotMatch(decoderRunner, /Object\.freeze|structuredClone/, 'decoder evidence uses the ordinary read-only callback contract')
+  assert.match(await readFile('src/ingest/index.ts', 'utf8'), /SessionDecoder.*from '\.\.\/contracts\/decoder\.ts'/, 'decoder authoring types must be available through the supported ingest entry')
   assert.match(ingestion, /wantsUpdatedAt \|\| wantsMetadata/, 'unselected update-time metadata must not be constructed')
   assert.match(ingestion, /await adapter\.metadataFiles\?\./, 'companion selection stays within the existing bounded JSONL acquisition')
   assert.match(ingestion, /parser\.malformed\?\.\(\)/, 'a malformed gap must invalidate provider attribution state')
   const codex = await readFile('src/providers/codex/index.ts', 'utf8')
   const pi = await readFile('src/providers/pi/index.ts', 'utf8')
+  assert.match(pi, /export function createPiProvider/, 'Pi owns its configurable factory through the independent provider export')
+  assert.match(pi, /piProvider = createPiProvider\(\)/, 'the default Pi provider stays decoder-free')
   assert.match(pi, /identify\(\{ header, explicitFile \}\)/, 'Pi content certification belongs in the existing provider identification hook')
   assert.match(pi, /object\(header\[0\]\)\.type === 'session'/, 'Pi directory discovery requires a session header at the head, not a later matching record')
   assert.match(codex, /parser\(\)/, 'Codex attribution must be replay-local in the existing parser factory')

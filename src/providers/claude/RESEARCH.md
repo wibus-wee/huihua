@@ -73,6 +73,16 @@ Focused regressions cover a parent with two child transcripts,
 optional sidecars, acquired text/bytes/chunks, preserved legacy lineage and
 foreign-identity diagnostics without rewriting historical goldens.
 
+On 2026-10-09 the pinned real Claude Code 2.1.292, driven by the loopback simulator,
+independently reproduced this private layout for two foreground general-purpose children.
+Both native child transcripts reuse the parent's `sessionId` and carry their own `agentId`.
+The real companions contain `requestShape: "foreground"`, `requestNonInteractive: true`
+and `spawnDepth: 1`; their `toolUseId` values match parent Agent calls and completed results.
+The test-only live journey and reviewed structural baseline are documented in
+[producer compatibility](../../../docs/producer-compatibility.md#foreground-subagent-baseline-provenance).
+This producer observation corroborates issue #24 without making the private layout an official
+contract or certifying background, nested or resumed children.
+
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
 
@@ -109,3 +119,12 @@ Huihua retains it in the native record while continuing
 to derive canonical response model from `message.model`.
 The compatibility harness accepts only
 the reviewed string path; see the artifact provenance in docs/producer-compatibility.md.
+
+The v0.4.4 foreground-subagent journey was also exercised with 2.1.292 and 2.1.295.
+Both wrote three repeated parent latch/last-prompt records in this capture.
+The newer writer adds typed `requestedModel` and `toolUseResult.canContinueAgent`
+metadata; no public meaning is inferred for the latter.
+Full raw preservation and
+independent child/spawn/result assertions remain required.
+These are empirical
+CLI observations, not an official format contract or a new production mapping.

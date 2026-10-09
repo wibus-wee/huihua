@@ -1,0 +1,50 @@
+# Temporary PR33 validation. Removed after the linked evidence is collected.
+name: PR33 fresh Codex validation
+on:
+  push:
+    branches: [fix/review-claude-codex-drift]
+    paths: [.github/workflows/quality.yml]
+permissions:
+  contents: read
+jobs:
+  codex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [pinned, latest]
+    env:
+      COMPAT_PROVIDER: codex
+      COMPAT_LANE: ${{ matrix.lane }}
+      CODEX_COMPAT_UNSANDBOXED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install manifest-pinned simulator and selected real CLI
+        run: |
+          echo "SIMULATOR_DIR=$RUNNER_TEMP/simulator" >> "$GITHUB_ENV"
+          echo "COMPAT_REPORT=$RUNNER_TEMP/codex-report.json" >> "$GITHUB_ENV"
+          COMMIT=$(node -e "console.log(require('./tools/producer-compat/manifest.json').simulator.commit)")
+          git clone https://github.com/wibus-wee/model-api-simulator.git "$RUNNER_TEMP/simulator"
+          git -C "$RUNNER_TEMP/simulator" checkout --detach "$COMMIT"
+          (cd "$RUNNER_TEMP/simulator" && npm exec --yes --package=pnpm@11.24.0 -- pnpm install --frozen-lockfile)
+          node tools/producer-compat/catalog.ts install
+      - name: Fresh native tool roundtrip resume and strict evidence checks
+        run: node tools/producer-compat/codex.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr33-codex-${{ matrix.lane }}
+          include-hidden-files: true
+          path: |
+            ${{ runner.temp }}/codex-report.json*
+            ${{ runner.temp }}/producers/install-manifest.json
+            ${{ runner.temp }}/huihua-codex-*/
+          retention-days: 7
