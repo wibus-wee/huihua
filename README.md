@@ -248,6 +248,75 @@ Supported exports are the root, `/registry`, `/observe`, `/ingest`,
 `/testing` and `/providers/{claude,codex,cursor,opencode,pi,oar,acp,kimi,grok,antigravity,morph,copilot,hermes,openclaw,qwen,devin,fx,cline,deepseek,droid}`.
 Internal paths are not package exports.
 
+## Decoding Pi extension records
+
+Configure decoders on an independent Pi provider and register it with your own registry.
+The builtin piProvider has no decoders.
+This example recognizes an application-owned custom entry; it does not describe a pi-subagents format.
+
+```ts
+import type { SessionDecoder } from 'huihua/ingest'
+import { object } from 'huihua/ingest'
+import { createPiProvider } from 'huihua/providers/pi'
+import { createSessionRegistry } from 'huihua/registry'
+
+const decoder: SessionDecoder = {
+  id: 'my-extension/tasks',
+  create() {
+    return {
+      decode(input) {
+        if (input.type === 'gap')
+          return []
+        const native = object(input.record.native)
+        const data = object(native.data)
+        if (native.type !== 'custom' || native.customType !== 'my-extension/task-started' || typeof data.agentId !== 'string')
+          return []
+        return [{
+          type: 'event',
+          record: input.record,
+          event: {
+            type: 'subagent',
+            data: { agentId: data.agentId, kind: 'started', metadata: data },
+          },
+        }]
+      },
+    }
+  },
+}
+
+const sessions = createSessionRegistry([
+  createPiProvider({ decoders: [decoder] }),
+])
+const session = await sessions.parse('pi', {
+  jsonl: '{"type":"custom","customType":"my-extension/task-started","data":{"agentId":"worker"}}',
+})
+console.log(session.events)
+```
+
+create() runs separately for every replay; keep mutable correlation state inside it.
+decode() receives each original RawRecord, including its text/bytes when record delivery is disabled.
+Malformed rows arrive as gap inputs so a decoder can reset its correlation state.
+Optional finish() runs only after successful source EOF, never on cancellation, early return or errors.
+All callbacks are synchronous and trusted: inputs and returned contributions must not be mutated.
+Huihua passes evidence by reference, without cloning or freezing it.
+
+Each contribution references a record from that replay, including contributions returned by finish().
+An event contribution adds an existing canonical event body; core assigns its envelope, sequence
+and providerMetadata.decoder.
+A metadata contribution publishes a complete extension-owned snapshot under
+metadata.decoders[id].metadata as { record, data }; subsequent snapshots replace that decoder's snapshot.
+A parent_session contribution carries an explicit parent ID and is retained under
+metadata.decoders[id].parentSessionIds with its evidence record number.
+Core publishes parentSessionId at EOF only when decoder candidates agree and native lineage is absent.
+Native lineage takes precedence; disagreement produces a diagnostic and preserves candidates.
+metadata.decoders is reserved for this integration when decoders are configured.
+
+Decoders append in configured order and do not replace builtin events or suppress unknown diagnostics.
+They run through read, parse, stream, open and selective/callback delivery; scanning stays bounded
+and does not invoke them.
+The same optional decoders configuration is available to third-party jsonlProvider adapters.
+Pi titles, paths and entry parentId fields still do not establish native subagent lineage.
+
 ## Boundaries
 
 Huihua reads local session evidence and nothing else: it never executes agents, connects to
