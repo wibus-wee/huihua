@@ -15,3 +15,54 @@ Fixtures cover v1/v3, tree edges, interrupted calls and unknown records; more re
 
 [Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
+
+## Session discovery and pi-subagents artifacts (2026-10-09)
+
+### Official facts
+
+The [official format](https://github.com/earendil-works/pi/blob/6fb2e7815167e6b19006fc526d1a5d0f5f998787/packages/coding-agent/docs/session-format.md)
+defines a type=session header as the first record, including legacy sessions without a version.
+The [session manager](https://github.com/earendil-works/pi/blob/6fb2e7815167e6b19006fc526d1a5d0f5f998787/packages/coding-agent/src/core/session-manager.ts)
+checks header content when discovering sessions.
+session_info.name is a mutable display name;
+parentSession is a file path, not a parent session ID.
+Pi also provides [pi.appendEntry(customType, data)](https://github.com/earendil-works/pi/blob/6fb2e7815167e6b19006fc526d1a5d0f5f998787/packages/coding-agent/src/core/extensions/types.ts#L1719)
+for extension-owned durable custom records excluded from model context.
+
+### Third-party compatibility experience
+
+[Huihua #27](https://github.com/wibus-wee/huihua/issues/27) reports extension transcripts being
+listed as sessions alongside genuine nested child sessions.
+The [pi-subagents transcript writer](https://github.com/nicobailon/pi-subagents/blob/ad11b7ab1b09abd9a6ebdeff032f9c7279c606fc/src/shared/child-transcript.ts)
+writes version/recordType/source/runId/agent records, without a Pi session header.
+The extension's [child naming helper](https://github.com/nicobailon/pi-subagents/blob/ad11b7ab1b09abd9a6ebdeff032f9c7279c606fc/src/shared/child-session-name.ts)
+now derives readable names from the agent and task.
+Its [runtime](https://github.com/nicobailon/pi-subagents/blob/ad11b7ab1b09abd9a6ebdeff032f9c7279c606fc/src/runs/shared/subagent-prompt-runtime.ts)
+may instead retain an intercom routing name with older bridges.
+The [route builder](https://github.com/nicobailon/pi-subagents/blob/ad11b7ab1b09abd9a6ebdeff032f9c7279c606fc/src/intercom/intercom-bridge.ts)
+allows hyphens in both agent and run ID and uses index+1 for an optional suffix.
+Thus subagent-* is neither a universal child marker nor an unambiguous encoding of agent,
+runId and childIndex.
+[Upstream #2763](https://github.com/nicobailon/pi-subagents/issues/2763)
+requests persisted parent-session metadata and remains open at review time.
+
+### Huihua decisions
+
+The Pi adapter owns content certification through the existing identify hook: directory
+discovery requires type=session on the first record of the bounded prefix.
+Checking any later record, excluding a private artifacts directory, or adding a second parser
+would weaken content identity or duplicate existing ownership.
+Malformed heads are not skipped to certify a later session record; incomplete bounded headers
+cannot certify a candidate.
+A recognized header with a missing ID still retains the existing
+source-locator fallback, and future versions remain discoverable and diagnosed on read.
+Exact file roots remain explicitly readable, as do direct read/open/parse/stream inputs.
+No dependency, public API, event mapping or agent-session/v1 representation changes.
+Keep names as recorded titles; defer optional subagent identity and parent linkage until a
+structured persisted fact is available.
+An upstream extension-owned custom entry containing explicit agent/run/parent IDs could supply
+those facts in the session itself, without a title parser or artifact-layout dependency.
+Never derive parentSessionId from directory names or
+reinterpret parentSession as an ID.
+The behavior regression covers default/explicit directory roots, nested child identity,
+artifact rejection, malformed/late headers, bounded prefixes, future versions and explicit acquisition.

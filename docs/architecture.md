@@ -77,6 +77,12 @@ metadata receives a fileBacked context so a supplied provenance label cannot est
 Adapters without identify retain their existing discovery behavior.
 
 Provider modules own certification policy.
+Pi directory candidates require the first bounded header record to have type=session;
+extension transcript artifacts, empty files and later session headers do not certify a session.
+Genuine nested run sessions remain discoverable by content, regardless of directory names.
+Exact file roots and direct read/open/parse/stream keep their existing evidence-acquisition behavior.
+Pi session_info names remain titles: third-party display/routing names do not establish native
+subagent identity or parent lineage.
 Qwen directory candidates require exactly
 <projects>/<project>/chats/<id>.jsonl or chats/archive/<id>.jsonl, a native ID filename and a matching first record.
 An existing but empty QWEN_HOME/projects remains authoritative; a missing or non-directory child falls back.
