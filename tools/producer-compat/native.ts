@@ -120,7 +120,15 @@ export function nativeDriftSummary(provider: string, rows: Row[], session: Sessi
     const body = recording.body === undefined ? {} : object(recording.body)
     return JSON.stringify([row.type ?? row.kind ?? row.role ?? row.method ?? 'state', message.role ?? null, event.type ?? (provider === 'fx' ? Object.keys(event).join(',') : null), update.sessionUpdate ?? null, recording.kind ?? null, body.kind ?? null, decoded.type ?? decoded.role ?? null, provider === 'opencode' ? typeof row.message_id === 'string' ? 'part' : 'message' : null])
   }
-  return nativeReadSummary([{ path: '', id: session.id, rows: observed.map((native, index) => ({ native, position: index + 1, text: '' })) }], session, kind)
+  const summary = nativeReadSummary([{ path: '', id: session.id, rows: observed.map((native, index) => ({ native, position: index + 1, text: '' })) }], session, kind)
+  if (provider === 'copilot') {
+    // Accounting watermarks are keyed by session UUID, not fixed schema fields.
+    // Preserve the value type and every other field; do not ignore arbitrary keys.
+    const normalize = (paths: string[]) => [...new Set(paths.map(path => path.replace(/(\$\.data\.usageAccountingWatermarks\.)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=:)/gi, '$1{sessionId}')))].sort()
+    summary.fieldPaths = normalize(summary.fieldPaths)
+    summary.groupedFieldPaths = normalize(summary.groupedFieldPaths ?? [])
+  }
+  return summary
 }
 export async function inventoryStore(provider: string, home: string): Promise<Inventory> {
   const inventory = await readInventory(provider, home)

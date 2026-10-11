@@ -49,3 +49,9 @@ The usage consumer accepts these per-call counters but excludes checkpoint/shutd
 from additive totals.
 It does not infer that caches or partial counters are complete.
 See the captured fixtures and their provenance in fixtures/copilot/LIVE-CAPTURE.md.
+
+The 2026-10-11 fresh CI replay additionally showed that `usageAccountingWatermarks` keys
+are per-session UUIDs.
+The Copilot drift summary normalizes only UUID keys at that exact
+map path to `{sessionId}`; value types and unexpected non-UUID keys still fail comparison.
+This does not alter stored native records or production normalization.

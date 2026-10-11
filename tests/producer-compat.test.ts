@@ -593,3 +593,18 @@ await test('captured native oracle rejects dropped usage and active-turn mapping
     assert.throws(() => inventory.assertRecords({ ...session, events }), provider === 'copilot' ? /native usage/ : /native active-turn/)
   }
 })
+
+await test('Copilot watermark IDs are dynamic while their value types remain checked', async () => {
+  const source = await sessions.parse('copilot', { path: 'fixtures/copilot/live-2026-10-10.jsonl' })
+  const rows = source.records.map(r => r.native as Record<string, unknown>)
+  const baseline = nativeDriftSummary('copilot', rows, source)
+  const changed = structuredClone(rows)
+  const shutdown = changed.find(r => r.type === 'session.shutdown')!
+  const data = shutdown.data as Record<string, unknown>
+  data.usageAccountingWatermarks = { '5c5c81b4-4381-4d97-9c6d-5f15c2090fe2': 1 }
+  assertNoProducerDrift(nativeDriftSummary('copilot', changed, source), baseline)
+  data.usageAccountingWatermarks = { '5c5c81b4-4381-4d97-9c6d-5f15c2090fe2': 'invalid' }
+  assert.throws(() => assertNoProducerDrift(nativeDriftSummary('copilot', changed, source), baseline), /field\/type drift/)
+  data.usageAccountingWatermarks = { future_field: 1 }
+  assert.throws(() => assertNoProducerDrift(nativeDriftSummary('copilot', changed, source), baseline), /field\/type drift/)
+})
