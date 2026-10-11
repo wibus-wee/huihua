@@ -301,7 +301,7 @@ function project(provider: string, event: UsageFact, session: SessionAccumulator
     completeScope = total !== undefined
   }
   else if (provider === 'copilot') {
-    if (event.providerMetadata.type !== 'assistant.usage') {
+    if (event.providerMetadata.type !== 'assistant.usage' && event.providerMetadata.type !== 'session.usage_record') {
       diagnostics.add('Copilot checkpoint/shutdown metrics are cumulative scopes; excluded from response token totals.')
       return undefined
     }

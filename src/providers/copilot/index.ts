@@ -56,6 +56,9 @@ export const copilotProvider = jsonlProvider({
     else if (type === 'tool.execution_complete') {
       ingest.emit('tool_result', { ...optional('callId', string(d.toolCallId)), ...optional('toolName', string(d.toolName)), result: d, isError: d.success === false })
     }
+    else if (type === 'session.usage_record' && d.usage !== null && typeof d.usage === 'object' && !Array.isArray(d.usage)) {
+      ingest.emit('usage', { usage: d.usage })
+    }
     else if (type === 'assistant.usage' || type === 'session.usage_checkpoint') {
       ingest.emit('usage', { usage: d })
     }

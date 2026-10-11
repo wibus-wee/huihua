@@ -759,3 +759,11 @@ void it('Codex context stops at malformed records and cannot leak into another r
   const replay = await sessions.parse('codex', { jsonl: usage })
   assert.equal((replay.events[0]!.providerMetadata.native_usage_context as { model?: string } | undefined)?.model, undefined)
 })
+
+void it('captured Copilot per-call usage excludes cumulative shutdown accounting', async () => {
+  const session = await sessions.parse('copilot', { path: resolve('fixtures/copilot/live-2026-10-10.jsonl') })
+  const report = createUsageReport([session], new Map([[key(session), framesOf(session)]]), { providerIds: ['copilot'], timeZone: 'UTC' })
+  assert.equal(report.totals.inputTokens, 2)
+  assert.equal(report.totals.outputTokens, 24)
+  assert.equal(report.totals.totalTokens, 26)
+})

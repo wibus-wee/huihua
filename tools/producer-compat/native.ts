@@ -243,6 +243,7 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
   }
   const messages: { record: number, role: string, text: string[], model?: string }[] = []
   const usages: { record: number, usage: unknown }[] = []
+  const activeTurns: { record: number, payload: unknown }[] = []
   const message = (record: number, native: Row, content = native.content, model = native.model) => {
     if (native.role !== 'user' && native.role !== 'assistant')
       return
@@ -282,6 +283,8 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
         message(record, { role: row.type === 'user.message' ? 'user' : 'assistant' }, data.content, data.model)
       if (row.type === 'assistant.usage' || row.type === 'session.usage_checkpoint' || (row.type === 'session.shutdown' && ('modelMetrics' in data || 'tokenDetails' in data)))
         usages.push({ record, usage: data })
+      if (row.type === 'session.usage_record')
+        usages.push({ record, usage: object(data.usage) })
     }
     else if (provider === 'deepseek') {
       time(record, row.time ?? row.time0)
@@ -359,6 +362,8 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
             message(record, { role: 'assistant' }, item.text)
           if (item.kind === 'user_message')
             message(record, { role: 'user' }, item.input)
+          if (item.kind === 'turn_active')
+            activeTurns.push({ record, payload: item })
           if (item.kind === 'usage')
             usages.push({ record, usage: item.usage })
         }
@@ -375,6 +380,8 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
       : [])
     assert.deepEqual(actual, expected, `native ${role} text/model/record association`)
   }
+  if (provider === 'oar')
+    assert.deepEqual(session.events.flatMap(event => event.type === 'system' && event.data.sourceType === 'turn_active' ? [{ record: event.record, payload: event.data.payload }] : []), activeTurns, 'native active-turn payload/record association')
   assert.deepEqual(session.events.flatMap(event => event.type === 'usage' ? [{ record: event.record, usage: event.data.usage }] : []), usages, 'native usage payload/record association')
 }
 function sqliteInventory(provider: string, files: string[]): Inventory {

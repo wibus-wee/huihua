@@ -993,3 +993,59 @@ void it('the public ingest kit builds a conforming third-party JSONL provider', 
   assert.equal(millisOf({ format: 'rfc3339', value: 'not a date' }), undefined)
   assert.equal(millisOf(undefined), undefined)
 })
+
+void it('captured Copilot usage records preserve per-call counters and native evidence', async () => {
+  const session = await sessions.parse('copilot', { path: fixture('copilot/live-2026-10-10.jsonl') })
+  assertSessionContract(session)
+  const rows = session.records.filter(r => (r.native as { type?: string }).type === 'session.usage_record')
+  assert.equal(rows.length, 2)
+  for (const row of rows) {
+    const native = row.native as { data: { usage: unknown } }
+    const events = session.events.filter(e => e.record === row.sequence)
+    assert.equal(events.length, 1)
+    assert.equal(events[0]?.type, 'usage')
+    assert.deepEqual(events[0]?.data, { usage: native.data.usage })
+  }
+})
+
+void it('captured OAR active turn is a system fact with its native provenance', async () => {
+  const session = await sessions.parse('oar', { path: fixture('oar/live-2026-10-10.jsonl') })
+  assertSessionContract(session)
+  const active = eventsOf(session, 'system').filter(e => e.data.sourceType === 'turn_active')
+  assert.equal(active.length, 1)
+  const event = active[0]!
+  const native = session.records[event.record]!.native as { record: { agentPath: unknown, seq: number, body: { events: unknown[] } } }
+  assert.deepEqual(event.data.payload, native.record.body.events[0])
+  assert.deepEqual(event.providerMetadata.agentPath, native.record.agentPath)
+  assert.equal(event.providerMetadata.native_seq, native.record.seq)
+  assert.ok(eventsOf(session, 'unknown').length > 0)
+})
+
+void it('Copilot malformed usage records stay unknown', async () => {
+  for (const usage of [null, [], 'invalid', 1]) {
+    const native = { type: 'session.usage_record', data: { usage } }
+    const session = await sessions.parse('copilot', { jsonl: JSON.stringify(native) })
+    assert.deepEqual(eventsOf(session, 'unknown').map(e => e.data.payload), [native])
+  }
+})
+
+void it('captured old Copilot and OAR records retain replay and raw evidence', async () => {
+  for (const provider of ['copilot', 'oar']) {
+    for (const version of ['pinned', 'live']) {
+      const path = fixture(`${provider}/${version}-2026-10-10.jsonl`)
+      const session = await sessions.parse(provider, { path })
+      assertSessionContract(session)
+      const handle = await sessions.open(session)
+      assert.deepEqual((await handle.snapshot()).events, session.events)
+      const events = []
+      for await (const event of handle.events())
+        events.push(event)
+      assert.deepEqual(events, session.events)
+      const records = []
+      for await (const record of handle.records())
+        records.push(record)
+      assert.deepEqual(records, session.records)
+      assert.deepEqual(session.records.map(r => r.native), (await readFile(path, 'utf8')).trim().split('\n').map(line => JSON.parse(line) as unknown))
+    }
+  }
+})

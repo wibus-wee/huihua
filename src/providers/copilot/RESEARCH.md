@@ -31,3 +31,21 @@ They remain process summaries, excluded from the Usage CLI's response/day totals
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
+
+## Captured CLI 1.0.95 usage records (2026-10-10)
+
+The repository's [live run](https://github.com/wibus-wee/huihua/actions/runs/38047648682)
+contains two `session.usage_record` objects with per-call `data.usage` and increasing
+accounting sequence numbers.
+Shutdown records separately retain cumulative accounting.
+These are observations of the official writer under the synthetic scenario, not a guarantee
+about all historical stores.
+No third-party account data is included.
+
+Map object-valued `data.usage` to the existing usage primitive; retain the complete native
+record and envelope, including model and accounting facts.
+Malformed values stay unknown.
+The usage consumer accepts these per-call counters but excludes checkpoint/shutdown summaries
+from additive totals.
+It does not infer that caches or partial counters are complete.
+See the captured fixtures and their provenance in fixtures/copilot/LIVE-CAPTURE.md.
