@@ -2,20 +2,18 @@
   "producer": {
     "kind": "npm-sdk",
     "package": "@botiverse/oar",
-    "version": "0.40.0",
+    "version": "0.54.3",
     "binary": "dist/index.js",
     "source": "https://github.com/botiverse/oar"
   },
   "simulatorCommit": "4357945b88d16a1a3155c39305ce135dc66b9510",
   "evidence": {
     "kind": "real-cli",
-    "huihuaCommit": "44334b412340fc1bb94f18e48ab76002b93388ef",
-    "workflowRun": 37897567520,
-    "artifact": "synthetic-oar-compatibility-pinned",
-    "inventorySha256": "33e70563440ca297eb67e0018bfe897d2dc1cda703e63e0b81066a76e9002bef"
+    "capture": "GitHub Actions 38047648682; fixtures/oar/live-2026-10-10.jsonl",
+    "artifactId": 11667977359,
+    "artifactSha256": "469f0fc2f88f8547a69787acd89e54406ee92a3767c7e7757170ca1c98ab29a8"
   },
   "unknown": {
-    "agent_start": 1,
     "turn_start": 1,
     "message_start": 2,
     "message_end": 2,
@@ -530,7 +528,6 @@
     "[\"record\",null,null,null,\"response\",\"accepted\",null,null]:$:object"
   ],
   "diagnosticCodes": [
-    "PartialParse",
     "PartialParse",
     "PartialParse",
     "PartialParse",

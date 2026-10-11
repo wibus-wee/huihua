@@ -65,7 +65,7 @@ function parse(ingest: Ingestion, native: unknown): void {
       else if (e.kind === 'turn_ended' && object(e.outcome).kind === 'failed') {
         ingest.emit('error', { ...optional('message', string(object(e.outcome).reason)), details: e.outcome }, envelope, details)
       }
-      else if (['tool_call_progress', 'turn_ended', 'compaction_started', 'compaction_ended', 'retry', 'model', 'effort', 'task_started', 'task_updated', 'task_ended'].includes(string(e.kind) ?? '')) {
+      else if (['tool_call_progress', 'turn_active', 'turn_ended', 'compaction_started', 'compaction_ended', 'retry', 'model', 'effort', 'task_started', 'task_updated', 'task_ended'].includes(string(e.kind) ?? '')) {
         ingest.emit('system', { sourceType: String(e.kind), payload: event }, envelope, details)
       }
       else {

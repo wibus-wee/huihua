@@ -15,3 +15,16 @@ Unknown projected events and frames with no interpreted events remain unknown ev
 Task updates and ends remain system facts unless the individual record establishes agent identity; no task-history fold is used to guess subagent relationships. `isError` means an explicit `failed` result was recorded; absent outcome is retained in the complete result object.
 
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, streaming and compatibility decisions.
+
+## Captured OAR 0.54.3 active turns (2026-10-10)
+
+The [official records contract](https://github.com/botiverse/oar/blob/b36b439e328d836fd24d838bdadea6d2ecbcaeb5/packages/oar/src/contracts/records.ts)
+and the live capture in [run 38047648682](https://github.com/wibus-wee/huihua/actions/runs/38047648682)
+include `turn_active`; the captured Pi `agent_start` frame contains this projection.
+Map it to the existing system primitive with the entire projected payload and native
+record association.
+It establishes activity, not completion, a response model or a new
+message.
+Unknown projections remain unknown.
+The older 0.40.0 fixture is replayed separately;
+the strict live baseline now describes the reviewed 0.54.3 writer.

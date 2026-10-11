@@ -157,3 +157,10 @@ Huihua's SPI, `agent-session/v1` and provider parsers are unchanged by this corr
 The subsequent optimizations add the independent `/registry` export, optional `FrameSelection.metadataKeys`, optional `OpenSession.consume`, `OpenSession.consumeUsage`, `OpenSession.consumeUsageFacts` and opt-in `ReadOptions.batchDecode`, without changing existing root exports or default stream/selection semantics.
 No dependency is added; TypeScript and pinned `pnpm@12.4.2` remain.
 The fallback requests records and `parentSessionId` metadata for attribution and lineage, skipping unselected message normalization; the evidence-free Claude/Codex capability supplies those facts directly.
+
+Copilot CLI 1.0.95 per-call `session.usage_record` counters are additive alongside the older
+`assistant.usage` shape.
+Checkpoint and shutdown summaries remain excluded, including their
+cumulative accounting snapshots.
+Missing cache counters and incomplete scope remain partial;
+model attribution follows recorded facts and does not borrow a session-wide selected model.

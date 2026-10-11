@@ -200,7 +200,7 @@
       "install": {
         "kind": "npm",
         "package": "@github/copilot",
-        "version": "1.0.93",
+        "version": "1.0.95",
         "binary": "copilot",
         "source": "https://github.com/github/copilot-cli"
       },
@@ -569,7 +569,7 @@
       "install": {
         "kind": "npm-sdk",
         "package": "@botiverse/oar",
-        "version": "0.40.0",
+        "version": "0.54.3",
         "binary": "dist/index.js",
         "source": "https://github.com/botiverse/oar"
       },

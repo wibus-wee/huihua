@@ -1003,3 +1003,16 @@ aggregate check distinguishes justified empty selection from failure or
 cancellation.
 Scope routing does not change the product coverage model or make
 an uncertified provider green.
+
+### Reviewed Copilot usage and OAR activity additions
+
+Copilot object-valued `session.usage_record.data.usage` uses the existing usage primitive;
+its surrounding accounting metadata remains native evidence.
+The usage consumer sums only
+per-call records, excluding cumulative shutdown/checkpoint metrics.
+OAR `turn_active` uses
+system with its original payload and attribution, without inventing completion.
+These narrow
+provider mappings require no new public primitive, projection framework or schema version.
+The independent live oracle checks both mappings, while captured old/new writer fixtures
+cover replay, native preservation and rejection of future drift.

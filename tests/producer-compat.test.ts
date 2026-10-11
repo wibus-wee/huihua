@@ -560,3 +560,51 @@ await test('reviewed Claude child metadata is narrow and unknown repetition stay
   assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: [...latest.groupedFieldPaths, '"user":$.toolUseResult.canContinueAgent:string'] }, baseline), NativeDriftError)
   assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.filter(path => path !== '"user":$.toolUseResult.agentId:string') }, baseline), NativeDriftError)
 })
+
+await test('captured producer baselines accept reviewed versions and reject future drift', async () => {
+  for (const provider of ['copilot', 'oar']) {
+    const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider}.json`, 'utf8')) as DriftSummary
+    for (const version of provider === 'copilot' ? ['pinned', 'live'] : ['live']) {
+      const session = await sessions.parse(provider, { path: `fixtures/${provider}/${version}-2026-10-10.jsonl` })
+      const rows = session.records.map(r => r.native as Record<string, unknown>)
+      const summary = nativeDriftSummary(provider, rows, session)
+      assertNoProducerDrift(summary, baseline)
+      assert.throws(() => assertNoProducerDrift({ ...summary, fieldPaths: [...summary.fieldPaths, '$.future:string'] }, baseline))
+      assert.throws(() => assertNoProducerDrift({ ...summary, unknown: { ...summary.unknown, future_event: 1 } }, baseline))
+    }
+  }
+})
+
+await test('captured native oracle rejects dropped usage and active-turn mappings', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-captured-oracle-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  for (const provider of ['copilot', 'oar']) {
+    const home = join(root, provider, 'home')
+    const directory = provider === 'copilot' ? join(home, '.copilot/session-state/captured') : join(root, provider)
+    await mkdir(directory, { recursive: true })
+    const path = join(directory, provider === 'copilot' ? 'events.jsonl' : 'session.voyage.jsonl')
+    await writeFile(path, await readFile(`fixtures/${provider}/live-2026-10-10.jsonl`))
+    const inventory = await inventoryStore(provider, home)
+    const session = await sessions.parse(provider, { path })
+    inventory.assertRecords(session)
+    const events = session.events.filter(event => provider === 'copilot'
+      ? event.providerMetadata.type !== 'session.usage_record'
+      : !(event.type === 'system' && event.data.sourceType === 'turn_active')).map((event, sequence) => ({ ...event, sequence }))
+    assert.throws(() => inventory.assertRecords({ ...session, events }), provider === 'copilot' ? /native usage/ : /native active-turn/)
+  }
+})
+
+await test('Copilot watermark IDs are dynamic while their value types remain checked', async () => {
+  const source = await sessions.parse('copilot', { path: 'fixtures/copilot/live-2026-10-10.jsonl' })
+  const rows = source.records.map(r => r.native as Record<string, unknown>)
+  const baseline = nativeDriftSummary('copilot', rows, source)
+  const changed = structuredClone(rows)
+  const shutdown = changed.find(r => r.type === 'session.shutdown')!
+  const data = shutdown.data as Record<string, unknown>
+  data.usageAccountingWatermarks = { '5c5c81b4-4381-4d97-9c6d-5f15c2090fe2': 1 }
+  assertNoProducerDrift(nativeDriftSummary('copilot', changed, source), baseline)
+  data.usageAccountingWatermarks = { '5c5c81b4-4381-4d97-9c6d-5f15c2090fe2': 'invalid' }
+  assert.throws(() => assertNoProducerDrift(nativeDriftSummary('copilot', changed, source), baseline), /field\/type drift/)
+  data.usageAccountingWatermarks = { future_field: 1 }
+  assert.throws(() => assertNoProducerDrift(nativeDriftSummary('copilot', changed, source), baseline), /field\/type drift/)
+})
