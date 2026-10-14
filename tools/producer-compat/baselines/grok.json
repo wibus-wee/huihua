@@ -41,6 +41,7 @@
     "$.params._meta.chunkId:number",
     "$.params._meta.eventId:string",
     "$.params._meta.promptId:string",
+    "$.params._meta.requestTrimmedTokens:number",
     "$.params._meta.streamStartMs:number",
     "$.params._meta.totalTokens:number",
     "$.params._meta.turnStartMs:number",
@@ -138,6 +139,7 @@
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.chunkId:number",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.eventId:string",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.promptId:string",
+    "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.requestTrimmedTokens:number",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.streamStartMs:number",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.totalTokens:number",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.turnStartMs:number",
@@ -194,5 +196,11 @@
     "PartialParse",
     "PartialParse",
     "PartialParse"
+  ],
+  "optionalFieldPaths": [
+    "$.params._meta.requestTrimmedTokens:number"
+  ],
+  "optionalGroupedFieldPaths": [
+    "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.requestTrimmedTokens:number"
   ]
 }

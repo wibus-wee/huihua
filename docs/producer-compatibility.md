@@ -383,6 +383,29 @@ Reports bound visible paths and retain the complete diff in synthetic artifacts.
 Distinct path diffs receive distinct incident fingerprints; unchanged diffs still deduplicate
 across lanes and runs.
 
+## Reviewed producer metadata additions (2026-10-13)
+
+The [2026-10-13 scheduled run](https://github.com/wibus-wee/huihua/actions/runs/38399732301)
+completed discovery, read, snapshot, record-stream and event-stream checks for all four latest
+lanes below. Each stopped only at the structural baseline gate, with added paths and no removals.
+The `synthetic-{acp,copilot,grok,qwen}-compatibility-latest` artifacts contain the
+native evidence for these lanes. The exact observed paths are recorded as optional in the provider baselines: pinned versions need
+not contain them, while any other new path, type change, removal of a required path, new unknown
+record or semantic mismatch remains a review/failure. The baseline evidence still identifies the
+pinned producer capture; this section records the separate latest-lane evidence for these additions.
+
+| Provider and latest version | Reviewed native additions | Decision |
+| --- | --- | --- |
+| ACP / Qwen Code 0.25.1 | `session/update` agent-message metadata: `executionLifecycle` object, with duration/end/start times, execution/session/prompt IDs, model, kind, phase, outcome and version. | Producer-specific lifecycle metadata; preserve as native evidence. No generic ACP event mapping from one Qwen capture. |
+| Copilot 1.0.96 | `session.usage_record.data.usage.requestBodyEncoding` and `requestBodyWireBytes`. | Request transport metadata, not token usage. Keep out of usage totals. |
+| Grok 1.0.52 | `session/update` agent-message metadata `requestTrimmedTokens`. | Request-trimming telemetry, not billed input usage. Keep out of usage totals. |
+| Qwen Code 0.25.1 | Eleven `systemPayload.uiEvent` execution-lifecycle fields, plus `executionContext` and its `approvalMode`, `authType` and `modelId` fields on user records. | Preserve as system/user native evidence; no new canonical events or session model inference. |
+
+These are reviewed optional shape additions, not a release-wide schema guarantee and not evidence of
+new consumer-facing semantics. The ordinary native-to-Huihua assertions remain responsible for
+messages, tools, errors and usage; a future request to expose these metadata fields should be reviewed
+separately against a consumer need and more than this single synthetic journey.
+
 ## All-provider manifest and reusable runners
 
 `tools/producer-compat/manifest.json` is the inventory of all 20 registry providers.
