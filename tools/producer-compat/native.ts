@@ -252,6 +252,7 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
   const messages: { record: number, role: string, text: string[], model?: string }[] = []
   const usages: { record: number, usage: unknown }[] = []
   const activeTurns: { record: number, payload: unknown }[] = []
+  const systemMessages: { record: number, payload: unknown }[] = []
   const message = (record: number, native: Row, content = native.content, model = native.model) => {
     if (native.role !== 'user' && native.role !== 'assistant')
       return
@@ -287,6 +288,8 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
     else if (provider === 'copilot') {
       time(record, row.timestamp)
       const data = object(row.data)
+      if (row.type === 'system.message')
+        systemMessages.push({ record, payload: row })
       if (row.type === 'user.message' || row.type === 'assistant.message')
         message(record, { role: row.type === 'user.message' ? 'user' : 'assistant' }, data.content, data.model)
       if (row.type === 'assistant.usage' || row.type === 'session.usage_checkpoint' || (row.type === 'session.shutdown' && ('modelMetrics' in data || 'tokenDetails' in data)))
@@ -388,6 +391,8 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
       : [])
     assert.deepEqual(actual, expected, `native ${role} text/model/record association`)
   }
+  if (provider === 'copilot')
+    assert.deepEqual(session.events.flatMap(event => event.type === 'system' && event.data.sourceType === 'system.message' ? [{ record: event.record, payload: event.data.payload }] : []), systemMessages, 'native system-message payload/record association')
   if (provider === 'oar')
     assert.deepEqual(session.events.flatMap(event => event.type === 'system' && event.data.sourceType === 'turn_active' ? [{ record: event.record, payload: event.data.payload }] : []), activeTurns, 'native active-turn payload/record association')
   assert.deepEqual(session.events.flatMap(event => event.type === 'usage' ? [{ record: event.record, usage: event.data.usage }] : []), usages, 'native usage payload/record association')

@@ -55,3 +55,36 @@ are per-session UUIDs.
 The Copilot drift summary normalizes only UUID keys at that exact
 map path to `{sessionId}`; value types and unexpected non-UUID keys still fail comparison.
 This does not alter stored native records or production normalization.
+
+## Observed CLI 1.0.95 / 1.0.97 system-message drift (2026-10-15)
+
+### Official writer observations
+
+[Issue #43](https://github.com/wibus-wee/huihua/issues/43) reports four removed native
+field/type paths under `system.message.data.contentBlocks` in CLI 1.0.97.
+Fresh runs of the official npm writers reproduce exactly that drift using the
+manifest-pinned simulator.
+Both versions retain the complete system body in
+`data.content`; only the 1.0.95 capture includes the block array and `isStatic`.
+See [capture provenance and hashes](../../../fixtures/copilot/LIVE-CAPTURE.md).
+These are observed writer outputs, not a release-wide storage contract.
+
+### Third-party compatibility evidence
+
+No additional third-party evidence is used to infer the meaning of the absent
+block array or static marker.
+An absent marker does not imply either boolean value.
+
+### Huihua decision
+
+Keep production normalization unchanged: system messages already preserve their
+complete native payload, and user/assistant messages read `data.content`.
+Do not introduce CLI-version branches or synthesize missing block/static facts.
+The native audit now independently asserts the full system-message payload and its
+record association across read, snapshot and stream interfaces, in addition to raw
+record and first/resumed text preservation.
+Mark only the four reviewed field/type paths optional in the shared Copilot baseline
+so both recorded representations remain accepted.
+Retain all other drift checks,
+including unexpected types at those paths.
+Tool calls remain outside this journey.

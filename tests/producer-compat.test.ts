@@ -608,3 +608,88 @@ await test('Copilot watermark IDs are dynamic while their value types remain che
   data.usageAccountingWatermarks = { future_field: 1 }
   assert.throws(() => assertNoProducerDrift(nativeDriftSummary('copilot', changed, source), baseline), /field\/type drift/)
 })
+
+await test('Copilot native oracle rejects system-message loss with raw records intact', async (t) => {
+  const home = await mkdtemp(join(tmpdir(), 'huihua-copilot-system-'))
+  t.after(async () => rm(home, { recursive: true, force: true }))
+  const directory = join(home, '.copilot/session-state/captured')
+  await mkdir(directory, { recursive: true })
+  const path = join(directory, 'events.jsonl')
+  await writeFile(path, await readFile('fixtures/copilot/live-2026-10-10.jsonl'))
+  const inventory = await inventoryStore('copilot', home)
+  const session = await sessions.parse('copilot', { path })
+  inventory.assertRecords(session)
+  const mutations: [string, (input: Session) => Session][] = [
+    ['dropped event', input => ({ ...input, events: input.events.filter(event => !(event.type === 'system' && event.data.sourceType === 'system.message')).map((event, sequence) => ({ ...event, sequence })) })],
+    ['truncated body', input => ({ ...input, events: input.events.map(event => event.type === 'system' && event.data.sourceType === 'system.message' ? { ...event, data: { ...event.data, payload: { data: { content: 'truncated' } } } } : event) })],
+    ['wrong association', input => ({ ...input, events: input.events.map(event => event.type === 'system' && event.data.sourceType === 'system.message' ? { ...event, record: 0 } : event) })],
+  ]
+  for (const [name, mutate] of mutations)
+    assert.throws(() => inventory.assertRecords(mutate(session)), /native/, name)
+})
+
+await test('captured Copilot system bodies survive both native representations', async (t) => {
+  for (const version of ['1.0.95', '1.0.97']) {
+    await t.test(version, async (t) => {
+      const home = await mkdtemp(join(tmpdir(), 'huihua-copilot-body-'))
+      t.after(async () => rm(home, { recursive: true, force: true }))
+      const directory = join(home, '.copilot/session-state/captured')
+      await mkdir(directory, { recursive: true })
+      const path = join(directory, 'events.jsonl')
+      await writeFile(path, await readFile(`fixtures/copilot/cli-${version}-2026-10-15.jsonl`))
+      const inventory = await inventoryStore('copilot', home)
+      const scan = await sessions.scan({ providers: ['copilot'], homeDir: home })
+      assert.deepEqual(scan.failures, [])
+      assert.equal(scan.refs.length, 1)
+      const ref = scan.refs[0]!
+      const handle = await sessions.open(ref)
+      const read = await sessions.read(ref)
+      const nativeSystems = read.records.flatMap((record, index) => {
+        const native = record.native as { type: string, data: { content: string, contentBlocks?: unknown[] } }
+        return native.type === 'system.message' ? [{ record: index, native }] : []
+      })
+      assert.equal(nativeSystems.length, 1)
+      assert.equal(Array.from(nativeSystems[0]!.native.data.content).length, 22515)
+      assert.equal('contentBlocks' in nativeSystems[0]!.native.data, version === '1.0.95')
+      const records = []
+      for await (const record of handle.records()) records.push(record)
+      const events = []
+      for await (const event of handle.events()) events.push(event)
+      for (const session of [read, await handle.snapshot(), { ...read, records }, { ...read, events }]) {
+        inventory.assertRecords(session)
+        assert.deepEqual(session.events.flatMap(event => event.type === 'system' && event.data.sourceType === 'system.message' ? [{ record: event.record, native: event.data.payload }] : []), nativeSystems)
+        assert.deepEqual(session.events.flatMap(event => event.type === 'user_message' || event.type === 'assistant_message' ? event.data.content : []).map(block => block.data), ['HUIHUA_COPILOT_FIRST', 'HUIHUA_COPILOT_REPLY', 'HUIHUA_COPILOT_RESUME', 'HUIHUA_COPILOT_RESUMED'])
+        const changed = { ...session, events: session.events.map((event) => {
+          if (event.type !== 'system' || event.data.sourceType !== 'system.message')
+            return event
+          const payload = event.data.payload as { data: { content: string } }
+          return { ...event, data: { ...event.data, payload: { ...payload, data: { ...payload.data, content: payload.data.content.slice(0, -1) } } } }
+        }) }
+        assert.throws(() => inventory.assertRecords(changed), /native system-message/)
+      }
+    })
+  }
+})
+
+await test('Copilot baseline accepts only the reviewed system block omissions', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/copilot.json', 'utf8')) as DriftSummary
+  const prefix = '["system.message",null,null,null,null,null,null,null]:'
+  const paths = ['$.data.contentBlocks:array', '$.data.contentBlocks[].content:string', '$.data.contentBlocks[].isStatic:boolean', '$.data.contentBlocks[]:object']
+  for (const version of ['1.0.95', '1.0.97']) {
+    const session = await sessions.parse('copilot', { path: `fixtures/copilot/cli-${version}-2026-10-15.jsonl` })
+    const summary = nativeDriftSummary('copilot', session.records.map(record => record.native as Record<string, unknown>), session)
+    assertNoProducerDrift(summary, baseline)
+    assert.deepEqual(summary.diagnosticCodes, [])
+    if (version === '1.0.97') {
+      assert.throws(() => assertNoProducerDrift(summary, { ...baseline, optionalFieldPaths: (baseline.optionalFieldPaths ?? []).filter(path => !paths.includes(path)), optionalGroupedFieldPaths: (baseline.optionalGroupedFieldPaths ?? []).filter(path => !paths.map(path => prefix + path).includes(path)) }), (error: unknown) => {
+        assert(error instanceof NativeDriftError)
+        assert.deepEqual(error.drift, { added: [], removed: paths.map(path => prefix + path) })
+        return true
+      })
+    }
+    for (const path of ['$.data.contentBlocks[].isStatic:string', '$.data.contentBlocks[].future:boolean', '$.data.content:number'])
+      assert.throws(() => assertNoProducerDrift({ ...summary, groupedFieldPaths: [...summary.groupedFieldPaths!, prefix + path] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...summary, groupedFieldPaths: summary.groupedFieldPaths!.filter(path => path !== `${prefix}$.data.content:string`) }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...summary, groupedFieldPaths: [...summary.groupedFieldPaths!, '["assistant.message",null,null,null,null,null,null,null]:$.data.contentBlocks:array'] }, baseline), NativeDriftError)
+  }
+})

@@ -555,6 +555,10 @@
     "$.data.accountingSnapshot.totalPremiumRequestCost:number",
     "$.data.accountingSnapshot.totalUserRequests:number",
     "$.data.accountingSnapshot:object",
+    "$.data.contentBlocks:array",
+    "$.data.contentBlocks[].content:string",
+    "$.data.contentBlocks[].isStatic:boolean",
+    "$.data.contentBlocks[]:object",
     "$.data.providerModelMetrics:array",
     "$.data.providerModelMetrics[].metrics.aiCreditsStatus:string",
     "$.data.providerModelMetrics[].metrics.requests.cost:number",
@@ -742,6 +746,10 @@
     "[\"session.usage_record\",null,null,null,null,null,null,null]:$.parentId:string",
     "[\"session.usage_record\",null,null,null,null,null,null,null]:$.timestamp:string",
     "[\"session.usage_record\",null,null,null,null,null,null,null]:$.type:string",
-    "[\"session.usage_record\",null,null,null,null,null,null,null]:$:object"
+    "[\"session.usage_record\",null,null,null,null,null,null,null]:$:object",
+    "[\"system.message\",null,null,null,null,null,null,null]:$.data.contentBlocks:array",
+    "[\"system.message\",null,null,null,null,null,null,null]:$.data.contentBlocks[].content:string",
+    "[\"system.message\",null,null,null,null,null,null,null]:$.data.contentBlocks[].isStatic:boolean",
+    "[\"system.message\",null,null,null,null,null,null,null]:$.data.contentBlocks[]:object"
   ]
 }
