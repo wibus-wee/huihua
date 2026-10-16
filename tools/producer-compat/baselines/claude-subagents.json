@@ -8,9 +8,9 @@
     "atis-latch": 3,
     "last-prompt": 3,
     "cost-state": 1,
-    "api-request": 2,
-    "api-request-blob": 2,
-    "api-request-shape": 2
+    "api-request": 5,
+    "api-request-blob": 5,
+    "api-request-shape": 3
   },
   "structured": 0,
   "fieldPaths": [
@@ -500,6 +500,7 @@
     "$.attachment.isInitial:boolean",
     "$.attachment.removedTypes:array",
     "$.attachment.showConcurrencyNote:boolean",
+    "$.base:string",
     "$.cacheControl:array",
     "$.cacheControl[].path:array",
     "$.cacheControl[].path[]:number",
@@ -508,6 +509,7 @@
     "$.cacheControl[].value:object",
     "$.cacheControl[]:object",
     "$.content:string",
+    "$.finished:boolean",
     "$.hasUnknownModelCost:boolean",
     "$.hash:string",
     "$.id:string",
@@ -657,6 +659,7 @@
   ],
   "optionalGroupedFieldPaths": [
     "\"api-request\":$.agentId:string",
+    "\"api-request\":$.base:string",
     "\"api-request\":$.cacheControl:array",
     "\"api-request\":$.cacheControl[].path:array",
     "\"api-request\":$.cacheControl[].path[]:number",
@@ -693,7 +696,12 @@
     "\"api-request-blob\":$.agentId:string",
     "\"api-request-blob\":$.hash:string",
     "\"api-request-blob\":$.message.content:array",
+    "\"api-request-blob\":$.message.content[].content:array",
+    "\"api-request-blob\":$.message.content[].content[].text:string",
+    "\"api-request-blob\":$.message.content[].content[].type:string",
+    "\"api-request-blob\":$.message.content[].content[]:object",
     "\"api-request-blob\":$.message.content[].text:string",
+    "\"api-request-blob\":$.message.content[].tool_use_id:string",
     "\"api-request-blob\":$.message.content[].type:string",
     "\"api-request-blob\":$.message.content[]:object",
     "\"api-request-blob\":$.message.role:string",
@@ -860,6 +868,7 @@
     "\"user\":$.turnOrigin:string",
     "\"user\":$.turnPosition.promptIndex:number",
     "\"user\":$.turnPosition.turnIndex:number",
-    "\"user\":$.turnPosition:object"
+    "\"user\":$.turnPosition:object",
+    "null:$.finished:boolean"
   ]
 }

@@ -171,3 +171,30 @@ Acquired JSONL's caller-supplied source label cannot establish
 that the bytes came from a native subagent directory.
 Focused regressions enforce both boundaries while preserving the recognized
 file-backed, matching-agent request record case.
+
+## Fresh 2.1.301 full-journey telemetry review
+
+[Manual matrix 38922885945](https://github.com/wibus-wee/huihua/actions/runs/38922885945/job/117047101172)
+on Huihua `da12bb7` independently captured five native sessions and 86 records.
+Inventory, discovery, complete raw reads and first-turn/tool/resume/foreground-child
+assertions passed before the baseline rejected newly retained request telemetry.
+This is fresh official-CLI output; no third-party inference establishes its meaning.
+
+The ordinary journey adds 64 global and 75 record-kind-specific typed paths,
+all within `api-request`, `api-request-shape` and assistant `requestRef` metadata.
+It records two requests and one shape.
+The foreground-child journey includes its parent: three parent requests/blobs
+plus one per child, hence five request/blob records and three shape records.
+Parent continuation requests add `base:string`; request blobs retain nested tool
+result content; companion metadata adds `finished:boolean`.
+These remain raw evidence, not duplicate conversation/tool events or inferred
+canonical completion.
+
+The existing reviewed optional-path mechanism accepts only these observed
+field/type pairs, retaining old-writer requirements and explicit unknown-count
+bounds of 2/1 for ordinary requests/shapes and 5/5/3 for the child journey.
+Additional counts, new fields, wrong types and missing required assistant fields
+remain failures.
+The companion flag supplies no new lifecycle primitive.
+This is bounded journey evidence, not certification of arbitrary telemetry or
+background/nested/resumed subagent workflows.

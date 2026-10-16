@@ -598,7 +598,7 @@ await test('reviewed Claude child metadata is narrow and unknown repetition stay
   assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, new_kind: 1 } }, baseline), /unknown native/)
   assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: [...latest.groupedFieldPaths, '"user":$.toolUseResult.canContinueAgent:string'] }, baseline), NativeDriftError)
   assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.filter(path => path !== '"assistant":$.message.role:string') }, baseline), NativeDriftError)
-  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'api-request': 3 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'api-request': 6 } }, baseline), /unknown native/)
   assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: [...latest.groupedFieldPaths, '"api-request-shape":$.shapeHash:number'] }, baseline), NativeDriftError)
 })
 
@@ -825,4 +825,21 @@ await test('Claude request telemetry does not override explicit sidechain reject
   const accepted = await sessions.parse('claude', { path })
   assert.equal(accepted.id, 'child')
   assert.equal(accepted.parentSessionId, 'parent')
+})
+
+await test('Claude 2.1.301 parent and child request telemetry stays bounded and typed', async () => {
+  for (const [name, counts, paths] of [
+    ['claude', { 'api-request': 2, 'api-request-shape': 1 }, ['"api-request":$.params.model:string', '"api-request-shape":$.shape.tools[].input_schema.properties.allow_large.type:string', '"assistant":$.requestRef:string']],
+    ['claude-subagents', { 'api-request': 5, 'api-request-blob': 5, 'api-request-shape': 3 }, ['"api-request":$.base:string', '"api-request-blob":$.message.content[].tool_use_id:string', 'null:$.finished:boolean']],
+  ] as const) {
+    const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${name}.json`, 'utf8')) as DriftSummary
+    const current = { ...baseline, unknown: { ...baseline.unknown, ...counts }, groupedFieldPaths: [...baseline.groupedFieldPaths!, ...paths] }
+    assertNoProducerDrift(current, baseline)
+    for (const [kind, count] of Object.entries(counts))
+      assert.throws(() => assertNoProducerDrift({ ...current, unknown: { ...current.unknown, [kind]: count + 1 } }, baseline), /unknown native/)
+    for (const path of paths)
+      assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, `${path}:wrong`] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, '"api-request":$.future:string'] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: current.groupedFieldPaths.filter(path => path !== '"assistant":$.message.role:string') }, baseline), NativeDriftError)
+  }
 })
