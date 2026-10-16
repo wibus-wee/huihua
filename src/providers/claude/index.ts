@@ -126,7 +126,9 @@ const claude = jsonlProvider({
       const agentId = parentSessionId === undefined && (
         v.isSidechain === true
         || (
-          subagentMetadataPath(path) !== undefined
+          context.fileBacked
+          && v.isSidechain === undefined
+          && subagentMetadataPath(path) !== undefined
           && subagentRequestRecordTypes.has(String(v.type))
           && basename(path).replace(/\.(?:jsonl|ndjson)$/, '') === `agent-${string(v.agentId)}`
         )

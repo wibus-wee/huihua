@@ -14,13 +14,15 @@ import { assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError,
 // Complete reviewed shapes, not a union of optional removed/added fields.
 // Keep the pinned shape intact: partial hybrids must still fail review.
 export function assertCodexBaseline(actual: DriftSummary, baseline: DriftSummary & {
-  reviewedPathVariants?: Pick<DriftSummary, 'fieldPaths' | 'groupedFieldPaths'>[]
-}): void {
+  diagnosticCodes?: string[]
+  reviewedPathVariants?: (Pick<DriftSummary, 'fieldPaths' | 'groupedFieldPaths'> & Partial<Pick<DriftSummary, 'unknown'>> & { diagnosticCodes?: string[] })[]
+}): DriftSummary & { diagnosticCodes?: string[] } {
   let closest: NativeDriftError | undefined
   for (const shape of [baseline, ...(baseline.reviewedPathVariants ?? [])]) {
     try {
-      assertNoProducerDrift(actual, { ...baseline, ...shape })
-      return
+      const reviewed = { ...baseline, ...shape }
+      assertNoProducerDrift(actual, reviewed)
+      return reviewed
     }
     catch (error) {
       if (!(error instanceof NativeDriftError))
@@ -211,8 +213,8 @@ async function main(): Promise<void> {
     const report = { unknown, structured, fieldPaths: nativeFieldPaths([store], false), groupedFieldPaths: nativeFieldPaths([store]), diagnostics: session.diagnostics }
     await writeFile(join(root, 'drift-report.json'), JSON.stringify(report, null, 2))
     const baseline = JSON.parse(await readFile(new URL('./baselines/codex.json', import.meta.url), 'utf8')) as DriftSummary & { diagnosticCodes: string[] }
-    assertCodexBaseline(report, baseline)
-    assert.deepEqual(session.diagnostics.map(diagnostic => diagnostic.code).sort(), baseline.diagnosticCodes)
+    const reviewed = assertCodexBaseline(report, baseline)
+    assert.deepEqual(session.diagnostics.map(diagnostic => diagnostic.code).sort(), reviewed.diagnosticCodes)
     progress.completed.push('baseline')
     progress.stage = 'passed'
   }

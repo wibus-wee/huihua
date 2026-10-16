@@ -162,3 +162,12 @@ Full raw preservation and
 independent child/spawn/result assertions remain required.
 These are empirical
 CLI observations, not an official format contract or a new production mapping.
+
+The request-record exception requires file-backed acquisition and an absent
+`isSidechain` field.
+An explicit `false` or an invalid flag is not equivalent to
+an omitted flag.
+Acquired JSONL's caller-supplied source label cannot establish
+that the bytes came from a native subagent directory.
+Focused regressions enforce both boundaries while preserving the recognized
+file-backed, matching-agent request record case.

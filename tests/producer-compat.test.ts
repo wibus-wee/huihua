@@ -787,3 +787,42 @@ await test('Copilot 1.0.98 resume activity stays raw and narrowly baselined', as
   assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `${prefix}$.data.sessionWasActive:string`] }, baseline), NativeDriftError)
   assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, '["session.start",null,null,null,null,null,null,null]:$.data.sessionWasActive:boolean'] }, baseline), NativeDriftError)
 })
+
+await test('Codex 0.163.0 complete writer shape is reviewed without allowing partial hybrids', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/codex.json', 'utf8')) as DriftSummary & { reviewedPathVariants: Pick<DriftSummary, 'fieldPaths' | 'groupedFieldPaths'>[] }
+  const additions = ['$.payload.content[].annotations:array', '$.payload.content[].logprobs:array', '$.payload.status:string']
+  const previous = baseline.reviewedPathVariants[0]!
+  const current = { ...baseline, unknown: { ...baseline.unknown, thread_settings_applied: 3 }, fieldPaths: [...previous.fieldPaths, ...additions].sort(), groupedFieldPaths: [...previous.groupedFieldPaths!, ...additions.map(path => `"response_item":${path}`)].sort() }
+  assertCodexBaseline(current, baseline)
+  assert.throws(() => assertCodexBaseline({ ...current, unknown: { ...current.unknown, thread_settings_applied: 4 } }, baseline), /unknown native/)
+  for (const addition of additions) {
+    assert.throws(() => assertCodexBaseline({ ...current, groupedFieldPaths: current.groupedFieldPaths.filter(path => path !== `"response_item":${addition}`) }, baseline), NativeDriftError)
+    assert.throws(() => assertCodexBaseline({ ...current, groupedFieldPaths: current.groupedFieldPaths.map(path => path === `"response_item":${addition}` ? `${path}:wrong` : path) }, baseline), NativeDriftError)
+  }
+  assert.throws(() => assertCodexBaseline({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, '"response_item":$.payload.future:string'] }, baseline), NativeDriftError)
+  const native = { type: 'response_item', payload: { type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'preserved reply', annotations: [], logprobs: [] }] } }
+  const session = await sessions.parse('codex', { jsonl: JSON.stringify(native) })
+  assert.deepEqual(session.records[0]!.native, native)
+  const reply = session.events.find(event => event.type === 'assistant_message')
+  assert.deepEqual(reply?.type === 'assistant_message' ? reply.data.content.map(block => block.data) : undefined, ['preserved reply'])
+})
+
+await test('Claude request telemetry does not override explicit sidechain rejection or acquired provenance', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-request-identity-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const directory = join(root, 'subagents')
+  await mkdir(directory)
+  const path = join(directory, 'agent-child.jsonl')
+  const row = { type: 'api-request', sessionId: 'parent', agentId: 'child' }
+  await writeFile(path, JSON.stringify({ ...row, isSidechain: false }))
+  const rejected = await sessions.parse('claude', { path })
+  assert.equal(rejected.id, 'parent')
+  assert.equal(rejected.parentSessionId, undefined)
+  const acquired = await sessions.parse('claude', { jsonl: JSON.stringify(row), source: path })
+  assert.equal(acquired.id, 'parent')
+  assert.equal(acquired.parentSessionId, undefined)
+  await writeFile(path, JSON.stringify(row))
+  const accepted = await sessions.parse('claude', { path })
+  assert.equal(accepted.id, 'child')
+  assert.equal(accepted.parentSessionId, 'parent')
+})
