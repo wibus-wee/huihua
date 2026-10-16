@@ -20,6 +20,40 @@ Third-party workarounds are compatibility
 evidence, not official protocol.
 This adapter deliberately does not infer token cost or classification.
 
+## Observed Claude Code 2.1.292 / 2.1.300 subagent request records (2026-10-15)
+
+### Producer observations
+
+The pinned 2.1.292 and latest 2.1.300 foreground-child journeys each produced two
+subagent transcripts with matching filename `agent-<agentId>.jsonl`, native
+`agentId`/`sessionId`, companion metadata, and parent spawn/result references.
+In 2.1.300 each child transcript additionally contained one each of
+`api-request-shape`, `api-request-blob`, and `api-request`.
+Those records retained
+the child `agentId` and parent `sessionId`, but omitted `isSidechain`; ordinary
+child user/assistant rows still recorded `isSidechain: true`.
+
+### Huihua decision
+
+Treat the three observed request record kinds as raw unknown records.
+Do not turn
+the request blob into duplicate user messages or infer provider semantics from its
+payload.
+For child identity, accept these exact kinds as child rows only when they
+are inside a recognized `subagents/agent-<agentId>.jsonl` file and their native
+`agentId` matches that filename.
+Continue to require the native parent
+`sessionId`, and require all other rows to explicitly confirm sidechain identity.
+The inventory checks filename, companion and parent spawn/result associations;
+the read oracle verifies every native record and the child prompt/reply.
+
+The 2.1.300 baseline adds only the observed per-kind field/type variants and
+bounded unknown counts for these three records.
+New kinds, wrong types, changed
+identity, or additional occurrences still fail review.
+This is a private format
+observation, not a stable Claude Code contract.
+
 ## Implementation decisions
 
 Reviewed Agent Sessions [Claude discovery](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/SessionDiscovery.swift)

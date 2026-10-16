@@ -241,5 +241,45 @@
     "[\"user\",null,null,null,null,null,null,null]:$.tool_name:null",
     "[\"user\",null,null,null,null,null,null,null]:$:object"
   ],
-  "diagnosticCodes": []
+  "diagnosticCodes": [],
+  "optionalFieldPaths": [
+    "$.chat_id:null",
+    "$.chat_id:string",
+    "$.chat_type:null",
+    "$.chat_type:string",
+    "$.created_source:null",
+    "$.created_source:string",
+    "$.end_reason:null",
+    "$.end_reason:string",
+    "$.ended_at:null",
+    "$.ended_at:number",
+    "$.origin_json:null",
+    "$.origin_json:string",
+    "$.runtime_generation:number",
+    "$.runtime_revision:number",
+    "$.session_key:null",
+    "$.session_key:string",
+    "$.user_id:null",
+    "$.user_id:string"
+  ],
+  "optionalGroupedFieldPaths": [
+    "[\"state\",null,null,null,null,null,null,null]:$.chat_id:null",
+    "[\"state\",null,null,null,null,null,null,null]:$.chat_id:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.chat_type:null",
+    "[\"state\",null,null,null,null,null,null,null]:$.chat_type:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.created_source:null",
+    "[\"state\",null,null,null,null,null,null,null]:$.created_source:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.end_reason:null",
+    "[\"state\",null,null,null,null,null,null,null]:$.end_reason:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.ended_at:null",
+    "[\"state\",null,null,null,null,null,null,null]:$.ended_at:number",
+    "[\"state\",null,null,null,null,null,null,null]:$.origin_json:null",
+    "[\"state\",null,null,null,null,null,null,null]:$.origin_json:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.runtime_generation:number",
+    "[\"state\",null,null,null,null,null,null,null]:$.runtime_revision:number",
+    "[\"state\",null,null,null,null,null,null,null]:$.session_key:null",
+    "[\"state\",null,null,null,null,null,null,null]:$.session_key:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.user_id:null",
+    "[\"state\",null,null,null,null,null,null,null]:$.user_id:string"
+  ]
 }

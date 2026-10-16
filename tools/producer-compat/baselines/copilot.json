@@ -575,6 +575,7 @@
     "$.data.providerModelMetrics[].modelId:string",
     "$.data.providerModelMetrics[].provider:null",
     "$.data.providerModelMetrics[]:object",
+    "$.data.sessionWasActive:boolean",
     "$.data.usage.accounting.sequence:number",
     "$.data.usage.accounting.sourceSessionId:string",
     "$.data.usage.accounting.usageId:string",
@@ -622,6 +623,7 @@
     "$.data.usageAccountingWatermarks:object"
   ],
   "optionalGroupedFieldPaths": [
+    "[\"session.resume\",null,null,null,null,null,null,null]:$.data.sessionWasActive:boolean",
     "[\"session.shutdown\",null,null,null,null,null,null,null]:$.data.accountingSnapshot.agentMetrics.main.modelMetrics.claude-sonnet-4-5.requests.cost:number",
     "[\"session.shutdown\",null,null,null,null,null,null,null]:$.data.accountingSnapshot.agentMetrics.main.modelMetrics.claude-sonnet-4-5.requests.count:number",
     "[\"session.shutdown\",null,null,null,null,null,null,null]:$.data.accountingSnapshot.agentMetrics.main.modelMetrics.claude-sonnet-4-5.requests:object",

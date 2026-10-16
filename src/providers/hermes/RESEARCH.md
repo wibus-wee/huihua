@@ -38,3 +38,33 @@ Snapshot, JSONL and SQLite paths use this same rule and retain the original resu
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
+
+## Observed pinned/latest session-state rows (2026-10-15)
+
+The official pinned Hermes commit `0240fa4a84123406a0e5e6e7262e5b772b43f0bd`
+and latest commit `30463589eb54fa0f48724594cc0e98e6b995729b` both produced a
+readable `state.db` for the same text/resume journey.
+All five inventory rows were
+read; the first and resumed assistant replies remained attached to the expected
+native message rows, and scan/read/snapshot/records/events completed before the
+baseline check.
+
+The sole observed drift was in the `state` inventory row.
+Eight sampled metadata
+fields changed between null and populated values (`chat_id`, `chat_type`,
+`created_source`, `end_reason`, `ended_at`, `origin_json`, `session_key`, and
+`user_id`); latest also populated `runtime_generation:number` and
+`runtime_revision:number`.
+Huihua currently maps only its established identity,
+title, timestamps, workspace and parent fields, and preserves the complete native
+row.
+The new runtime counters and routing/account metadata are not given new
+canonical meanings.
+
+Keep the exact observed type alternatives optional only for the `state` record
+kind and its global native paths, so both producer versions pass.
+The variants
+remain type-specific: any other type, record kind, field, or mapping regression
+continues to fail.
+These captures establish writer variation for this journey, not
+a release-wide schema guarantee.

@@ -88,3 +88,22 @@ so both recorded representations remain accepted.
 Retain all other drift checks,
 including unexpected types at those paths.
 Tool calls remain outside this journey.
+
+## Observed CLI 1.0.98 session-resume state (2026-10-15)
+
+The official CLI 1.0.98 package installed by the compatibility run includes
+`sessionWasActive:boolean` in its bundled `session-events.schema.json` for
+`session.resume`.
+Its schema description distinguishes a resume that joins a
+still-active session, where pending work remains in flight, from one where pending
+work is normally interrupted.
+The 1.0.98 native capture records
+`data.sessionWasActive: false`; the 1.0.95 capture does not contain this field.
+
+Huihua's existing system event retains the complete native `session.resume`
+payload.
+Keep that mapping and do not create a separate activity primitive or infer
+pending tool-call state.
+Mark only the exact boolean path optional in global and
+`session.resume`-grouped drift checks so the two observed writer shapes pass;
+other types, record kinds and unknown fields remain review failures.
