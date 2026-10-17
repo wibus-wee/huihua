@@ -60,3 +60,33 @@ The actual tool result still comes from response_item, not removed mirror output
 The reviewed compatibility baseline keeps two complete shapes rather than making all changed
 paths independently optional.
 See docs/producer-compatibility.md for exact changes and digests.
+
+## Observed 0.163.0 response metadata
+
+The [2026-10-16 official CLI capture](https://github.com/wibus-wee/huihua/actions/runs/38883684544/job/116916234134)
+completed discovery, read, snapshot, records, events and the text/tool/resume
+journey before the baseline rejected three added paths.
+The two synthetic assistant responses now retain `payload.status: "completed"`
+and empty `annotations` and `logprobs` arrays in their output-text blocks.
+These values were already sent by the loopback scenario; this is an observed
+writer-preservation change, not evidence of lost text or a new stable protocol.
+No third-party interpretation is used.
+
+Keep the complete 0.163.0 field/type shape as a third reviewed variant beside
+0.161.0 and 0.162.0, rather than making the three paths independently optional.
+The original native records and response text remain unchanged by Huihua.
+Nonempty annotation/logprob contents, other types, unknown fields and partial
+hybrids remain unreviewed and fail the baseline.
+No new canonical primitive or production Codex parser change is needed.
+
+Evidence: artifact `12038696030` (`synthetic-codex-compatibility-latest`),
+archive SHA-256 `a5d78925fee36f63ff3dbc215bd1d5061642691f9baac0f8eb17dc4fb6db481d`,
+producer 0.163.0, Huihua source `93d3d064c89b07a5c2b87bca18066b88387e0aed`,
+one session and 30 native records.
+The artifact is a synthetic isolated CI journey, not a user store.
+
+The same capture repeats `thread_settings_applied` three times instead of two,
+with identical native settings at initial start and resume.
+Only this reviewed shape accepts up to three such unknown records and its
+eleven `PartialParse` diagnostics; a fourth occurrence remains rejected.
+The pinned variants retain their previous counts and diagnostic expectations.

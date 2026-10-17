@@ -23,6 +23,7 @@ const subagentJourney = [
   { callId: 'huihua_spawn_2', description: 'Second synthetic compatibility child', prompt: 'HUIHUA_CHILD_SECOND', reply: 'HUIHUA_CHILD_SECOND_REPLY' },
 ]
 const subagentFinal = 'HUIHUA_SUBAGENTS_COMPLETE'
+const subagentRequestRecordTypes = new Set(['api-request-shape', 'api-request-blob', 'api-request'])
 
 // Independent test oracle, deliberately not Huihua's walker, framer or mapper.
 // Only the isolated producer's JSONL is inspected. No user stores are read or repaired.
@@ -56,7 +57,10 @@ export async function inventoryNativeStores(root: string): Promise<ClaudeStore[]
         const agentId = [...agents][0]
         const store: ClaudeStore = { path, id: agentId ?? nativeSessionId, rows }
         if (agentId !== undefined) {
-          assert(rows.every(row => row.native.agentId === agentId && row.native.isSidechain === true && row.native.sessionId === nativeSessionId), `${path}: inconsistent native subagent identity`)
+          assert(rows.every((row) => {
+            const requestRecord = row.native.isSidechain === undefined && subagentRequestRecordTypes.has(String(row.native.type))
+            return row.native.agentId === agentId && row.native.sessionId === nativeSessionId && (row.native.isSidechain === true || requestRecord)
+          }), `${path}: inconsistent native subagent identity`)
           assert.equal(basename(dirname(path)), 'subagents', `${path}: unexpected subagent location`)
           assert.equal(basename(path), `agent-${agentId}.jsonl`, `${path}: filename disagrees with native agent identity`)
           store.parentSessionId = nativeSessionId

@@ -20,6 +20,40 @@ Third-party workarounds are compatibility
 evidence, not official protocol.
 This adapter deliberately does not infer token cost or classification.
 
+## Observed Claude Code 2.1.292 / 2.1.300 subagent request records (2026-10-15)
+
+### Producer observations
+
+The pinned 2.1.292 and latest 2.1.300 foreground-child journeys each produced two
+subagent transcripts with matching filename `agent-<agentId>.jsonl`, native
+`agentId`/`sessionId`, companion metadata, and parent spawn/result references.
+In 2.1.300 each child transcript additionally contained one each of
+`api-request-shape`, `api-request-blob`, and `api-request`.
+Those records retained
+the child `agentId` and parent `sessionId`, but omitted `isSidechain`; ordinary
+child user/assistant rows still recorded `isSidechain: true`.
+
+### Huihua decision
+
+Treat the three observed request record kinds as raw unknown records.
+Do not turn
+the request blob into duplicate user messages or infer provider semantics from its
+payload.
+For child identity, accept these exact kinds as child rows only when they
+are inside a recognized `subagents/agent-<agentId>.jsonl` file and their native
+`agentId` matches that filename.
+Continue to require the native parent
+`sessionId`, and require all other rows to explicitly confirm sidechain identity.
+The inventory checks filename, companion and parent spawn/result associations;
+the read oracle verifies every native record and the child prompt/reply.
+
+The 2.1.300 baseline adds only the observed per-kind field/type variants and
+bounded unknown counts for these three records.
+New kinds, wrong types, changed
+identity, or additional occurrences still fail review.
+This is a private format
+observation, not a stable Claude Code contract.
+
 ## Implementation decisions
 
 Reviewed Agent Sessions [Claude discovery](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/SessionDiscovery.swift)
@@ -128,3 +162,39 @@ Full raw preservation and
 independent child/spawn/result assertions remain required.
 These are empirical
 CLI observations, not an official format contract or a new production mapping.
+
+The request-record exception requires file-backed acquisition and an absent
+`isSidechain` field.
+An explicit `false` or an invalid flag is not equivalent to
+an omitted flag.
+Acquired JSONL's caller-supplied source label cannot establish
+that the bytes came from a native subagent directory.
+Focused regressions enforce both boundaries while preserving the recognized
+file-backed, matching-agent request record case.
+
+## Fresh 2.1.301 full-journey telemetry review
+
+[Manual matrix 38922885945](https://github.com/wibus-wee/huihua/actions/runs/38922885945/job/117047101172)
+on Huihua `da12bb7` independently captured five native sessions and 86 records.
+Inventory, discovery, complete raw reads and first-turn/tool/resume/foreground-child
+assertions passed before the baseline rejected newly retained request telemetry.
+This is fresh official-CLI output; no third-party inference establishes its meaning.
+
+The ordinary journey adds 64 global and 75 record-kind-specific typed paths,
+all within `api-request`, `api-request-shape` and assistant `requestRef` metadata.
+It records two requests and one shape.
+The foreground-child journey includes its parent: three parent requests/blobs
+plus one per child, hence five request/blob records and three shape records.
+Parent continuation requests add `base:string`; request blobs retain nested tool
+result content; companion metadata adds `finished:boolean`.
+These remain raw evidence, not duplicate conversation/tool events or inferred
+canonical completion.
+
+The existing reviewed optional-path mechanism accepts only these observed
+field/type pairs, retaining old-writer requirements and explicit unknown-count
+bounds of 2/1 for ordinary requests/shapes and 5/5/3 for the child journey.
+Additional counts, new fields, wrong types and missing required assistant fields
+remain failures.
+The companion flag supplies no new lifecycle primitive.
+This is bounded journey evidence, not certification of arbitrary telemetry or
+background/nested/resumed subagent workflows.

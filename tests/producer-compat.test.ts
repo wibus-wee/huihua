@@ -235,6 +235,40 @@ await test('Claude native audit distinguishes parent and child identity and chec
   finally { await rm(root, { recursive: true, force: true }) }
 })
 
+await test('Claude child inventory accepts only request telemetry without sidechain flags', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-audit-subagent-requests-'))
+  try {
+    const directory = join(root, 'parent', 'subagents')
+    const path = join(directory, 'agent-child.jsonl')
+    await mkdir(directory, { recursive: true })
+    const identity = { sessionId: 'parent', agentId: 'child' }
+    const rows = [
+      { type: 'user', ...identity, isSidechain: true, uuid: 'child-user', message: { content: 'task' } },
+      ...['api-request-shape', 'api-request-blob', 'api-request'].map(type => ({ type, ...identity })),
+    ]
+    await writeFile(path, `${rows.map(row => JSON.stringify(row)).join('\n')}\n`)
+    const stores = await inventoryNativeStores(root)
+    assert.equal(stores.length, 1)
+    assert.equal(stores[0]!.id, 'child')
+    assert.equal(stores[0]!.parentSessionId, 'parent')
+    const scan = await sessions.scan({ providers: ['claude'], roots: { claude: [root] } })
+    assertDiscovery(stores, scan, ['child'])
+    const session = await sessions.read(scan.refs[0]!)
+    assertNativeRead(stores[0]!, session)
+
+    for (const invalid of [
+      { type: 'future-request', ...identity },
+      { type: 'api-request', ...identity, isSidechain: false },
+      { type: 'api-request', sessionId: 'foreign', agentId: 'child' },
+      { type: 'api-request', sessionId: 'parent', agentId: 'foreign' },
+    ]) {
+      await writeFile(path, `${[rows[0], invalid].map(row => JSON.stringify(row)).join('\n')}\n`)
+      await assert.rejects(inventoryNativeStores(root), /inconsistent native subagent identity|unclassified or mixed-session/)
+    }
+  }
+  finally { await rm(root, { recursive: true, force: true }) }
+})
+
 await test('Claude subagent journey rejects absent children and broken native spawn references', () => {
   type Stores = Awaited<ReturnType<typeof inventoryNativeStores>>
   const rows = (native: Record<string, unknown>[]) => native.map((value, index) => ({ native: value, text: JSON.stringify(value), position: index + 1 }))
@@ -551,14 +585,46 @@ await test('reviewed Claude requestedModel metadata stays raw and cannot replace
 
 await test('reviewed Claude child metadata is narrow and unknown repetition stays bounded', async () => {
   const baseline = JSON.parse(await readFile(new URL('../tools/producer-compat/baselines/claude-subagents.json', import.meta.url), 'utf8')) as DriftSummary & { groupedFieldPaths: string[] }
-  const latest = { ...baseline, unknown: { ...baseline.unknown, 'atis-latch': 3, 'last-prompt': 3 }, fieldPaths: [...baseline.fieldPaths, '$.requestedModel:string', '$.toolUseResult.canContinueAgent:boolean'], groupedFieldPaths: [...baseline.groupedFieldPaths, '"assistant":$.requestedModel:string', '"user":$.toolUseResult.canContinueAgent:boolean'] }
+  const latest = {
+    ...baseline,
+    unknown: { ...baseline.unknown, 'atis-latch': 3, 'last-prompt': 3, 'api-request-shape': 2, 'api-request-blob': 2, 'api-request': 2 },
+    fieldPaths: [...baseline.fieldPaths, '$.requestedModel:string', '$.toolUseResult.canContinueAgent:boolean', '$.shape:object', '$.requestRef:string'],
+    groupedFieldPaths: [...baseline.groupedFieldPaths, '"assistant":$.requestedModel:string', '"assistant":$.requestRef:string', '"user":$.toolUseResult.canContinueAgent:boolean', '"api-request-shape":$.shape:object', '"api-request-blob":$.type:string', '"api-request":$.params.model:string'],
+  }
   assertNoProducerDrift(latest, baseline)
   assertNoProducerDrift(baseline, baseline)
   assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'atis-latch': 4 } }, baseline), /unknown native/)
   assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'last-prompt': 4 } }, baseline), /unknown native/)
   assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, new_kind: 1 } }, baseline), /unknown native/)
   assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: [...latest.groupedFieldPaths, '"user":$.toolUseResult.canContinueAgent:string'] }, baseline), NativeDriftError)
-  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.filter(path => path !== '"user":$.toolUseResult.agentId:string') }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.filter(path => path !== '"assistant":$.message.role:string') }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...latest, unknown: { ...latest.unknown, 'api-request': 6 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: [...latest.groupedFieldPaths, '"api-request-shape":$.shapeHash:number'] }, baseline), NativeDriftError)
+})
+
+await test('Hermes state metadata accepts only reviewed pinned/latest value variants', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/hermes.json', 'utf8')) as DriftSummary & { groupedFieldPaths: string[] }
+  const prefix = '["state",null,null,null,null,null,null,null]:'
+  const variants: [string, string][] = [
+    ['chat_id:null', 'chat_id:string'],
+    ['chat_type:null', 'chat_type:string'],
+    ['created_source:string', 'created_source:null'],
+    ['end_reason:string', 'end_reason:null'],
+    ['ended_at:number', 'ended_at:null'],
+    ['origin_json:null', 'origin_json:string'],
+    ['session_key:null', 'session_key:string'],
+    ['user_id:null', 'user_id:string'],
+  ]
+  const oldPaths = variants.map(([oldPath]) => oldPath)
+  const newPaths = [...variants.map(([, newPath]) => newPath), 'runtime_generation:number', 'runtime_revision:number']
+  const latest = {
+    ...baseline,
+    fieldPaths: [...baseline.fieldPaths.filter(path => !oldPaths.some(variant => path === `$.${variant}`)), ...newPaths.map(path => `$.${path}`)],
+    groupedFieldPaths: [...baseline.groupedFieldPaths.filter(path => !oldPaths.some(variant => path === `${prefix}$.${variant}`)), ...newPaths.map(path => `${prefix}$.${path}`)],
+  }
+  assertNoProducerDrift(latest, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: [...latest.groupedFieldPaths, `${prefix}$.runtime_generation:string`] }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...latest, groupedFieldPaths: latest.groupedFieldPaths.filter(path => path !== `${prefix}$.source:string`) }, baseline), NativeDriftError)
 })
 
 await test('captured producer baselines accept reviewed versions and reject future drift', async () => {
@@ -691,5 +757,89 @@ await test('Copilot baseline accepts only the reviewed system block omissions', 
       assert.throws(() => assertNoProducerDrift({ ...summary, groupedFieldPaths: [...summary.groupedFieldPaths!, prefix + path] }, baseline), NativeDriftError)
     assert.throws(() => assertNoProducerDrift({ ...summary, groupedFieldPaths: summary.groupedFieldPaths!.filter(path => path !== `${prefix}$.data.content:string`) }, baseline), NativeDriftError)
     assert.throws(() => assertNoProducerDrift({ ...summary, groupedFieldPaths: [...summary.groupedFieldPaths!, '["assistant.message",null,null,null,null,null,null,null]:$.data.contentBlocks:array'] }, baseline), NativeDriftError)
+  }
+})
+
+await test('Copilot 1.0.98 resume activity stays raw and narrowly baselined', async (t) => {
+  const native = { type: 'session.resume', data: { sessionWasActive: false }, id: 'resume', timestamp: '2026-10-15T00:00:00Z', parentId: null }
+  const home = await mkdtemp(join(tmpdir(), 'huihua-copilot-resume-'))
+  t.after(async () => rm(home, { recursive: true, force: true }))
+  const directory = join(home, '.copilot/session-state/captured')
+  await mkdir(directory, { recursive: true })
+  const path = join(directory, 'events.jsonl')
+  await writeFile(path, `${await readFile('fixtures/copilot/live-2026-10-10.jsonl', 'utf8')}\n${JSON.stringify(native)}`)
+  const inventory = await inventoryStore('copilot', home)
+  const session = await sessions.parse('copilot', { path })
+  inventory.assertRecords(session)
+  assert.deepEqual(session.records.at(-1)!.native, native)
+  const resumed = session.events.filter(event => event.type === 'system' && event.data.sourceType === 'session.resume').at(-1)
+  assert.deepEqual(resumed?.type === 'system' ? resumed.data : undefined, { sourceType: 'session.resume', payload: native })
+  assert.throws(() => inventory.assertRecords({ ...session, events: session.events.filter(event => !(event.type === 'system' && event.data.sourceType === 'session.resume' && (event.data.payload as { id?: string }).id === 'resume')).map((event, sequence) => ({ ...event, sequence })) }), /native session-resume/)
+
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/copilot.json', 'utf8')) as DriftSummary
+  const prefix = '["session.resume",null,null,null,null,null,null,null]:'
+  const observed = {
+    ...baseline,
+    fieldPaths: [...baseline.fieldPaths, '$.data.sessionWasActive:boolean'],
+    groupedFieldPaths: [...baseline.groupedFieldPaths!, `${prefix}$.data.sessionWasActive:boolean`],
+  }
+  assertNoProducerDrift(observed, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `${prefix}$.data.sessionWasActive:string`] }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, '["session.start",null,null,null,null,null,null,null]:$.data.sessionWasActive:boolean'] }, baseline), NativeDriftError)
+})
+
+await test('Codex 0.163.0 complete writer shape is reviewed without allowing partial hybrids', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/codex.json', 'utf8')) as DriftSummary & { reviewedPathVariants: Pick<DriftSummary, 'fieldPaths' | 'groupedFieldPaths'>[] }
+  const additions = ['$.payload.content[].annotations:array', '$.payload.content[].logprobs:array', '$.payload.status:string']
+  const previous = baseline.reviewedPathVariants[0]!
+  const current = { ...baseline, unknown: { ...baseline.unknown, thread_settings_applied: 3 }, fieldPaths: [...previous.fieldPaths, ...additions].sort(), groupedFieldPaths: [...previous.groupedFieldPaths!, ...additions.map(path => `"response_item":${path}`)].sort() }
+  assertCodexBaseline(current, baseline)
+  assert.throws(() => assertCodexBaseline({ ...current, unknown: { ...current.unknown, thread_settings_applied: 4 } }, baseline), /unknown native/)
+  for (const addition of additions) {
+    assert.throws(() => assertCodexBaseline({ ...current, groupedFieldPaths: current.groupedFieldPaths.filter(path => path !== `"response_item":${addition}`) }, baseline), NativeDriftError)
+    assert.throws(() => assertCodexBaseline({ ...current, groupedFieldPaths: current.groupedFieldPaths.map(path => path === `"response_item":${addition}` ? `${path}:wrong` : path) }, baseline), NativeDriftError)
+  }
+  assert.throws(() => assertCodexBaseline({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, '"response_item":$.payload.future:string'] }, baseline), NativeDriftError)
+  const native = { type: 'response_item', payload: { type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'preserved reply', annotations: [], logprobs: [] }] } }
+  const session = await sessions.parse('codex', { jsonl: JSON.stringify(native) })
+  assert.deepEqual(session.records[0]!.native, native)
+  const reply = session.events.find(event => event.type === 'assistant_message')
+  assert.deepEqual(reply?.type === 'assistant_message' ? reply.data.content.map(block => block.data) : undefined, ['preserved reply'])
+})
+
+await test('Claude request telemetry does not override explicit sidechain rejection or acquired provenance', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-request-identity-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const directory = join(root, 'subagents')
+  await mkdir(directory)
+  const path = join(directory, 'agent-child.jsonl')
+  const row = { type: 'api-request', sessionId: 'parent', agentId: 'child' }
+  await writeFile(path, JSON.stringify({ ...row, isSidechain: false }))
+  const rejected = await sessions.parse('claude', { path })
+  assert.equal(rejected.id, 'parent')
+  assert.equal(rejected.parentSessionId, undefined)
+  const acquired = await sessions.parse('claude', { jsonl: JSON.stringify(row), source: path })
+  assert.equal(acquired.id, 'parent')
+  assert.equal(acquired.parentSessionId, undefined)
+  await writeFile(path, JSON.stringify(row))
+  const accepted = await sessions.parse('claude', { path })
+  assert.equal(accepted.id, 'child')
+  assert.equal(accepted.parentSessionId, 'parent')
+})
+
+await test('Claude 2.1.301 parent and child request telemetry stays bounded and typed', async () => {
+  for (const [name, counts, paths] of [
+    ['claude', { 'api-request': 2, 'api-request-shape': 1 }, ['"api-request":$.params.model:string', '"api-request-shape":$.shape.tools[].input_schema.properties.allow_large.type:string', '"assistant":$.requestRef:string']],
+    ['claude-subagents', { 'api-request': 5, 'api-request-blob': 5, 'api-request-shape': 3 }, ['"api-request":$.base:string', '"api-request-blob":$.message.content[].tool_use_id:string', 'null:$.finished:boolean']],
+  ] as const) {
+    const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${name}.json`, 'utf8')) as DriftSummary
+    const current = { ...baseline, unknown: { ...baseline.unknown, ...counts }, groupedFieldPaths: [...baseline.groupedFieldPaths!, ...paths] }
+    assertNoProducerDrift(current, baseline)
+    for (const [kind, count] of Object.entries(counts))
+      assert.throws(() => assertNoProducerDrift({ ...current, unknown: { ...current.unknown, [kind]: count + 1 } }, baseline), /unknown native/)
+    for (const path of paths)
+      assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, `${path}:wrong`] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, '"api-request":$.future:string'] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: current.groupedFieldPaths.filter(path => path !== '"assistant":$.message.role:string') }, baseline), NativeDriftError)
   }
 })

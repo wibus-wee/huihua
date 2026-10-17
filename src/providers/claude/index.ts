@@ -45,6 +45,7 @@ async function resolveClaudeRoots(options: ScanOptions, siblingsEnabled = true):
 }
 const desktopPath = pathMatcher('**/local_*/.claude/projects/**/*.{jsonl,ndjson}')
 const insideRoot = pathMatcher('**')
+const subagentRequestRecordTypes = new Set(['api-request-shape', 'api-request-blob', 'api-request'])
 function desktopDirectory(path: string): string | undefined {
   let directory = dirname(path)
   while (dirname(directory) !== directory) {
@@ -122,7 +123,18 @@ const claude = jsonlProvider({
       const sessionId = string(v.sessionId)
       const parentSessionId = string(v.parentSessionId)
       // An explicit parentSessionId already describes an independently identified session.
-      const agentId = parentSessionId === undefined && v.isSidechain === true ? string(v.agentId) : undefined
+      const agentId = parentSessionId === undefined && (
+        v.isSidechain === true
+        || (
+          context.fileBacked
+          && v.isSidechain === undefined
+          && subagentMetadataPath(path) !== undefined
+          && subagentRequestRecordTypes.has(String(v.type))
+          && basename(path).replace(/\.(?:jsonl|ndjson)$/, '') === `agent-${string(v.agentId)}`
+        )
+      )
+        ? string(v.agentId)
+        : undefined
       const id = agentId ?? sessionId
       Object.assign(facts, {
         ...optional('id', id),
