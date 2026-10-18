@@ -22,7 +22,7 @@ export async function json(url: string, body?: unknown): Promise<Record<string, 
   return await response.json() as Record<string, unknown>
 }
 
-export function assertSimulatorRequests(ledger: Record<string, unknown>, expected: { path: string, marker: string, stream?: boolean, bodyIncludes?: string }[]): void {
+export function assertSimulatorRequests(ledger: Record<string, unknown>, expected: { path: string, marker: string, stream?: boolean, bodyIncludes?: string, toolChoice?: unknown, sameBodyAsPrevious?: boolean }[]): void {
   assert(Array.isArray(ledger.requests), 'missing simulator request ledger')
   const requests = ledger.requests as { method: string, path: string, body?: Record<string, unknown> }[]
   const modelPaths = ['/v1/messages', '/v1/responses', '/v1/chat/completions']
@@ -34,6 +34,14 @@ export function assertSimulatorRequests(ledger: Record<string, unknown>, expecte
     assert.equal(actual.path, plan.path, `model request ${index}: protocol`)
     assert.equal(actual.body?.stream ?? false, plan.stream ?? true, `model request ${index}: streaming`)
     assert(JSON.stringify(actual.body).includes(plan.marker), `model request ${index}: missing scenario marker ${plan.marker}`)
+    if (plan.toolChoice !== undefined)
+      assert.deepEqual(actual.body?.tool_choice, plan.toolChoice, `model request ${index}: tool choice`)
+    if (plan.sameBodyAsPrevious) {
+      assert(index > 0, 'fallback requires a preceding request')
+      const { tool_choice: _previous, ...previous } = model[index - 1]!.body ?? {}
+      const { tool_choice: _current, ...current } = actual.body ?? {}
+      assert.deepEqual(current, previous, `model request ${index}: fallback body`)
+    }
     if (plan.bodyIncludes !== undefined)
       assert(JSON.stringify(actual.body).includes(plan.bodyIncludes), `model request ${index}: missing purpose ${plan.bodyIncludes}`)
   }
