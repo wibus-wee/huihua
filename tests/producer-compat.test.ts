@@ -13,6 +13,7 @@ import { activeProviders, manifest, selectProviders } from '../tools/producer-co
 import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexBaseline, assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiFacts, assertKimiReplies } from '../tools/producer-compat/kimi.ts'
+import { grokTitleRequests } from '../tools/producer-compat/live.ts'
 import { inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import type { DriftSummary } from '../tools/producer-compat/runtime.ts'
@@ -842,4 +843,38 @@ await test('Claude 2.1.301 parent and child request telemetry stays bounded and 
     assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, '"api-request":$.future:string'] }, baseline), NativeDriftError)
     assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: current.groupedFieldPaths.filter(path => path !== '"assistant":$.message.role:string') }, baseline), NativeDriftError)
   }
+})
+
+await test('metadata fallback checks exact tool choice and unchanged request body', () => {
+  const forced = { type: 'function', name: 'session_title' }
+  const plan = [
+    { path: '/v1/responses', marker: 'first', bodyIncludes: 'session title', toolChoice: forced },
+    { path: '/v1/responses', marker: 'first', bodyIncludes: 'session title', toolChoice: 'auto', sameBodyAsPrevious: true },
+  ]
+  const requests = plan.map(item => ({ method: 'POST', path: item.path, body: { stream: true, input: 'first session title', model: 'synthetic', tool_choice: item.toolChoice } }))
+  assertSimulatorRequests({ requests }, plan)
+  assert.throws(() => assertSimulatorRequests({ requests: [requests[0]!, { ...requests[1]!, body: { ...requests[1]!.body, tool_choice: forced } }] }, plan), /tool choice/)
+  assert.throws(() => assertSimulatorRequests({ requests: [requests[0]!, { ...requests[1]!, body: { ...requests[1]!.body, model: 'different' } }] }, plan), /fallback body/)
+  assert.throws(() => assertSimulatorRequests({ requests: requests.slice(0, 1) }, plan), /model requests/)
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests, requests[1]!] }, plan), /model requests/)
+})
+
+await test('Grok title fallback is limited to the observed producer version', () => {
+  const latest = grokTitleRequests('1.0.62', 'FIRST')
+  assert.equal(latest.length, 2)
+  const requests = latest.map(item => ({ method: 'POST', path: item.path, body: { stream: true, input: 'FIRST generating the session title', model: 'synthetic', tool_choice: item.toolChoice } }))
+  assertSimulatorRequests({ requests }, latest)
+  for (const version of ['1.0.46', '1.0.63', undefined]) {
+    const plan = grokTitleRequests(version, 'FIRST')
+    assert.equal(plan.length, 1)
+    assertSimulatorRequests({ requests: requests.slice(0, 1) }, plan)
+    assert.throws(() => assertSimulatorRequests({ requests }, plan), /model requests/)
+  }
+  for (const [field, value] of Object.entries({ model: 'changed', input: 'FIRST changed title', stream: false, tool_choice: { type: 'function', name: 'wrong' } })) {
+    const changed = structuredClone(requests)
+    Object.assign(changed[1]!.body, { [field]: value })
+    assert.throws(() => assertSimulatorRequests({ requests: changed }, latest))
+  }
+  assert.throws(() => assertSimulatorRequests({ requests: [...requests].reverse() }, latest), /tool choice/)
+  assert.throws(() => assertSimulatorRequests({ requests: requests.map(item => ({ ...item, path: '/v1/chat/completions' })) }, latest), /protocol/)
 })

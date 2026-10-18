@@ -9,6 +9,14 @@ import { auditNativeStore } from './native.ts'
 import type { CompatibilityProgress } from './report.ts'
 import { assertSimulatorRequests, chatExchange, exchange, json, NativeDriftError, required, startSimulator } from './runtime.ts'
 
+export function grokTitleRequests(version: string | undefined, prompt: string): Parameters<typeof assertSimulatorRequests>[1] {
+  const title = { path: '/v1/responses', marker: prompt, bodyIncludes: 'generating the session title' }
+  return [
+    { ...title, toolChoice: { type: 'function', name: 'session_title' } },
+    ...(version === '1.0.62' ? [{ ...title, toolChoice: 'auto', sameBodyAsPrevious: true }] : []),
+  ]
+}
+
 async function main(): Promise<void> {
   const provider = required('COMPAT_PROVIDER')
   assert(['pi', 'qwen', 'copilot', 'opencode', 'cline', 'deepseek', 'openclaw', 'fx', 'grok', 'droid', 'hermes'].includes(provider), 'unsupported live producer')
@@ -129,8 +137,9 @@ supports_backend_search = false
       // Queue their observed requests too, so ignored failures cannot hide extra turns.
       if (provider === 'grok' && !index) {
         const title = 'generating the session title'
-        requestPlan.push({ path: '/v1/responses', marker: prompt, bodyIncludes: title })
-        await json(`${control}/enqueue`, { provider: 'openai', exchanges: [metadataFailure(`${label}-title`, '/v1/responses', prompt, title)] })
+        const titles = grokTitleRequests(process.env.COMPAT_CLI_VERSION, prompt)
+        requestPlan.push(...titles)
+        await json(`${control}/enqueue`, { provider: 'openai', exchanges: titles.map((_, attempt) => metadataFailure(`${label}-title-${attempt}`, '/v1/responses', prompt, title)) })
       }
       requestPlan.push({ path: chat ? '/v1/chat/completions' : '/v1/messages', marker: prompt })
       await json(`${control}/enqueue`, { provider: chat ? 'openai' : 'anthropic', exchanges: [chat ? chatExchange(label, prompt, reply) : response] })
@@ -169,6 +178,7 @@ supports_backend_search = false
     }
     const ledger = await json(`${control}/requests`)
     await writeFile(join(root, 'ledger.json'), JSON.stringify(ledger, null, 2))
+    progress.stage = 'producer-requests'
     assertSimulatorRequests(ledger, requestPlan)
     await simulator.assertExhausted()
     await auditNativeStore(provider, home, root, progress)

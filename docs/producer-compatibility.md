@@ -44,6 +44,15 @@ journey.
 Their exact order, protocol, streaming mode and purpose markers are audited alongside
 the successful conversation requests; ignored metadata failures cannot conceal unexpected calls.
 Successful title/summary generation is not certified by this journey.
+Grok 1.0.62 retries the initial Responses title request after the synthetic HTTP 400 with
+`tool_choice: "auto"`, following the forced `session_title` function request.
+Only that exact observed version gets one queued fallback; 1.0.46 and unreviewed versions keep
+the single-request expectation.
+The ledger checks both tool choices and equality of every
+other body field, so changed models, prompts, extra retries and reordered requests still fail.
+Request-ledger failures are reported at `producer-requests`, before native-store auditing.
+This is a test-harness adjustment, with no reader API, native baseline or package-version change.
+Historical evidence: [Grok compatibility run](https://github.com/wibus-wee/huihua/actions/runs/39021214953).
 
 ## Checks and evidence
 
@@ -625,3 +634,14 @@ scan/read/snapshot/records/events, semantic, native-shape and diagnostic asserti
 The temporary two-lane workflow was removed after retaining its CI evidence.
 Final changes are limited to the compatibility code, reviewed baselines, regression
 checks and their documentation; the ordinary workflow remains unchanged.
+
+### Grok fallback recovery validation
+
+On 2026-10-18, the recovered fix passed the full `pnpm check` (476 tests, no failures or skips,
+plus lint, types, dependency policy and installed ESM package checks).
+Fresh isolated live journeys for Grok 1.0.46 and 1.0.62 each passed scan, read, snapshot, records,
+events, native baseline and scenario checks, independently auditing one session and eight records.
+The simulator was pinned to `4357945b88d16a1a3155c39305ce135dc66b9510`.
+Official binary SHA256 values were `41626a53292324140b92556b9d42ff5542e3dcd04aff85eafb8689dd4adb44fc`
+for 1.0.46 and `2a46d9e4d7ebd7a9cff7f95716714b19dad5f21dd2a497822400b1fb128969aa` for 1.0.62.
+These results cover synthetic loopback text/resume journeys, not every provider or paid service.
