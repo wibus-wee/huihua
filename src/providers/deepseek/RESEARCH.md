@@ -34,3 +34,28 @@ The result projection retains the whole native wrapper and does not chase the pa
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
+
+## October 20 native metadata review
+
+### Official writer observations
+
+The [2026-10-20 synthetic CI run](https://github.com/wibus-wee/huihua/actions/runs/39405791409)
+used 0.2.1-rc.2.
+The request header tool declarations add `cwd` to `subagent` and `subagent_fork`, and `cd` to `working_directory`.
+Each is an object with string `type` and `description`.
+These are available-tool schemas, not evidence of an executed tool or a session-directory change.
+The existing request/header system payload preserves them completely.
+Accept only the six observed typed paths on request/header; do not synthesize calls or workspace facts.
+
+### Third-party evidence and decision
+
+No third-party interpretation is used for these new fields.
+These are empirical
+writer observations, not a release-wide storage contract.
+Production mappings,
+public primitives and dependency versions stay unchanged.
+Focused tests retain
+old-writer acceptance and reject wrong types, wrong record kinds, unknown growth
+and missing required fields.
+See the capture hashes and replay scope in
+[producer compatibility](../../../docs/producer-compatibility.md#october-20-metadata-review).

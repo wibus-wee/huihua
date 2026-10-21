@@ -878,3 +878,83 @@ await test('Grok title fallback is limited to the observed producer version', ()
   assert.throws(() => assertSimulatorRequests({ requests: [...requests].reverse() }, latest), /tool choice/)
   assert.throws(() => assertSimulatorRequests({ requests: requests.map(item => ({ ...item, path: '/v1/chat/completions' })) }, latest), /protocol/)
 })
+
+await test('October 20 metadata drift is narrowly reviewed without hiding future changes', async (t) => {
+  const cases = [
+    { provider: 'claude-subagents', prefix: '"attachment":', paths: ['$.attachment.builtInPluginTypes:array'] },
+    { provider: 'copilot', prefix: '["session.usage_record",null,null,null,null,null,null,null]:', paths: ['$.data.usage.providerType:string'] },
+    { provider: 'deepseek', prefix: '["request/header",null,null,null,null,null,null,null]:', paths: ['cd', 'cwd'].flatMap(key => [`$.data.header.tools[].parameters.properties.${key}:object`, `$.data.header.tools[].parameters.properties.${key}.type:string`, `$.data.header.tools[].parameters.properties.${key}.description:string`]) },
+    { provider: 'hermes', prefix: '["state",null,null,null,null,null,null,null]:', paths: ['$.transcript_revision:number'] },
+  ]
+  for (const { provider, prefix, paths } of cases) {
+    await t.test(provider, async () => {
+      const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider}.json`, 'utf8')) as DriftSummary
+      const observed = { ...baseline, fieldPaths: [...baseline.fieldPaths, ...paths], groupedFieldPaths: [...baseline.groupedFieldPaths!, ...paths.map(path => prefix + path)] }
+      assertNoProducerDrift(baseline, baseline)
+      assertNoProducerDrift(observed, baseline)
+      for (const path of paths) {
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `${prefix}${path.replace(/:[^:]+$/, ':boolean')}`] }, baseline), NativeDriftError)
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `"other":${path}`] }, baseline), NativeDriftError)
+      }
+      const required = baseline.groupedFieldPaths!.find(path => !baseline.optionalGroupedFieldPaths?.includes(path))!
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: observed.groupedFieldPaths.filter(path => path !== required) }, baseline), NativeDriftError)
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `${prefix}$.future:string`] }, baseline), NativeDriftError)
+      assert.throws(() => assertNoProducerDrift({ ...observed, unknown: { ...observed.unknown, future: 1 } }, baseline), /unknown native/)
+    })
+  }
+})
+
+await test('October 20 native metadata retains its existing canonical meaning', async () => {
+  const attachment = { type: 'attachment', sessionId: 'synthetic', attachment: { type: 'agent_listing_delta', builtInPluginTypes: [] } }
+  const claude = await sessions.parse('claude', { jsonl: JSON.stringify(attachment) })
+  assert.deepEqual(claude.records[0]!.native, attachment)
+  assert.equal(claude.events[0]!.type, 'unknown')
+  assert.equal(claude.events.some(event => event.type === 'subagent'), false)
+
+  const usage = { model: 'synthetic-model', providerType: 'anthropic', inputTokens: 1, outputTokens: 12 }
+  const copilot = await sessions.parse('copilot', { jsonl: JSON.stringify({ type: 'session.usage_record', data: { usage } }) })
+  const event = copilot.events.find(event => event.type === 'usage')
+  assert(event?.type === 'usage')
+  assert.deepEqual(event.data.usage, usage)
+  assert.equal(event.record, 0)
+
+  const header = { type: 'request/header', seq: 1, time: 1000, data: { header: { tools: [{ name: 'synthetic', parameters: { properties: { cd: { type: 'string', description: 'Captured command directory' }, cwd: { type: 'string', description: 'Captured working directory' } } } }] } } }
+  const deepseek = await sessions.parse('deepseek', { jsonl: JSON.stringify(header) })
+  const system = deepseek.events.find(event => event.type === 'system')
+  assert(system?.type === 'system')
+  assert.deepEqual(system.data.payload, header)
+  assert.equal(system.record, 0)
+  assert.equal(deepseek.events.some(event => event.type === 'tool_call'), false)
+})
+
+await test('Hermes transcript revision remains native state across every read surface', async (t) => {
+  const { DatabaseSync } = await import('node:sqlite')
+  const root = await mkdtemp(join(tmpdir(), 'huihua-hermes-revision-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'state.db')
+  const db = new DatabaseSync(path)
+  try {
+    db.exec(await readFile('fixtures/hermes/sessions.sql', 'utf8'))
+    db.exec('ALTER TABLE sessions ADD COLUMN transcript_revision INTEGER; UPDATE sessions SET transcript_revision = 7')
+  }
+  finally {
+    db.close()
+  }
+  const scan = await sessions.scan({ providers: ['hermes'], roots: { hermes: [path] } })
+  assert.deepEqual(scan.failures, [])
+  assert.equal(scan.refs.length, 1)
+  const ref = scan.refs[0]!
+  const read = await sessions.read(ref)
+  assert.equal((read.records[0]!.native as Record<string, unknown>).transcript_revision, 7)
+  assert.equal(read.id, 'hermes-db')
+  assert.equal(read.title, 'Hermes fixture')
+  assert.deepEqual(read.updatedAt, undefined)
+  const handle = await sessions.open(ref)
+  assert.deepEqual(await handle.snapshot(), read)
+  const records = []
+  for await (const record of handle.records()) records.push(record)
+  const events = []
+  for await (const event of handle.events()) events.push(event)
+  assert.deepEqual(records, read.records)
+  assert.deepEqual(events, read.events)
+})

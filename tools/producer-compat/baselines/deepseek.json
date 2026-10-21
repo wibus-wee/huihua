@@ -732,5 +732,21 @@
     "PartialParse",
     "PartialParse",
     "PartialParse"
+  ],
+  "optionalFieldPaths": [
+    "$.data.header.tools[].parameters.properties.cd.description:string",
+    "$.data.header.tools[].parameters.properties.cd.type:string",
+    "$.data.header.tools[].parameters.properties.cd:object",
+    "$.data.header.tools[].parameters.properties.cwd.description:string",
+    "$.data.header.tools[].parameters.properties.cwd.type:string",
+    "$.data.header.tools[].parameters.properties.cwd:object"
+  ],
+  "optionalGroupedFieldPaths": [
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cd.description:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cd.type:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cd:object",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cwd.description:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cwd.type:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cwd:object"
   ]
 }

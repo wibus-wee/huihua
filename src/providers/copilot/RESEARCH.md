@@ -107,3 +107,26 @@ pending tool-call state.
 Mark only the exact boolean path optional in global and
 `session.resume`-grouped drift checks so the two observed writer shapes pass;
 other types, record kinds and unknown fields remain review failures.
+
+## October 20 native metadata review
+
+### Official writer observations
+
+The [2026-10-20 synthetic CI run](https://github.com/wibus-wee/huihua/actions/runs/39405791409)
+used 1.0.100.
+Each `session.usage_record.data.usage` adds `providerType: "anthropic"`.
+The existing usage event preserves the entire usage object, including this field, without inferring a new model identity or changing token totals.
+Accept only the string path on `session.usage_record`; other types and record kinds still fail.
+
+### Third-party evidence and decision
+
+No third-party interpretation is used for these new fields.
+These are empirical
+writer observations, not a release-wide storage contract.
+Production mappings,
+public primitives and dependency versions stay unchanged.
+Focused tests retain
+old-writer acceptance and reject wrong types, wrong record kinds, unknown growth
+and missing required fields.
+See the capture hashes and replay scope in
+[producer compatibility](../../../docs/producer-compatibility.md#october-20-metadata-review).

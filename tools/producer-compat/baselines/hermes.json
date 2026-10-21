@@ -259,6 +259,7 @@
     "$.runtime_revision:number",
     "$.session_key:null",
     "$.session_key:string",
+    "$.transcript_revision:number",
     "$.user_id:null",
     "$.user_id:string"
   ],
@@ -279,6 +280,7 @@
     "[\"state\",null,null,null,null,null,null,null]:$.runtime_revision:number",
     "[\"state\",null,null,null,null,null,null,null]:$.session_key:null",
     "[\"state\",null,null,null,null,null,null,null]:$.session_key:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.transcript_revision:number",
     "[\"state\",null,null,null,null,null,null,null]:$.user_id:null",
     "[\"state\",null,null,null,null,null,null,null]:$.user_id:string"
   ]

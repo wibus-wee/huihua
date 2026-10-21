@@ -26,5 +26,8 @@ It groups selected parts, retains selected-session orphans, and uses all native 
 Existing native message ordering and part-ID ordering remain unchanged.
 The regression checks exact selected evidence, orphan diagnostics and traversal counts, rather than inferring performance from compilation or running a benchmark.
 
-[Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
+[Provider coverage and format ownership](../../../docs/architecture.md#provider-coverage-and-format-ownership)
+owns the behavior inventory; [Dependency and ingestion decisions](../../../docs/architecture.md#dependency-and-ingestion-decisions)
+and [Reading and streaming](../../../docs/architecture.md#reading-and-streaming) own ingestion and read-only boundaries.
+This research file owns provider-native compatibility evidence.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.

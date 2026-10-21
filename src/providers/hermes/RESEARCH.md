@@ -68,3 +68,27 @@ remain type-specific: any other type, record kind, field, or mapping regression
 continues to fail.
 These captures establish writer variation for this journey, not
 a release-wide schema guarantee.
+
+## October 20 native metadata review
+
+### Official writer observations
+
+The [2026-10-20 synthetic CI run](https://github.com/wibus-wee/huihua/actions/runs/39405791409)
+used e3f75a002557cf20ee29a80b88b07d273066fad5.
+The native session row adds `transcript_revision: 0`.
+This sampled number is not a timestamp, message count, or documented canonical revision contract.
+The SQLite reader already retains the whole state row.
+Keep it raw and accept only the numeric path on the state inventory kind; do not derive updatedAt or rewrite message order.
+
+### Third-party evidence and decision
+
+No third-party interpretation is used for these new fields.
+These are empirical
+writer observations, not a release-wide storage contract.
+Production mappings,
+public primitives and dependency versions stay unchanged.
+Focused tests retain
+old-writer acceptance and reject wrong types, wrong record kinds, unknown growth
+and missing required fields.
+See the capture hashes and replay scope in
+[producer compatibility](../../../docs/producer-compatibility.md#october-20-metadata-review).
