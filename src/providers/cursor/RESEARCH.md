@@ -60,5 +60,8 @@ The [pinned CLI compatibility fixture](https://github.com/jazzyalex/agent-sessio
 The CLI mapper normalizes their explicit names, IDs, arguments, results and errors without changing native blocks or extending IDE graph interpretation.
 These aliases are empirical compatibility evidence, not a public Cursor transcript schema.
 
-[Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
+[Provider coverage and format ownership](../../../docs/architecture.md#provider-coverage-and-format-ownership)
+owns the behavior inventory; [Dependency and ingestion decisions](../../../docs/architecture.md#dependency-and-ingestion-decisions)
+and [Reading and streaming](../../../docs/architecture.md#reading-and-streaming) own ingestion and read-only boundaries.
+This research file owns provider-native compatibility evidence.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.

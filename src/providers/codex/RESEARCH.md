@@ -44,7 +44,10 @@ They are normalized by this same mapper while retaining complete native records.
 Nested source.subagent.thread_spawn.parent_thread_id supplies lineage only after explicit top-level parent_thread_id/forked_from_id, so precedence remains deterministic.
 These private aliases and request-usage observations are third-party compatibility evidence, distinct from the official protocol facts.
 
-[Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
+[Provider coverage and format ownership](../../../docs/architecture.md#provider-coverage-and-format-ownership)
+owns the behavior inventory; [Dependency and ingestion decisions](../../../docs/architecture.md#dependency-and-ingestion-decisions)
+and [Reading and streaming](../../../docs/architecture.md#reading-and-streaming) own ingestion and read-only boundaries.
+This research file owns provider-native compatibility evidence.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
 
 ## Observed 0.162.0 lifecycle and mirror changes

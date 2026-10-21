@@ -117,7 +117,10 @@ The test-only live journey and reviewed structural baseline are documented in
 This producer observation corroborates issue #24 without making the private layout an official
 contract or certifying background, nested or resumed children.
 
-[Design decisions](../../../docs/design.md) own the provider behavior inventory and binary-reading choices.
+[Provider coverage and format ownership](../../../docs/architecture.md#provider-coverage-and-format-ownership)
+owns the behavior inventory; [Dependency and ingestion decisions](../../../docs/architecture.md#dependency-and-ingestion-decisions)
+and [Reading and streaming](../../../docs/architecture.md#reading-and-streaming) own ingestion and read-only boundaries.
+This research file owns provider-native compatibility evidence.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
 
 `consumeUsage` reuses this mapping without delivering native records.
@@ -198,3 +201,28 @@ remain failures.
 The companion flag supplies no new lifecycle primitive.
 This is bounded journey evidence, not certification of arbitrary telemetry or
 background/nested/resumed subagent workflows.
+
+## October 20 native metadata review
+
+### Official writer observations
+
+The [2026-10-20 synthetic CI run](https://github.com/wibus-wee/huihua/actions/runs/39405791409)
+used 2.1.304.
+The foreground-child parent attachment `agent_listing_delta` adds `builtInPluginTypes: []`.
+The ordinary Read/resume capture has no new path.
+The empty array establishes no element type or new child identity.
+Preserve the attachment as native unknown evidence; do not infer plugin discovery or subagent lifecycle.
+Only the exact array path in the child baseline is optional; a populated array introduces unreviewed element paths and still fails.
+
+### Third-party evidence and decision
+
+No third-party interpretation is used for these new fields.
+These are empirical
+writer observations, not a release-wide storage contract.
+Production mappings,
+public primitives and dependency versions stay unchanged.
+Focused tests retain
+old-writer acceptance and reject wrong types, wrong record kinds, unknown growth
+and missing required fields.
+See the capture hashes and replay scope in
+[producer compatibility](../../../docs/producer-compatibility.md#october-20-metadata-review).

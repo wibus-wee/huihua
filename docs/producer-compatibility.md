@@ -645,3 +645,56 @@ The simulator was pinned to `4357945b88d16a1a3155c39305ce135dc66b9510`.
 Official binary SHA256 values were `41626a53292324140b92556b9d42ff5542e3dcd04aff85eafb8689dd4adb44fc`
 for 1.0.46 and `2a46d9e4d7ebd7a9cff7f95716714b19dad5f21dd2a497822400b1fb128969aa` for 1.0.62.
 These results cover synthetic loopback text/resume journeys, not every provider or paid service.
+
+## October 20 metadata review
+
+Source: [daily run 39405791409](https://github.com/wibus-wee/huihua/actions/runs/39405791409)
+on Huihua `24220a2a`.
+All pinned lanes passed; four latest lanes reached baseline
+review after discovery and all read surfaces passed.
+No removed field was reported.
+The downloaded ZIP digests were independently verified:
+
+| Provider            | Artifact    | SHA-256                                                          |
+| ------------------- | ----------- | ---------------------------------------------------------------- |
+| Claude 2.1.304      | 12257930238 | 3c1151c0098daba80092c64598beb050a073c332eed11a9140eee1a19107431d |
+| Copilot 1.0.100     | 12257940154 | 22e5c181bccdffef02b4ebdcb761971dbba19f28f9f2070a29ad43e4d77cb61e |
+| DeepSeek 0.2.1-rc.2 | 12257520867 | ccd5f54cf487b69db78402880ac8465cec1c543ca17368fd9b77d383afab8f20 |
+| Hermes e3f75a0      | 12258035126 | 5d8d9a2e5808dc629608c30586ee906f6b724efd0ab032f4a961f09ae1901e90 |
+
+Only nine exact typed paths are added to the existing optional-path mechanism:
+one Claude child-journey array, one Copilot usage string, six DeepSeek tool-schema
+paths, and one Hermes state number.
+No wildcard, unknown-count budget, diagnostic
+allowance or required-field set is changed.
+Provider research files document the
+meaning and why existing raw/system/usage representations suffice.
+
+The four focused drift cases failed against the old baselines and passed after
+these additions.
+Negative cases retain wrong-type, wrong-kind, required-loss and
+future-field rejection.
+Metadata regressions check Claude does not invent a child,
+Copilot retains the complete usage object, DeepSeek retains declarations without
+inventing execution, and Hermes preserves the revision through SQLite read,
+snapshot, records and events without turning it into updatedAt.
+
+Local replay of the downloaded native stores passed discovery and all four read
+surfaces: Claude five sessions/86 records plus foreground-child associations,
+Copilot one/15, DeepSeek one/27 and Hermes one/five.
+The updated exact baselines
+also passed.
+This is replay of genuine CI captures, not a newly launched producer
+journey or a claim that background/nested subagents and other existing gaps are certified.
+
+The same run's pinned captures were also downloaded, hash-verified and replayed
+through the same native oracles and read surfaces.
+All four passed: Claude five
+sessions/72 records, Copilot one/15, DeepSeek one/27 and Hermes one/five.
+The pinned ZIPs are artifacts 12257695338, 12256771288, 12257161011 and 12257735437;
+their SHA-256 values are respectively
+`3fe4abdd361785f754830f1069407284ca3786521f3884ae22b1a8f26be9cb46`,
+`2571834a904b99cf656949ea5157cab2b767f7d79d601b771c3fbb825d145b64`,
+`06a9dc3623918226ec04995e63e00bbcbe25c5511b46eb66fdf89b35231cd89c`, and
+`7d8a4b9beea20fb0093e6c41fdcde496986a19dd6689e12968f51d1ca7605282`.
+This verifies the reviewed additions did not displace the old writer requirements.
