@@ -836,8 +836,8 @@ await test('Claude 2.1.301 parent and child request telemetry stays bounded and 
     const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${name}.json`, 'utf8')) as DriftSummary
     const current = { ...baseline, unknown: { ...baseline.unknown, ...counts }, groupedFieldPaths: [...baseline.groupedFieldPaths!, ...paths] }
     assertNoProducerDrift(current, baseline)
-    for (const [kind, count] of Object.entries(counts))
-      assert.throws(() => assertNoProducerDrift({ ...current, unknown: { ...current.unknown, [kind]: count + 1 } }, baseline), /unknown native/)
+    for (const kind of Object.keys(counts))
+      assert.throws(() => assertNoProducerDrift({ ...current, unknown: { ...current.unknown, [kind]: baseline.unknown[kind]! + 1 } }, baseline), /unknown native/)
     for (const path of paths)
       assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, `${path}:wrong`] }, baseline), NativeDriftError)
     assert.throws(() => assertNoProducerDrift({ ...current, groupedFieldPaths: [...current.groupedFieldPaths, '"api-request":$.future:string'] }, baseline), NativeDriftError)
@@ -957,4 +957,71 @@ await test('Hermes transcript revision remains native state across every read su
   for await (const event of handle.events()) events.push(event)
   assert.deepEqual(records, read.records)
   assert.deepEqual(events, read.events)
+})
+
+await test('October 21 native additions remain exact and bounded', async (t) => {
+  const cases = [
+    { provider: 'claude', groups: { '"api-request":': ['$.base:string'], '"api-request-blob":': ['$:object', '$.type:string', '$.sessionId:string', '$.hash:string', '$.message:object', '$.message.role:string', '$.message.content:array', '$.message.content[]:object', '$.message.content[].type:string', '$.message.content[].text:string'] }, counts: { 'api-request-blob': 1, 'api-request': 3 } },
+    { provider: 'copilot', groups: { '["session.usage_record",null,null,null,null,null,null,null]:': ['$.data.usage.customToolCallCount:number', '$.data.usage.orphanToolCallCount:number', '$.data.usage.unmatchedToolResultCount:number'] }, counts: {} },
+    { provider: 'kimi', groups: { '["changeNotifier.snapshot",null]:': ['$:object', '$.type:string', '$.agentId:string', '$.time:number', '$.agentsMdHash:null', '$.agentsMdFiles:object', '$.skillsHash:string', '$.subagentNames:array', '$.subagentNames[]:string', '$.modelPool:null'] }, counts: { 'changeNotifier.snapshot': 1 } },
+  ]
+  for (const { provider, groups, counts } of cases) {
+    await t.test(provider, async () => {
+      const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider}.json`, 'utf8')) as DriftSummary
+      const paths = Object.values(groups).flat()
+      const grouped = Object.entries(groups).flatMap(([prefix, paths]) => paths.map(path => prefix + path))
+      const observed = { ...baseline, unknown: { ...baseline.unknown, ...counts }, fieldPaths: [...baseline.fieldPaths, ...paths], groupedFieldPaths: [...baseline.groupedFieldPaths!, ...grouped] }
+      assertNoProducerDrift(observed, baseline)
+      assertNoProducerDrift({ ...baseline, unknown: Object.fromEntries(Object.entries(baseline.unknown).filter(([kind]) => !(kind in counts))) }, baseline)
+      for (const path of grouped) {
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, path.replace(/:[^:]+$/, ':boolean')] }, baseline), NativeDriftError)
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `"other":${path.slice(path.indexOf(':') + 1)}`] }, baseline), NativeDriftError)
+      }
+      for (const [kind, count] of Object.entries(counts))
+        assert.throws(() => assertNoProducerDrift({ ...observed, unknown: { ...observed.unknown, [kind]: count + 1 } }, baseline), /unknown native/)
+      const required = baseline.groupedFieldPaths!.find(path => !baseline.optionalGroupedFieldPaths?.includes(path))!
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: observed.groupedFieldPaths.filter(path => path !== required) }, baseline), NativeDriftError)
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `${Object.keys(groups)[0]}$.future:string`] }, baseline), NativeDriftError)
+    })
+  }
+})
+
+await test('October 21 telemetry preserves raw evidence without inventing conversation or child events', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-oct21-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const usage = { inputTokens: 1, outputTokens: 12, customToolCallCount: 2, orphanToolCallCount: 3, unmatchedToolResultCount: 4 }
+  const cases = [
+    { provider: 'claude', row: { type: 'api-request-blob', sessionId: 'synthetic', hash: 'opaque-hash', message: { role: 'user', content: [{ type: 'text', text: 'request copy, not a new message' }] } } },
+    { provider: 'kimi', row: { type: 'changeNotifier.snapshot', agentId: 'main', time: 1234, agentsMdHash: null, agentsMdFiles: {}, skillsHash: 'opaque-hash', subagentNames: ['plan', 'coder'], modelPool: null } },
+    { provider: 'copilot', row: { type: 'session.usage_record', data: { usage } } },
+  ]
+  for (const { provider, row } of cases) {
+    const path = join(root, `${provider}.jsonl`)
+    const text = `${JSON.stringify(row)}\n`
+    await writeFile(path, text)
+    const parsed = await sessions.parse(provider, { jsonl: text })
+    const ref = { id: parsed.id, provider, metadata: parsed.metadata, source: { path, format: 'jsonl' as const } }
+    const handle = await sessions.open(ref)
+    const read = await sessions.read(ref)
+    const records = []
+    for await (const record of handle.records()) records.push(record)
+    const events = []
+    for await (const event of handle.events()) events.push(event)
+    for (const session of [parsed, read, await handle.snapshot(), { ...read, records }, { ...read, events }]) {
+      assert.deepEqual(session.records.map(record => record.native), [row])
+      assert.equal(session.events.length, 1)
+      const event = session.events[0]!
+      assert.equal(event.record, 0)
+      if (provider === 'copilot') {
+        assert(event.type === 'usage')
+        assert.deepEqual(event.data.usage, usage)
+      }
+      else {
+        assert(event.type === 'unknown')
+        assert.deepEqual(event.data.payload, row)
+        assert.equal(session.diagnostics.length, 1)
+        assert.equal(session.diagnostics[0]!.code, 'PartialParse')
+      }
+    }
+  }
 })

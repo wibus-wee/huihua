@@ -130,3 +130,21 @@ old-writer acceptance and reject wrong types, wrong record kinds, unknown growth
 and missing required fields.
 See the capture hashes and replay scope in
 [producer compatibility](../../../docs/producer-compatibility.md#october-20-metadata-review).
+
+## October 21 native metadata review
+
+### Official writer observations and decision
+
+The official 1.0.101 capture in [daily run 39583348520](https://github.com/wibus-wee/huihua/actions/runs/39583348520) adds three numeric fields to `session.usage_record.data.usage`: `customToolCallCount`, `orphanToolCallCount` and `unmatchedToolResultCount`.
+Both captured usage records report zero for all three; tests use distinct nonzero values to verify preservation rather than accidental defaulting.
+
+Keep the complete usage object under the existing usage event.
+These counters do not establish tool names, arguments or individual tool executions.
+Only these three numeric paths on this record kind become optional in the compatibility baseline; no unknown budget or production mapping changes.
+
+### Evidence limits
+
+No third-party interpretation is used.
+These are observed synthetic official-writer captures, not a release-wide storage contract.
+Pinned and latest captures pass local replay; existing journey coverage gaps remain.
+See [capture evidence](../../../docs/producer-compatibility.md#october-21-telemetry-review).

@@ -226,3 +226,24 @@ old-writer acceptance and reject wrong types, wrong record kinds, unknown growth
 and missing required fields.
 See the capture hashes and replay scope in
 [producer compatibility](../../../docs/producer-compatibility.md#october-20-metadata-review).
+
+## October 21 native metadata review
+
+### Official writer observations and decision
+
+The official 2.1.306 capture in [daily run 39583348520](https://github.com/wibus-wee/huihua/actions/runs/39583348520) adds request `base:string` and one `api-request-blob` to the ordinary journey.
+The blob contains the already recorded first user prompt, not another conversation message.
+Three ordinary `api-request` records are now present instead of two.
+The foreground-child capture still fits its existing five-request/five-blob bounds.
+
+Keep request telemetry as complete unknown evidence with its PartialParse diagnostic.
+Review exactly eleven grouped typed paths (two newly observed global paths), allow one ordinary blob and three ordinary requests, and retain every other bound.
+Do not promote embedded messages to duplicate user/tool events.
+Wrong types, wrong kinds, future fields and growth above these exact counts still fail.
+
+### Evidence limits
+
+No third-party interpretation is used.
+These are observed synthetic official-writer captures, not a release-wide storage contract.
+Pinned and latest captures pass local replay; existing journey coverage gaps remain.
+See [capture evidence](../../../docs/producer-compatibility.md#october-21-telemetry-review).

@@ -698,3 +698,50 @@ their SHA-256 values are respectively
 `06a9dc3623918226ec04995e63e00bbcbe25c5511b46eb66fdf89b35231cd89c`, and
 `7d8a4b9beea20fb0093e6c41fdcde496986a19dd6689e12968f51d1ca7605282`.
 This verifies the reviewed additions did not displace the old writer requirements.
+
+## October 21 telemetry review
+
+[Daily run 39583348520](https://github.com/wibus-wee/huihua/actions/runs/39583348520)
+on `4548c788` reached native-baseline review for Claude 2.1.306, Copilot 1.0.101
+and Kimi 2.3.0 after the read surfaces passed.
+The changes are additive metadata,
+not confirmed conversation loss.
+Three focused drift reproductions fail against
+the previous baselines and pass with the exact reviewed field/type additions.
+
+The downloaded ZIP SHA-256 values were verified before inspection:
+
+| Capture        | Artifact    | SHA-256                                                          |
+| -------------- | ----------- | ---------------------------------------------------------------- |
+| Claude latest  | 12338281961 | d11183949c3a2c04697032499dd7438fdfcc3cc93c22469471a070af61a38c7f |
+| Claude pinned  | 12338521002 | 1e6f4f3fb87dd8b1b2daa7943a8c06120889fb7e54b2f9fe615280cb3434a7c7 |
+| Copilot latest | 12338346800 | 65f1b1f5d6268a8a68e9658f2007484e4b413cc42acdd01840f90aa35b9aeecd |
+| Copilot pinned | 12338276944 | 4da2dc7f7ea35b2b5f8028f9036469c475e18e5e4a7f5af1c3027c93f598a4f8 |
+| Kimi latest    | 12337847231 | de3d11bea2a80e82bb88db17a15fed0bde64e33d548fab99d614240a2ed39398 |
+| Kimi pinned    | 12338087159 | d9533aa8f1e6e440074853b59595280c7769dda58ce4d7b303b900b6a19cef51 |
+
+Local native replay passed discovery, read, snapshot, records, events and exact
+baselines for all six captures: Claude latest five sessions/88 records and pinned
+five/72; Copilot one/15 per lane; Kimi one/41 per lane.
+Claude foreground-child
+associations and Kimi native reply/fact checks also passed.
+This replays captured
+real writer output; it is not a fresh producer run or broader journey certification.
+
+The review adds 24 exact grouped optional paths and 11 global optional paths.
+Claude ordinary request telemetry now permits three requests and one blob; Kimi
+permits one change-notifier snapshot.
+Other unknown bounds, required fields and
+structured-content checks remain unchanged.
+New regression cases reject wrong
+types/kinds, future fields, required-field loss and growth above the reviewed bounds.
+Read-surface tests retain complete payloads and diagnostics without turning request
+copies into messages, configuration names into spawned children, or usage counters
+into tool executions.
+Production parsers, public APIs and dependencies are unchanged.
+
+The complete local `pnpm check` passed on 2026-10-21: 488 tests, zero failures or
+skips, lint, strict types, Knip, dependency/layer policy and the installed ESM
+package check (66 files).
+No production parser, dependency, package version or
+workflow change is needed for this compatibility-only review.
