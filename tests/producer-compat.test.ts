@@ -17,7 +17,7 @@ import { grokTitleRequests } from '../tools/producer-compat/live.ts'
 import { inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import type { DriftSummary } from '../tools/producer-compat/runtime.ts'
-import { assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
+import { assertNativeBaseline, assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
 
 await test('test launcher disables automatic model replies and checks unconsumed exchanges', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'huihua-simulator-launch-'))
@@ -1024,4 +1024,49 @@ await test('October 21 telemetry preserves raw evidence without inventing conver
       }
     }
   }
+})
+
+await test('October 22 exact metadata additions preserve drift detection', async (t) => {
+  const cases = [
+    { provider: 'acp', prefix: '["state",null,null,null,null,null,null,null]:', paths: ['$.result._meta.generatedUi:object', '$.result._meta.generatedUi.enabled:boolean', '$.result._meta.generatedUi.reason:string', '$.result._meta.generatedUi.version:number'] },
+    { provider: 'claude', prefix: '"user":', paths: ['$.permissionDecision.ruleSource:string'] },
+    { provider: 'claude-subagents', prefix: '"user":', paths: ['$.permissionDecision.ruleSource:string'] },
+    { provider: 'qwen', prefix: '["system",null,null,null,null,null,null,null]:', paths: ['$.systemPayload.uiEvent.generation_ms:number'] },
+  ]
+  for (const { provider, prefix, paths } of cases) {
+    await t.test(provider, async () => {
+      const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider}.json`, 'utf8')) as DriftSummary
+      const observed = { ...baseline, fieldPaths: [...baseline.fieldPaths, ...paths], groupedFieldPaths: [...baseline.groupedFieldPaths!, ...paths.map(path => prefix + path)] }
+      assertNoProducerDrift(observed, baseline)
+      for (const path of paths) {
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, prefix + path.replace(/:[^:]+$/, ':null')] }, baseline), NativeDriftError)
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `"unreviewed":${path}`] }, baseline), NativeDriftError)
+      }
+      assert.throws(() => assertNoProducerDrift({ ...observed, fieldPaths: [...observed.fieldPaths, '$.unreviewed:string'] }, baseline), NativeDriftError)
+      const required = baseline.groupedFieldPaths!.find(path => !baseline.optionalGroupedFieldPaths?.includes(path))!
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: observed.groupedFieldPaths.filter(path => path !== required) }, baseline), NativeDriftError)
+    })
+  }
+})
+
+await test('Kimi optional snapshot accounts for exactly its own PartialParse diagnostic', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-kimi-diagnostic-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/kimi.json', 'utf8')) as DriftSummary & { diagnosticCodes: string[] }
+  for (const count of [0, 1]) {
+    const summary = { ...baseline, unknown: { ...baseline.unknown, 'changeNotifier.snapshot': count }, diagnosticCodes: [...baseline.diagnosticCodes, ...Array.from<string>({ length: count }).fill('PartialParse')] }
+    await assertNativeBaseline('kimi', summary, root, { stage: 'baseline', completed: [] })
+    await assert.rejects(assertNativeBaseline('kimi', { ...summary, diagnosticCodes: [...summary.diagnosticCodes, 'PartialParse'] }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+    await assert.rejects(assertNativeBaseline('kimi', { ...summary, diagnosticCodes: summary.diagnosticCodes.slice(1) }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+    await assert.rejects(assertNativeBaseline('kimi', { ...summary, diagnosticCodes: [...summary.diagnosticCodes.slice(1), 'InvalidData'] }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+  }
+  await assert.rejects(assertNativeBaseline('kimi', { ...baseline, unknown: { ...baseline.unknown, 'changeNotifier.snapshot': 2 } }, root, { stage: 'baseline', completed: [] }), /unknown native record growth/)
+})
+
+await test('Grok 1.0.67 uses the reviewed exact title fallback pair', () => {
+  const plan = grokTitleRequests('1.0.67', 'FIRST')
+  assert.equal(plan.length, 2)
+  assert.equal(plan[1]!.toolChoice, 'auto')
+  assert.equal(plan[1]!.sameBodyAsPrevious, true)
+  assert.equal(grokTitleRequests('1.0.68', 'FIRST').length, 1)
 })

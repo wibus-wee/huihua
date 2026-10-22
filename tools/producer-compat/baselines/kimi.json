@@ -13,7 +13,8 @@
     "workflowRun": 37897567520,
     "artifact": "synthetic-kimi-compatibility-pinned",
     "inventorySha256": "dfef083d9fcd3ce969309f831e72010477b54e30888fa45dea53912f94416ea9",
-    "optionalMetadataReview": "lastTurnReason:string was present in the independent pinned local capture and absent in the CI capture; other types remain drift."
+    "optionalMetadataReview": "lastTurnReason:string was present in the independent pinned local capture and absent in the CI capture; other types remain drift.",
+    "october22DiagnosticReview": "Run 39761943610: optional changeNotifier.snapshot contributes exactly one PartialParse per observed record; the pinned diagnostic baseline excludes it. Native unknown count remains bounded to one; assertKimiFacts checks the one-to-one unknown/diagnostic relationship."
   },
   "unknown": {
     "runtime.set_binding": 1,
@@ -1107,5 +1108,8 @@
     "[\"changeNotifier.snapshot\",null]:$.type:string",
     "[\"changeNotifier.snapshot\",null]:$:object",
     "[\"state\",null]:$.lastTurnReason:string"
-  ]
+  ],
+  "optionalDiagnosticRecords": {
+    "changeNotifier.snapshot": "PartialParse"
+  }
 }

@@ -12,7 +12,8 @@
     "huihuaCommit": "44334b412340fc1bb94f18e48ab76002b93388ef",
     "workflowRun": 37897567520,
     "artifact": "synthetic-acp-compatibility-pinned",
-    "inventorySha256": "0114d7e007f57b8fdaf0ff7a0222e806418e41dea8a142d3381d544fbb76a46a"
+    "inventorySha256": "0114d7e007f57b8fdaf0ff7a0222e806418e41dea8a142d3381d544fbb76a46a",
+    "october22Review": "Run 39761943610: exact additive metadata reviewed against native artifacts; no canonical mapping changes. Other types, record kinds and required fields remain strict."
   },
   "unknown": {},
   "structured": 0,
@@ -329,7 +330,11 @@
     "$.params.update._meta.executionLifecycle.sessionId:string",
     "$.params.update._meta.executionLifecycle.startedAt:number",
     "$.params.update._meta.executionLifecycle.v:number",
-    "$.params.update._meta.executionLifecycle:object"
+    "$.params.update._meta.executionLifecycle:object",
+    "$.result._meta.generatedUi.enabled:boolean",
+    "$.result._meta.generatedUi.reason:string",
+    "$.result._meta.generatedUi.version:number",
+    "$.result._meta.generatedUi:object"
   ],
   "optionalGroupedFieldPaths": [
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.durationMs:number",
@@ -343,6 +348,10 @@
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.sessionId:string",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.startedAt:number",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.v:number",
-    "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle:object"
+    "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle:object",
+    "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi.enabled:boolean",
+    "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi.reason:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi.version:number",
+    "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi:object"
   ]
 }

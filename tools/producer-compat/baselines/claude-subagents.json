@@ -555,6 +555,7 @@
     "$.params:object",
     "$.permissionDecision.decision:string",
     "$.permissionDecision.reasonType:string",
+    "$.permissionDecision.ruleSource:string",
     "$.permissionDecision.source:string",
     "$.permissionDecision:object",
     "$.permissionMode:string",
@@ -827,6 +828,7 @@
     "\"user\":$.parentUuid:string",
     "\"user\":$.permissionDecision.decision:string",
     "\"user\":$.permissionDecision.reasonType:string",
+    "\"user\":$.permissionDecision.ruleSource:string",
     "\"user\":$.permissionDecision.source:string",
     "\"user\":$.permissionDecision:object",
     "\"user\":$.permissionMode:string",
@@ -872,5 +874,8 @@
     "\"user\":$.turnPosition.turnIndex:number",
     "\"user\":$.turnPosition:object",
     "null:$.finished:boolean"
-  ]
+  ],
+  "evidence": {
+    "october22Review": "Run 39761943610: permissionDecision.ruleSource is preserved on native user records in ordinary and foreground-child journeys."
+  }
 }

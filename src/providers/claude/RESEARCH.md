@@ -247,3 +247,19 @@ No third-party interpretation is used.
 These are observed synthetic official-writer captures, not a release-wide storage contract.
 Pinned and latest captures pass local replay; existing journey coverage gaps remain.
 See [capture evidence](../../../docs/producer-compatibility.md#october-21-telemetry-review).
+
+## October 22 compatibility review
+
+### Official writer observations and decision
+
+[Daily run 39761943610](https://github.com/wibus-wee/huihua/actions/runs/39761943610) supplies the real writer captures.
+Claude Code 2.1.308 adds permissionDecision.ruleSource:string to user records in both ordinary and foreground-child journeys.
+This names native permission-decision provenance; it does not grant Huihua permission or create a new conversation event.
+Preserve the complete native record and review only this exact typed path in both baselines.
+
+### Evidence limits
+
+No third-party behavior claim is used.
+These are synthetic official-writer captures, not a universal format specification.
+Production mapping and public APIs are unchanged.
+See the [capture review](../../../docs/producer-compatibility.md#october-22-compatibility-review) for replay scope and remaining limits.

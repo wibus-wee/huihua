@@ -13,7 +13,7 @@ export function grokTitleRequests(version: string | undefined, prompt: string): 
   const title = { path: '/v1/responses', marker: prompt, bodyIncludes: 'generating the session title' }
   return [
     { ...title, toolChoice: { type: 'function', name: 'session_title' } },
-    ...(version === '1.0.62' ? [{ ...title, toolChoice: 'auto', sameBodyAsPrevious: true }] : []),
+    ...(['1.0.62', '1.0.67'].includes(version ?? '') ? [{ ...title, toolChoice: 'auto', sameBodyAsPrevious: true }] : []),
   ]
 }
 

@@ -12,7 +12,8 @@
     "huihuaCommit": "44334b412340fc1bb94f18e48ab76002b93388ef",
     "workflowRun": 37897567520,
     "artifact": "synthetic-qwen-compatibility-pinned",
-    "inventorySha256": "00e5ed62033032ae03c7224ae562fc9b86993a5ef3e1ba3027f4920ea8822a71"
+    "inventorySha256": "00e5ed62033032ae03c7224ae562fc9b86993a5ef3e1ba3027f4920ea8822a71",
+    "october22Review": "Run 39761943610: exact additive metadata reviewed against native artifacts; no canonical mapping changes. Other types, record kinds and required fields remain strict."
   },
   "unknown": {},
   "structured": 0,
@@ -181,6 +182,7 @@
     "$.systemPayload.uiEvent.endedAt:number",
     "$.systemPayload.uiEvent.executionId:string",
     "$.systemPayload.uiEvent.execution_id:string",
+    "$.systemPayload.uiEvent.generation_ms:number",
     "$.systemPayload.uiEvent.kind:string",
     "$.systemPayload.uiEvent.outcome:string",
     "$.systemPayload.uiEvent.phase:string",
@@ -194,6 +196,7 @@
     "[\"system\",null,null,null,null,null,null,null]:$.systemPayload.uiEvent.endedAt:number",
     "[\"system\",null,null,null,null,null,null,null]:$.systemPayload.uiEvent.executionId:string",
     "[\"system\",null,null,null,null,null,null,null]:$.systemPayload.uiEvent.execution_id:string",
+    "[\"system\",null,null,null,null,null,null,null]:$.systemPayload.uiEvent.generation_ms:number",
     "[\"system\",null,null,null,null,null,null,null]:$.systemPayload.uiEvent.kind:string",
     "[\"system\",null,null,null,null,null,null,null]:$.systemPayload.uiEvent.outcome:string",
     "[\"system\",null,null,null,null,null,null,null]:$.systemPayload.uiEvent.phase:string",

@@ -720,8 +720,12 @@ The downloaded ZIP SHA-256 values were verified before inspection:
 | Kimi latest    | 12337847231 | de3d11bea2a80e82bb88db17a15fed0bde64e33d548fab99d614240a2ed39398 |
 | Kimi pinned    | 12338087159 | d9533aa8f1e6e440074853b59595280c7769dda58ce4d7b303b900b6a19cef51 |
 
-Local native replay passed discovery, read, snapshot, records, events and exact
-baselines for all six captures: Claude latest five sessions/88 records and pinned
+The October 21 report stated that local native replay passed discovery, read,
+snapshot, records, events and exact baselines for all six captures.
+The October 22
+run disproved the complete-baseline claim for Kimi latest: its additional diagnostic
+was not accounted for (see correction below).
+Reported read-surface counts were: Claude latest five sessions/88 records and pinned
 five/72; Copilot one/15 per lane; Kimi one/41 per lane.
 Claude foreground-child
 associations and Kimi native reply/fact checks also passed.
@@ -745,3 +749,65 @@ skips, lint, strict types, Knip, dependency/layer policy and the installed ESM
 package check (66 files).
 No production parser, dependency, package version or
 workflow change is needed for this compatibility-only review.
+
+## October 22 compatibility review
+
+[Daily run 39761943610](https://github.com/wibus-wee/huihua/actions/runs/39761943610)
+on c47ae8fa produced 27/32 passing lanes, with all pinned lanes passing.
+Issues #61, #62 and #65 report additive typed metadata in ACP, Claude and Qwen;
+Issue #64 exposes the Kimi diagnostic-count omission from the previous review;
+Issue #63 is a Grok request-plan mismatch before native reading, not confirmed parser loss.
+
+Exact optional fields are reviewed in both global and record-kind-specific paths.
+Claude's addition occurs in ordinary and foreground-child baselines.
+No production parser, public API, dependency, workflow or package version changes.
+The focused reproductions failed before the changes and passed afterward.
+Negative cases retain wrong-type/kind, future-field, required-loss and extra/missing
+diagnostic rejection.
+The Grok fallback is restricted to observed versions 1.0.62
+and 1.0.67 and preserves same-body-except-tool-choice assertions.
+
+### Kimi correction
+
+The earlier latest replay claim was too broad: allowing changeNotifier.snapshot
+fields and its unknown count does not also allow its diagnostic.
+The pinned base
+contains 14 PartialParse entries; a capture with the optional snapshot contains 15.
+optionalDiagnosticRecords declares only the reviewed record-to-code contribution;
+assertNoProducerDrift still bounds unknown counts before diagnostic expansion.
+The independent Kimi oracle verifies one diagnostic per unknown record.
+No generic diagnostic range or ignored diagnostic is introduced.
+
+### Native replay and evidence
+
+All ten downloaded pinned/latest captures pass local discovery and the read,
+snapshot, records and events surfaces, using the independent native oracles.
+Exact baselines pass, including the actual assertNativeBaseline diagnostic check
+for Kimi and the foreground-child baseline and identity checks for Claude.
+ACP latest/pinned contain 12/10 records; Qwen 12/8; Grok 8/8;
+Claude five sessions with 88/72 records; Kimi one session with 41 records per lane.
+Grok's captured request ledger passes the corrected complete request plan.
+This is offline replay of real captured writer output, not a new live producer run;
+it cannot certify simulator queue exhaustion for the changed Grok live plan.
+
+ZIP digests were checked against GitHub artifact metadata before reporting replay:
+
+| Capture       | Artifact    | SHA-256                                                          |
+| ------------- | ----------- | ---------------------------------------------------------------- |
+| qwen-pinned   | 12419215074 | 1401bdb6803ce89be15dfe15155a6bade913081bf9ca1dc99de31f09c9392f1d |
+| acp           | 12419105439 | 733128374f63626dd5243dc8fa5900ef2544c56db9b1a4ec3e455defdee9428d |
+| kimi-pinned   | 12418841126 | 430ad9aec49cd229ce31f6b739494fb0f4dbf6d4bcb97d38830b038bf1ab8865 |
+| kimi          | 12418751386 | dc8d8001d95117f06030a29c93c165a824d8a3b8b0c10d2565b70f79d45114c7 |
+| grok-pinned   | 12418661400 | 44c2365f514528475d67e3dd49b677b80973634a01c6e6ef92f0f03d559530f4 |
+| claude        | 12418486767 | a0f3058b4048b2ce7c1782fe2b601a8e1c2d62575febd863201d3b63c27d23e6 |
+| claude-pinned | 12418446357 | 0725875b650a538c63eeb2be8c84cdd698c652a897e80274961754f4c9d616c0 |
+| acp-pinned    | 12418107994 | d01c13871926334eeeac30cb2fb658eb7628be675496d93bd8e0dad02fd348ab |
+| qwen          | 12417914513 | 8af71675d76dde11cd21aeab762a0e24989b3f35d88c6174a70a886affec251c |
+| grok          | 12417724100 | e37c213bc60cabd55e0fffecdbaa972f9e8fe43947491ea9921df14b895874f0 |
+
+A fresh local Grok 1.0.67 live journey also passed on October 22 with simulator
+commit 4357945b88d16a1a3155c39305ce135dc66b9510, not just captured-ledger replay.
+The official x.ai executable SHA-256 matched the CI install manifest:
+ce33b1a29e37901f56fe59916cda7a1149e6fd377118f918e90d89f9abb52a51.
+The first/resume model request plan, simulator queue exhaustion, scan, all four
+read surfaces and exact native baseline passed for one session/eight records.

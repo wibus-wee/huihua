@@ -150,6 +150,7 @@
     "$.params:object",
     "$.permissionDecision.decision:string",
     "$.permissionDecision.reasonType:string",
+    "$.permissionDecision.ruleSource:string",
     "$.permissionDecision.source:string",
     "$.permissionDecision:object",
     "$.querySource:string",
@@ -439,7 +440,11 @@
     "\"attachment\":$.attachment.context.gitStatus:string",
     "\"user\":$.permissionDecision.decision:string",
     "\"user\":$.permissionDecision.reasonType:string",
+    "\"user\":$.permissionDecision.ruleSource:string",
     "\"user\":$.permissionDecision.source:string",
     "\"user\":$.permissionDecision:object"
-  ]
+  ],
+  "evidence": {
+    "october22Review": "Run 39761943610: exact additive metadata reviewed against native artifacts; no canonical mapping changes. Other types, record kinds and required fields remain strict."
+  }
 }

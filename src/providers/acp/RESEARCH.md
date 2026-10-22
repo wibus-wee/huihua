@@ -16,3 +16,20 @@ No JSON-RPC client, agent execution, response matching, protocol migration or re
 Fixtures exercise both stable schemas and preservation of partial/unknown data, not live product behavior.
 
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns source and schema boundaries.
+
+## October 22 compatibility review
+
+### Official writer observations and decision
+
+[Daily run 39761943610](https://github.com/wibus-wee/huihua/actions/runs/39761943610) supplies the real writer captures.
+Qwen ACP 0.26.0 initialization metadata adds result._meta.generatedUi with enabled:boolean, reason:string and version:number.
+These are capability/availability observations, not generated UI content or proof that UI rendering occurred.
+The recording reader preserves the entire native result.
+Review only these four typed paths on the state response group; other nesting, types and record kinds remain drift.
+
+### Evidence limits
+
+No third-party behavior claim is used.
+These are synthetic official-writer captures, not a universal format specification.
+Production mapping and public APIs are unchanged.
+See the [capture review](../../../docs/producer-compatibility.md#october-22-compatibility-review) for replay scope and remaining limits.

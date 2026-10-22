@@ -43,3 +43,19 @@ No active-chain folding, hook stripping or glued-JSON repair is applied.
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
+
+## October 22 compatibility review
+
+### Official writer observations and decision
+
+[Daily run 39761943610](https://github.com/wibus-wee/huihua/actions/runs/39761943610) supplies the real writer captures.
+Qwen Code 0.26.0 adds systemPayload.uiEvent.generation_ms:number.
+Preserve the raw telemetry under the existing system representation; do not turn this duration into an absolute timestamp or synthesize additional model usage.
+Only this exact typed system path is reviewed.
+
+### Evidence limits
+
+No third-party behavior claim is used.
+These are synthetic official-writer captures, not a universal format specification.
+Production mapping and public APIs are unchanged.
+See the [capture review](../../../docs/producer-compatibility.md#october-22-compatibility-review) for replay scope and remaining limits.
