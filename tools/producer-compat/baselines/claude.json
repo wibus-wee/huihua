@@ -8,8 +8,9 @@
     "last-prompt": 3,
     "cost-state": 2,
     "mode": 1,
-    "api-request": 2,
-    "api-request-shape": 1
+    "api-request": 3,
+    "api-request-shape": 1,
+    "api-request-blob": 1
   },
   "structured": 0,
   "fieldPaths": [
@@ -122,6 +123,7 @@
   ],
   "optionalFieldPaths": [
     "$.attachment.context.gitStatus:string",
+    "$.base:string",
     "$.cacheControl:array",
     "$.cacheControl[].path:array",
     "$.cacheControl[].path[]:number",
@@ -129,6 +131,7 @@
     "$.cacheControl[].value.type:string",
     "$.cacheControl[].value:object",
     "$.cacheControl[]:object",
+    "$.hash:string",
     "$.id:string",
     "$.keep:number",
     "$.params.betas:array",
@@ -346,6 +349,7 @@
     "\"user\":$:object"
   ],
   "optionalGroupedFieldPaths": [
+    "\"api-request\":$.base:string",
     "\"api-request\":$.cacheControl:array",
     "\"api-request\":$.cacheControl[].path:array",
     "\"api-request\":$.cacheControl[].path[]:number",
@@ -379,6 +383,16 @@
     "\"api-request\":$.type:string",
     "\"api-request\":$.version:string",
     "\"api-request\":$:object",
+    "\"api-request-blob\":$.hash:string",
+    "\"api-request-blob\":$.message.content:array",
+    "\"api-request-blob\":$.message.content[].text:string",
+    "\"api-request-blob\":$.message.content[].type:string",
+    "\"api-request-blob\":$.message.content[]:object",
+    "\"api-request-blob\":$.message.role:string",
+    "\"api-request-blob\":$.message:object",
+    "\"api-request-blob\":$.sessionId:string",
+    "\"api-request-blob\":$.type:string",
+    "\"api-request-blob\":$:object",
     "\"api-request-shape\":$.sessionId:string",
     "\"api-request-shape\":$.shape.system:array",
     "\"api-request-shape\":$.shape.system[].text:string",

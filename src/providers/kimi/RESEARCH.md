@@ -32,3 +32,23 @@ ZIP debug exports and Markdown are not decoded; extracted native directories are
 Synthetic fixtures are schema examples, not anonymized captures or a release-wide certification.
 
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns companion-file acquisition and limits.
+
+## October 21 native metadata review
+
+### Official writer observations and decision
+
+The official 2.3.0 capture in [daily run 39583348520](https://github.com/wibus-wee/huihua/actions/runs/39583348520) contains one `changeNotifier.snapshot`: `agentId: "main"`, empty `agentsMdFiles`, null `agentsMdHash` and `modelPool`, a string `skillsHash`, string `subagentNames` entries and numeric `time`.
+These are persisted configuration observations, not proof that any named subagent was spawned.
+
+Preserve the entire snapshot as unknown evidence and keep its PartialParse diagnostic.
+No new lifecycle or configuration primitive is introduced.
+Review ten exact grouped typed paths (six new global paths) and a maximum of one unknown snapshot for this text/resume journey.
+Populated objects, non-null values, new fields, wrong types, wrong kinds and extra snapshot records remain unreviewed drift.
+Existing Kimi time and canonical mappings are unchanged.
+
+### Evidence limits
+
+No third-party interpretation is used.
+These are observed synthetic official-writer captures, not a release-wide storage contract.
+Pinned and latest captures pass local replay; existing journey coverage gaps remain.
+See [capture evidence](../../../docs/producer-compatibility.md#october-21-telemetry-review).

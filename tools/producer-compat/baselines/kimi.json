@@ -23,7 +23,8 @@
     "agent.turn.ended": 2,
     "turn.ended": 2,
     "token_counting.turn_recorded": 2,
-    "prompt.completed": 2
+    "prompt.completed": 2,
+    "changeNotifier.snapshot": 1
   },
   "structured": 0,
   "fieldPaths": [
@@ -1086,9 +1087,25 @@
     "PartialParse"
   ],
   "optionalFieldPaths": [
-    "$.lastTurnReason:string"
+    "$.agentsMdFiles:object",
+    "$.agentsMdHash:null",
+    "$.lastTurnReason:string",
+    "$.modelPool:null",
+    "$.skillsHash:string",
+    "$.subagentNames:array",
+    "$.subagentNames[]:string"
   ],
   "optionalGroupedFieldPaths": [
+    "[\"changeNotifier.snapshot\",null]:$.agentId:string",
+    "[\"changeNotifier.snapshot\",null]:$.agentsMdFiles:object",
+    "[\"changeNotifier.snapshot\",null]:$.agentsMdHash:null",
+    "[\"changeNotifier.snapshot\",null]:$.modelPool:null",
+    "[\"changeNotifier.snapshot\",null]:$.skillsHash:string",
+    "[\"changeNotifier.snapshot\",null]:$.subagentNames:array",
+    "[\"changeNotifier.snapshot\",null]:$.subagentNames[]:string",
+    "[\"changeNotifier.snapshot\",null]:$.time:number",
+    "[\"changeNotifier.snapshot\",null]:$.type:string",
+    "[\"changeNotifier.snapshot\",null]:$:object",
     "[\"state\",null]:$.lastTurnReason:string"
   ]
 }
