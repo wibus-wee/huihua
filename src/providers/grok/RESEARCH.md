@@ -26,3 +26,39 @@ This is a local update-log reader, not the cloud session-export/import API or a 
 Native files can be rewritten by rewind; each replay reflects the current saved source without applying those operations itself.
 
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns time conversion and evidence boundaries.
+
+## October 22 compatibility review
+
+### Official writer observations and decision
+
+[Daily run 39761943610](https://github.com/wibus-wee/huihua/actions/runs/39761943610) supplies the real writer captures.
+Grok 1.0.67 retries its initial Responses title request with tool_choice:auto after a forced session_title call.
+The two captured bodies differ only in tool_choice, matching the previously reviewed 1.0.62 fallback.
+The scenario now queues and expects this exact pair for 1.0.67 as well; no version range, optional arbitrary request or relaxed body check is introduced.
+Captured ledger validation and native-store replay pass.
+This does not prove a newly launched producer consumed every queued exchange; a fresh live run remains separate evidence.
+
+### Evidence limits
+
+No third-party behavior claim is used.
+These are synthetic official-writer captures, not a universal format specification.
+Production mapping and public APIs are unchanged.
+See the [capture review](../../../docs/producer-compatibility.md#october-22-compatibility-review) for replay scope and remaining limits.
+
+A subsequent fresh local 1.0.67 run with the pinned simulator also passed the
+complete request plan, queue exhaustion, all native read surfaces and baseline.
+This closes the live-plan verification gap described above for this exact version
+and journey, not for unobserved versions or additional scenarios.
+
+## October 24 exact title retry
+
+Official Grok 1.0.70 capture in [run 40082602386](https://github.com/wibus-wee/huihua/actions/runs/40082602386)
+contains seven POST requests: a forced/auto title pair, first reply and dashboard summary,
+then resumed reply, dashboard summary and title refresh.
+The title bodies are equal except tool_choice.
+Extend the exact reviewed version list to 1.0.70;
+retain ordering, body equality, request-purpose assertions and queue exhaustion.
+No arbitrary retry allowance or version wildcard is accepted.
+Native capture replay passes eight records across all four surfaces and the baseline.
+Artifact 12555837460 SHA-256: 0560225c5a2d0bdea12073e8519504f1fefcd406c74681b073037b6f318ad453.
+No third-party interpretation is used; production mapping remains unchanged.

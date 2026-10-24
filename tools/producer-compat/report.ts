@@ -199,6 +199,8 @@ async function main(): Promise<void> {
     if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT'))
       throw error
   }
+  if (progress === undefined && process.env.COMPAT_INSTALL_OUTCOME === 'failure')
+    progress = { stage: 'producer-install', completed: [], error: 'Simulator or producer installation failed before capture; inspect installation logs.' }
   const evidenceOutcome = process.env.COMPAT_EVIDENCE_OUTCOME
   const displayProgress = evidenceOutcome !== undefined && evidenceOutcome !== 'success' ? { ...progress, completed: progress?.completed ?? [], stage: 'evidence-upload', error: `Synthetic evidence upload: ${evidenceOutcome}` } : progress
   const summary = renderCompatibilitySummary(displayProgress, process.env.COMPAT_OUTCOME ?? 'unknown', process.env.COMPAT_PROVIDER ?? 'claude', process.env.COMPAT_LANE === 'latest' ? 'latest' : 'pinned')

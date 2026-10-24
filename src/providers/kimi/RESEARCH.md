@@ -52,3 +52,22 @@ No third-party interpretation is used.
 These are observed synthetic official-writer captures, not a release-wide storage contract.
 Pinned and latest captures pass local replay; existing journey coverage gaps remain.
 See [capture evidence](../../../docs/producer-compatibility.md#october-21-telemetry-review).
+
+## October 22 compatibility review
+
+### Official writer observations and decision
+
+[Daily run 39761943610](https://github.com/wibus-wee/huihua/actions/runs/39761943610) supplies the real writer captures.
+The same Kimi 2.3.0 changeNotifier.snapshot reviewed on October 21 contributes one PartialParse diagnostic.
+The earlier baseline allowed its native fields and unknown record but left the fixed pinned diagnostic count at 14.
+A real latest capture has 15; this was a compatibility-check defect, not a production reader failure.
+The baseline now explicitly maps this optional record to one PartialParse per observed occurrence.
+Its existing maximum count of one and assertKimiFacts one-to-one unknown/diagnostic checks remain enforced.
+Extra, missing or different diagnostics still fail.
+
+### Evidence limits
+
+No third-party behavior claim is used.
+These are synthetic official-writer captures, not a universal format specification.
+Production mapping and public APIs are unchanged.
+See the [capture review](../../../docs/producer-compatibility.md#october-22-compatibility-review) for replay scope and remaining limits.

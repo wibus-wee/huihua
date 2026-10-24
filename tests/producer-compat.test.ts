@@ -17,7 +17,7 @@ import { grokTitleRequests } from '../tools/producer-compat/live.ts'
 import { inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import type { DriftSummary } from '../tools/producer-compat/runtime.ts'
-import { assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
+import { assertNativeBaseline, assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
 
 await test('test launcher disables automatic model replies and checks unconsumed exchanges', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'huihua-simulator-launch-'))
@@ -1024,4 +1024,115 @@ await test('October 21 telemetry preserves raw evidence without inventing conver
       }
     }
   }
+})
+
+await test('October 22 exact metadata additions preserve drift detection', async (t) => {
+  const cases = [
+    { provider: 'acp', prefix: '["state",null,null,null,null,null,null,null]:', paths: ['$.result._meta.generatedUi:object', '$.result._meta.generatedUi.enabled:boolean', '$.result._meta.generatedUi.reason:string', '$.result._meta.generatedUi.version:number'] },
+    { provider: 'claude', prefix: '"user":', paths: ['$.permissionDecision.ruleSource:string'] },
+    { provider: 'claude-subagents', prefix: '"user":', paths: ['$.permissionDecision.ruleSource:string'] },
+    { provider: 'qwen', prefix: '["system",null,null,null,null,null,null,null]:', paths: ['$.systemPayload.uiEvent.generation_ms:number'] },
+  ]
+  for (const { provider, prefix, paths } of cases) {
+    await t.test(provider, async () => {
+      const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider}.json`, 'utf8')) as DriftSummary
+      const observed = { ...baseline, fieldPaths: [...baseline.fieldPaths, ...paths], groupedFieldPaths: [...baseline.groupedFieldPaths!, ...paths.map(path => prefix + path)] }
+      assertNoProducerDrift(observed, baseline)
+      for (const path of paths) {
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, prefix + path.replace(/:[^:]+$/, ':null')] }, baseline), NativeDriftError)
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `"unreviewed":${path}`] }, baseline), NativeDriftError)
+      }
+      assert.throws(() => assertNoProducerDrift({ ...observed, fieldPaths: [...observed.fieldPaths, '$.unreviewed:string'] }, baseline), NativeDriftError)
+      const required = baseline.groupedFieldPaths!.find(path => !baseline.optionalGroupedFieldPaths?.includes(path))!
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: observed.groupedFieldPaths.filter(path => path !== required) }, baseline), NativeDriftError)
+    })
+  }
+})
+
+await test('Kimi optional snapshot accounts for exactly its own PartialParse diagnostic', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-kimi-diagnostic-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/kimi.json', 'utf8')) as DriftSummary & { diagnosticCodes: string[] }
+  for (const count of [0, 1]) {
+    const summary = { ...baseline, unknown: { ...baseline.unknown, 'changeNotifier.snapshot': count }, diagnosticCodes: [...baseline.diagnosticCodes, ...Array.from<string>({ length: count }).fill('PartialParse')] }
+    await assertNativeBaseline('kimi', summary, root, { stage: 'baseline', completed: [] })
+    await assert.rejects(assertNativeBaseline('kimi', { ...summary, diagnosticCodes: [...summary.diagnosticCodes, 'PartialParse'] }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+    await assert.rejects(assertNativeBaseline('kimi', { ...summary, diagnosticCodes: summary.diagnosticCodes.slice(1) }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+    await assert.rejects(assertNativeBaseline('kimi', { ...summary, diagnosticCodes: [...summary.diagnosticCodes.slice(1), 'InvalidData'] }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+  }
+  await assert.rejects(assertNativeBaseline('kimi', { ...baseline, unknown: { ...baseline.unknown, 'changeNotifier.snapshot': 2 } }, root, { stage: 'baseline', completed: [] }), /unknown native record growth/)
+})
+
+await test('Grok 1.0.67 uses the reviewed exact title fallback pair', () => {
+  const plan = grokTitleRequests('1.0.67', 'FIRST')
+  assert.equal(plan.length, 2)
+  assert.equal(plan[1]!.toolChoice, 'auto')
+  assert.equal(plan[1]!.sameBodyAsPrevious, true)
+  assert.equal(grokTitleRequests('1.0.68', 'FIRST').length, 1)
+})
+
+await test('Grok 1.0.70 retains the exact reviewed title fallback', () => {
+  assert.equal(grokTitleRequests('1.0.70', 'FIRST').length, 2)
+  assert.equal(grokTitleRequests('1.0.71', 'FIRST').length, 1)
+})
+
+await test('Codex 0.164.0 provenance is a complete reviewed shape, not optional hybrids', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/codex.json', 'utf8')) as DriftSummary & { reviewedPathVariants: DriftSummary[] }
+  const previous = baseline.reviewedPathVariants[1]!
+  const prefix = '$.payload.internal_chat_message_metadata_passthrough.content_item_metadata'
+  const added = [`${prefix}:array`, `${prefix}[]:object`, `${prefix}[].provenance:object`, `${prefix}[].provenance.type:string`, `${prefix}[].provenance.hook:boolean`]
+  const actual = { ...baseline, ...previous, fieldPaths: [...previous.fieldPaths, ...added].sort(), groupedFieldPaths: [...previous.groupedFieldPaths!, ...added.map(path => `"response_item":${path}`)].sort() }
+  assertCodexBaseline(actual, baseline)
+  for (const path of added) {
+    assert.throws(() => assertCodexBaseline({ ...actual, groupedFieldPaths: actual.groupedFieldPaths.filter(value => value !== `"response_item":${path}`) }, baseline), NativeDriftError)
+  }
+  assert.throws(() => assertCodexBaseline({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths, '"response_item":$.future:string'] }, baseline), NativeDriftError)
+})
+
+await test('failed producer installation preserves resolved version and explicit failed stage', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-install-failure-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  await writeFile(join(root, 'npm'), `#!${process.execPath}\nif (process.argv[2] === 'view') console.log('2026.10.6'); else process.exit(23);\n`, { mode: 0o755 })
+  const prefix = join(root, 'producer')
+  const report = join(root, 'report.json')
+  const envFile = join(root, 'env')
+  const env = { ...process.env, PATH: `${root}:${process.env.PATH ?? ''}`, COMPAT_PROVIDER: 'openclaw', COMPAT_LANE: 'latest', PRODUCER_PREFIX: prefix, COMPAT_REPORT: report, GITHUB_ENV: envFile }
+  assert.throws(() => execFileSync(process.execPath, ['tools/producer-compat/catalog.ts', 'install'], { env, stdio: 'pipe' }))
+  const progress = JSON.parse(await readFile(`${report}.progress.json`, 'utf8')) as { stage: string, completed: string[], error: string }
+  assert.equal(progress.stage, 'producer-install')
+  assert.deepEqual(progress.completed, [])
+  assert.match(progress.error, /2026\.10\.6/)
+  assert.match(await readFile(envFile, 'utf8'), /COMPAT_CLI_VERSION=2026\.10\.6/)
+  await assert.rejects(readFile(join(prefix, 'install-manifest.json')), /ENOENT/)
+  assert.equal(laneResult('openclaw', 'latest', '2026.10.6', 'test', 'skipped', progress).verdict, 'environment-blocked')
+})
+
+await test('Claude child isBuiltIn metadata preserves the exact boolean type', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/claude-subagents.json', 'utf8')) as DriftSummary
+  const actual = { ...baseline, fieldPaths: [...new Set([...baseline.fieldPaths, '$.isBuiltIn:boolean'])], groupedFieldPaths: [...new Set([...baseline.groupedFieldPaths!, 'null:$.isBuiltIn:boolean'])] }
+  assertNoProducerDrift(actual, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths.filter(path => path !== 'null:$.isBuiltIn:boolean'), 'null:$.isBuiltIn:string'] }, baseline), NativeDriftError)
+})
+
+await test('unresolved producer versions never inherit the pinned version as evidence', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-install-unresolved-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  await writeFile(join(root, 'npm'), `#!${process.execPath}\nprocess.exit(23);\n`, { mode: 0o755 })
+  const prefix = join(root, 'producer')
+  const envFile = join(root, 'env')
+  assert.throws(() => execFileSync(process.execPath, ['tools/producer-compat/catalog.ts', 'install'], { env: { ...process.env, PATH: `${root}:${process.env.PATH ?? ''}`, COMPAT_PROVIDER: 'openclaw', COMPAT_LANE: 'latest', PRODUCER_PREFIX: prefix, COMPAT_REPORT: join(root, 'report'), GITHUB_ENV: envFile }, stdio: 'pipe' }))
+  const attempt = JSON.parse(await readFile(join(prefix, 'install-attempt.json'), 'utf8')) as { resolvedVersion: string | null, status: string }
+  assert.equal(attempt.resolvedVersion, null)
+  assert.equal(attempt.status, 'failed')
+  await assert.rejects(readFile(envFile), /ENOENT/)
+})
+
+await test('missing installation progress is blocked and never certified by artifact success', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-report-install-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const result = join(root, 'result.json')
+  execFileSync(process.execPath, ['tools/producer-compat/report.ts'], { env: { ...process.env, COMPAT_PROVIDER: 'openclaw', COMPAT_LANE: 'latest', COMPAT_REPORT: join(root, 'missing'), COMPAT_RESULT_PATH: result, COMPAT_INSTALL_OUTCOME: 'failure', COMPAT_OUTCOME: 'skipped', COMPAT_EVIDENCE_OUTCOME: 'success', GITHUB_STEP_SUMMARY: '' }, stdio: 'pipe' })
+  const report = JSON.parse(await readFile(result, 'utf8')) as { stage: string, verdict: string }
+  assert.equal(report.stage, 'producer-install')
+  assert.equal(report.verdict, 'environment-blocked')
 })

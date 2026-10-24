@@ -68,6 +68,8 @@ export interface DriftSummary {
   optionalFieldPaths?: string[]
   groupedFieldPaths?: string[]
   optionalGroupedFieldPaths?: string[]
+  // Base diagnostics exclude these reviewed optional records; each contributes one code.
+  optionalDiagnosticRecords?: Record<string, string>
 }
 
 export interface NativeDrift {
@@ -156,7 +158,10 @@ export async function assertNativeBaseline(provider: string, summary: ReturnType
   await writeFile(join(root, 'drift-report.json'), JSON.stringify(summary, null, 2))
   const baseline = JSON.parse(await readFile(new URL(`./baselines/${provider}.json`, import.meta.url), 'utf8')) as ReturnType<typeof nativeReadSummary>
   assertNoProducerDrift(summary, baseline)
-  assert.deepEqual(summary.diagnosticCodes, baseline.diagnosticCodes, 'native diagnostic drift; inspect report before updating baseline')
+  const diagnostics = [...baseline.diagnosticCodes]
+  for (const [kind, code] of Object.entries(baseline.optionalDiagnosticRecords ?? {}))
+    diagnostics.push(...Array.from<string>({ length: summary.unknown[kind] ?? 0 }).fill(code))
+  assert.deepEqual(summary.diagnosticCodes, diagnostics.sort(), 'native diagnostic drift; inspect report before updating baseline')
   progress.completed.push('baseline')
 }
 
