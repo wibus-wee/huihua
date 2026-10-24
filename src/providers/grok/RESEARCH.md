@@ -49,3 +49,16 @@ A subsequent fresh local 1.0.67 run with the pinned simulator also passed the
 complete request plan, queue exhaustion, all native read surfaces and baseline.
 This closes the live-plan verification gap described above for this exact version
 and journey, not for unobserved versions or additional scenarios.
+
+## October 24 exact title retry
+
+Official Grok 1.0.70 capture in [run 40082602386](https://github.com/wibus-wee/huihua/actions/runs/40082602386)
+contains seven POST requests: a forced/auto title pair, first reply and dashboard summary,
+then resumed reply, dashboard summary and title refresh.
+The title bodies are equal except tool_choice.
+Extend the exact reviewed version list to 1.0.70;
+retain ordering, body equality, request-purpose assertions and queue exhaustion.
+No arbitrary retry allowance or version wildcard is accepted.
+Native capture replay passes eight records across all four surfaces and the baseline.
+Artifact 12555837460 SHA-256: 0560225c5a2d0bdea12073e8519504f1fefcd406c74681b073037b6f318ad453.
+No third-party interpretation is used; production mapping remains unchanged.

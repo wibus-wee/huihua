@@ -514,6 +514,7 @@
     "$.hasUnknownModelCost:boolean",
     "$.hash:string",
     "$.id:string",
+    "$.isBuiltIn:boolean",
     "$.keep:number",
     "$.lastPrompt:string",
     "$.leafUuid:string",
@@ -873,9 +874,11 @@
     "\"user\":$.turnPosition.promptIndex:number",
     "\"user\":$.turnPosition.turnIndex:number",
     "\"user\":$.turnPosition:object",
-    "null:$.finished:boolean"
+    "null:$.finished:boolean",
+    "null:$.isBuiltIn:boolean"
   ],
   "evidence": {
-    "october22Review": "Run 39761943610: permissionDecision.ruleSource is preserved on native user records in ordinary and foreground-child journeys."
+    "october22Review": "Run 39761943610: permissionDecision.ruleSource is preserved on native user records in ordinary and foreground-child journeys.",
+    "october24Review": "Run 40082602386, Claude 2.1.310: both foreground-child companion files contain isBuiltIn:true; raw companion metadata is retained without new canonical semantics."
   }
 }

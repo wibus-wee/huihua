@@ -32,3 +32,13 @@ Deleted files are independent evidence; they are never restored or rewritten.
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
+
+## October 24 runtime compatibility
+
+The official npm package openclaw@2026.10.6 declares Node >=24.22.1 <25 or >=26.12.1.
+The failed daily installer used 24.21.0; no parser verdict followed that failed installation.
+A fresh isolated 2026.10.6 run on Node 24.22.1, using simulator commit
+4357945b88d16a1a3155c39305ce135dc66b9510, passes first/resume, request-plan checking,
+queue exhaustion, discovery, all four read surfaces and the unchanged baseline (one session, eleven records).
+The correction belongs to CI runtime selection and installation failure reporting, not the production reader.
+No third-party interpretation or unexercised tool/compaction coverage is claimed.

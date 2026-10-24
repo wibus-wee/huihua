@@ -263,3 +263,16 @@ No third-party behavior claim is used.
 These are synthetic official-writer captures, not a universal format specification.
 Production mapping and public APIs are unchanged.
 See the [capture review](../../../docs/producer-compatibility.md#october-22-compatibility-review) for replay scope and remaining limits.
+
+## October 24 foreground-child metadata
+
+Official 2.1.310 captures in [run 40082602386](https://github.com/wibus-wee/huihua/actions/runs/40082602386)
+contain isBuiltIn:true in both foreground-child companion files.
+This was hidden behind the earlier ordinary permissionDecision.ruleSource drift in the daily summary.
+The companion's exact boolean path is reviewed as optional for older writers;
+other types and unrelated additions remain rejected.
+Huihua already preserves the whole companion
+in raw records and subagent metadata, so no new canonical meaning is inferred.
+All five captured sessions pass independent native evidence and four-surface replay.
+No third-party claim or fresh CLI execution is implied by replay.
+Artifact 12555931348 SHA-256: b47b8d41941f47b367a46e33338a46e72656043469a8d4689c8cb68aab3983be.

@@ -1016,3 +1016,14 @@ These narrow
 provider mappings require no new public primitive, projection framework or schema version.
 The independent live oracle checks both mappings, while captured old/new writer fixtures
 cover replay, native preservation and rejection of future drift.
+
+### Producer installation failure evidence
+
+The existing compatibility catalog owns installation attempts as well as verified provenance.
+Resolved version is published before installation; a failure writes producer-install progress and
+an attempt artifact with Node version, while successful binary/version/hash verification still owns
+install-manifest.json.
+The report's existing producer-stage classification presents this as an
+environment block, not a parser verdict.
+Missing verification is never inferred as PASS.
+This avoids a second installer/report pipeline; runtime dependencies and public semantics are unchanged.

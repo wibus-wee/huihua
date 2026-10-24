@@ -93,3 +93,17 @@ with identical native settings at initial start and resume.
 Only this reviewed shape accepts up to three such unknown records and its
 eleven `PartialParse` diagnostics; a fourth occurrence remains rejected.
 The pinned variants retain their previous counts and diagnostic expectations.
+
+## October 24 provenance metadata review
+
+Official CLI 0.164.0 in [daily run 40082602386](https://github.com/wibus-wee/huihua/actions/runs/40082602386)
+adds five field/type paths under response_item payload internal_chat_message_metadata_passthrough.content_item_metadata.
+Observed entries identify skills, harness (hook:false), or user provenance.
+These are native content-origin hints, not authority grants or additional messages.
+Huihua retains them in raw evidence; no canonical mapping is added.
+The complete shape is a fourth reviewed variant, preserving the existing unknown counts and eleven PartialParse diagnostics.
+Partial shapes, wrong types and unrelated fields still fail review.
+No third-party interpretation is used.
+Replay checks discovery, all four read surfaces,
+text/tool/resume facts and exact native evidence, without executing Codex.
+Artifact 12556025867 has SHA-256 5859d23a8fe94be85706ac37eacab8746d04205d337d406daca0e84420109092.

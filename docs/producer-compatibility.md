@@ -811,3 +811,29 @@ The official x.ai executable SHA-256 matched the CI install manifest:
 ce33b1a29e37901f56fe59916cda7a1149e6fd377118f918e90d89f9abb52a51.
 The first/resume model request plan, simulator queue exhaustion, scan, all four
 read surfaces and exact native baseline passed for one session/eight records.
+
+## October 24 compatibility maintenance
+
+Reviewed synthetic captures from run 40082602386 retain the October 22 checks and add:
+
+- Codex 0.164.0: complete fourth provenance-metadata shape, without treating provenance as authority.
+- Claude 2.1.310: optional boolean isBuiltIn in foreground-child companions, beyond the ordinary ruleSource drift.
+- Grok 1.0.70: exact forced/auto title pair; no wildcard retry tolerance.
+
+ACP 0.26.0, Qwen 0.26.0, Kimi 2.3.1 and the three providers above pass capture replay
+through independent native checks and read/snapshot/records/events surfaces.
+Replay is not fresh producer execution or a full 32-lane certification.
+Provider research records the new capture digests and reviewed semantics.
+
+Producer installation now preserves resolved version before invoking installers and emits
+producer-install failure progress, including Node version, without fabricating a successful install manifest.
+The attempt artifact distinguishes installing, failed and verified states.
+Only a verified binary/version/hash creates the successful provenance manifest.
+The CI Node range is at least 24.22.1 within major 24, with latest resolution enabled,
+matching OpenClaw 2026.10.6's observed minimum instead of accepting a stale cached 24.21.0.
+Missing capture/check evidence remains incomplete and never PASS.
+
+Fresh local Grok 1.0.70 and OpenClaw 2026.10.6 journeys also pass the full ordered
+request plan, simulator queue exhaustion, native inventory, all four read surfaces and baseline,
+with eight and eleven records respectively, on Node 24.22.1 against pinned simulator 4357945b.
+The package's own minimum supported Node version is not raised by this CI-only producer requirement.
