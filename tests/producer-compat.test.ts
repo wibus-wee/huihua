@@ -1183,3 +1183,32 @@ await test('missing installation progress is blocked and never certified by arti
   assert.equal(report.stage, 'producer-install')
   assert.equal(report.verdict, 'environment-blocked')
 })
+
+await test('Codex reviewed settings counts account for exactly their diagnostics', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/codex.json', 'utf8')) as DriftSummary & { diagnosticCodes: string[], reviewedPathVariants: (DriftSummary & { diagnosticCodes: string[] })[] }
+  const shape = { ...baseline, ...baseline.reviewedPathVariants.at(-1)! }
+  for (const count of [2, 3]) {
+    const actual = { ...shape, unknown: { ...shape.unknown, thread_settings_applied: count } }
+    const reviewed = assertCodexBaseline(actual, baseline)
+    assert.deepEqual(reviewed.diagnosticCodes, Array.from({ length: 8 + count }).fill('PartialParse'))
+    assert.throws(() => assertCodexBaseline({ ...actual, unknown: { ...actual.unknown, thread_settings_applied: 4 } }, baseline), /unknown native/)
+  }
+})
+
+await test('fx v2 native oracle and separate baseline reject lost evidence and unreviewed fields', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-v2-oracle-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const directory = join(root, '.fx/sessions/v2/native')
+  await mkdir(directory, { recursive: true })
+  await writeFile(join(directory, 'log.jsonl'), await readFile('fixtures/fx/v2/log.jsonl'))
+  const inventory = await inventoryStore('fx', root)
+  const scan = await sessions.scan({ providers: ['fx'], homeDir: root })
+  const session = await sessions.read(scan.refs[0]!)
+  inventory.assertRecords(session)
+  const summary = nativeDriftSummary('fx', inventory.rows, session)
+  await assertNativeBaseline('fx', summary, root, { stage: 'baseline', completed: [] })
+  await assert.rejects(assertNativeBaseline('fx', { ...summary, fieldPaths: [...summary.fieldPaths, '$.future:string'] }, root, { stage: 'baseline', completed: [] }), NativeDriftError)
+  await assert.rejects(assertNativeBaseline('fx', { ...summary, diagnosticCodes: ['PartialParse'] }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+  assert.throws(() => inventory.assertRecords({ ...session, records: session.records.slice(1) }))
+  assert.throws(() => inventory.assertRecords({ ...session, events: session.events.filter(event => event.type !== 'assistant_message') }))
+})

@@ -156,7 +156,8 @@ export function nativeReadSummary(stores: NativeStore[], session: Session, recor
 export async function assertNativeBaseline(provider: string, summary: ReturnType<typeof nativeReadSummary>, root: string, progress: CompatibilityProgress): Promise<void> {
   progress.stage = 'baseline'
   await writeFile(join(root, 'drift-report.json'), JSON.stringify(summary, null, 2))
-  const baseline = JSON.parse(await readFile(new URL(`./baselines/${provider}.json`, import.meta.url), 'utf8')) as ReturnType<typeof nativeReadSummary>
+  const baselineName = provider === 'fx' && summary.fieldPaths.includes('$.v:number') ? 'fx-v2' : provider
+  const baseline = JSON.parse(await readFile(new URL(`./baselines/${baselineName}.json`, import.meta.url), 'utf8')) as ReturnType<typeof nativeReadSummary>
   assertNoProducerDrift(summary, baseline)
   const diagnostics = [...baseline.diagnosticCodes]
   for (const [kind, code] of Object.entries(baseline.optionalDiagnosticRecords ?? {}))
