@@ -1026,6 +1026,53 @@ await test('October 21 telemetry preserves raw evidence without inventing conver
   }
 })
 
+await test('Claude 2.1.311 accounting and tool inventory remain exact and bounded', async (t) => {
+  const cachePaths = ['5m', '1h'].map(ttl => `$.modelUsage.claude-sonnet-4-5.cacheCreationEphemeral${ttl}InputTokens:number`)
+  const toolPaths = ['$:object', '$.type:string', '$.sessionId:string', '$.tools:array', '$.tools[]:string']
+  const grouped = [...cachePaths.map(path => `"cost-state":${path}`), ...toolPaths.map(path => `"tools-used":${path}`)]
+  for (const scope of ['claude', 'claude-subagents']) {
+    await t.test(scope, async () => {
+      const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${scope}.json`, 'utf8')) as DriftSummary
+      const observed = { ...baseline, unknown: { ...baseline.unknown, 'tools-used': 1 }, fieldPaths: [...baseline.fieldPaths, ...cachePaths, ...toolPaths], groupedFieldPaths: [...baseline.groupedFieldPaths!, ...grouped] }
+      assertNoProducerDrift(observed, baseline)
+      // Older producers omit these records and accounting fields entirely.
+      const added = new Set([...cachePaths, '$.tools:array', '$.tools[]:string'])
+      assertNoProducerDrift({ ...observed, unknown: { ...observed.unknown, 'tools-used': 0 }, fieldPaths: observed.fieldPaths.filter(path => !added.has(path)), groupedFieldPaths: observed.groupedFieldPaths.filter(path => !grouped.includes(path)) }, baseline)
+      for (const path of grouped) {
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, path.replace(/:[^:]+$/, ':null')] }, baseline), NativeDriftError)
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `"other":${path.slice(path.indexOf(':') + 1)}`] }, baseline), NativeDriftError)
+      }
+      assert.throws(() => assertNoProducerDrift({ ...observed, unknown: { ...observed.unknown, 'tools-used': 2 } }, baseline), /unknown native record growth/)
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, '"tools-used":$.future:string'] }, baseline), NativeDriftError)
+      assert.throws(() => assertNoProducerDrift({ ...observed, structured: 1 }, baseline), /structured fallback/)
+      const required = baseline.groupedFieldPaths!.find(path => !baseline.optionalGroupedFieldPaths?.includes(path))!
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: observed.groupedFieldPaths.filter(path => path !== required) }, baseline), NativeDriftError)
+    })
+  }
+})
+
+await test('Claude 2.1.311 tool inventory stays raw rather than inventing tool calls', async () => {
+  for (const tools of [['Read'], ['Agent']]) {
+    const rows = [
+      { type: 'tools-used', sessionId: 'synthetic', tools },
+      { type: 'cost-state', sessionId: 'synthetic', modelUsage: { 'claude-sonnet-4-5': { cacheCreationEphemeral5mInputTokens: 0, cacheCreationEphemeral1hInputTokens: 0 } } },
+    ]
+    const text = rows.map(row => `${JSON.stringify(row)}\n`).join('')
+    const session = await sessions.parse('claude', { jsonl: text })
+    assert.deepEqual(session.records.map(record => record.native), rows)
+    assert.deepEqual(session.records.map(record => record.text).join(''), text)
+    assert.equal(session.events.length, 2)
+    for (const [index, event] of session.events.entries()) {
+      assert(event.type === 'unknown')
+      assert.equal(event.record, index)
+      assert.equal(event.data.sourceType, rows[index]!.type)
+      assert.deepEqual(event.data.payload, rows[index])
+    }
+    assert.equal(session.diagnostics.length, 2)
+    assert(session.diagnostics.every(diagnostic => diagnostic.code === 'PartialParse'))
+  }
+})
+
 await test('October 22 exact metadata additions preserve drift detection', async (t) => {
   const cases = [
     { provider: 'acp', prefix: '["state",null,null,null,null,null,null,null]:', paths: ['$.result._meta.generatedUi:object', '$.result._meta.generatedUi.enabled:boolean', '$.result._meta.generatedUi.reason:string', '$.result._meta.generatedUi.version:number'] },
