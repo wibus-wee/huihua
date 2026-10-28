@@ -10,7 +10,8 @@
     "mode": 1,
     "api-request": 3,
     "api-request-shape": 1,
-    "api-request-blob": 1
+    "api-request-blob": 1,
+    "tools-used": 1
   },
   "structured": 0,
   "fieldPaths": [
@@ -134,6 +135,8 @@
     "$.hash:string",
     "$.id:string",
     "$.keep:number",
+    "$.modelUsage.claude-sonnet-4-5.cacheCreationEphemeral1hInputTokens:number",
+    "$.modelUsage.claude-sonnet-4-5.cacheCreationEphemeral5mInputTokens:number",
     "$.params.betas:array",
     "$.params.betas[]:string",
     "$.params.context_management.edits:array",
@@ -194,7 +197,9 @@
     "$.shape:object",
     "$.shapeHash:string",
     "$.tail:array",
-    "$.tail[]:string"
+    "$.tail[]:string",
+    "$.tools:array",
+    "$.tools[]:string"
   ],
   "groupedFieldPaths": [
     "\"assistant\":$.apiBlockIndex:number",
@@ -438,6 +443,13 @@
     "\"assistant\":$.requestRef:string",
     "\"assistant\":$.requestedModel:string",
     "\"attachment\":$.attachment.context.gitStatus:string",
+    "\"cost-state\":$.modelUsage.claude-sonnet-4-5.cacheCreationEphemeral1hInputTokens:number",
+    "\"cost-state\":$.modelUsage.claude-sonnet-4-5.cacheCreationEphemeral5mInputTokens:number",
+    "\"tools-used\":$.sessionId:string",
+    "\"tools-used\":$.tools:array",
+    "\"tools-used\":$.tools[]:string",
+    "\"tools-used\":$.type:string",
+    "\"tools-used\":$:object",
     "\"user\":$.permissionDecision.decision:string",
     "\"user\":$.permissionDecision.reasonType:string",
     "\"user\":$.permissionDecision.ruleSource:string",

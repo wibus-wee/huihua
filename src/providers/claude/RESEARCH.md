@@ -54,6 +54,39 @@ identity, or additional occurrences still fail review.
 This is a private format
 observation, not a stable Claude Code contract.
 
+## Observed Claude Code 2.1.311 tool inventory and accounting (2026-10-27)
+
+### Producer observations
+
+[Daily compatibility run 40490209978](https://github.com/wibus-wee/huihua/actions/runs/40490209978)
+captured five synthetic sessions and 89 records at Huihua commit `6521c6bd`.
+The raw artifact `12729056154` has SHA-256
+`2f7fb4212454a4ea75e3fb0f6765ec164153ede03c5663feedff1eac67a43bb4`.
+The first/resumed session contains one `tools-used` record with `tools: ["Read"]`;
+the foreground-subagent parent contains one with `tools: ["Agent"]`.
+Both also carry `type` and `sessionId`, but no call ID, arguments, result or timestamp.
+Neither child transcript nor the second text-only session contains this record.
+`cost-state.modelUsage.claude-sonnet-4-5` adds numeric
+`cacheCreationEphemeral5mInputTokens` and `cacheCreationEphemeral1hInputTokens`.
+These are private writer observations, not an official stable storage contract or
+third-party compatibility claim.
+The pinned producer remains 2.1.292.
+
+### Huihua decision
+
+Keep both record kinds as unknown events with complete native payloads and diagnostics.
+A tool-name inventory cannot establish individual calls or child lifecycle events;
+session accounting does not establish additional per-response usage.
+The existing mapper already preserves these records, so no runtime mapping or public
+schema change is required.
+Only the compatibility baselines need reconciliation.
+Both the ordinary and foreground-subagent baselines admit the seven exact grouped
+field/type additions and four ungrouped additions as optional for older writers.
+Each exercised scope permits at most one unknown `tools-used` record.
+Other unknown-count limits, required fields and structured-fallback checks remain intact.
+Focused regressions cover old/new shapes, wrong types and record kinds, future fields,
+count growth, required-field loss and raw preservation without invented tool/usage events.
+
 ## Implementation decisions
 
 Reviewed Agent Sessions [Claude discovery](https://github.com/jazzyalex/agent-sessions/blob/6fa9a73f489d37f655873871e5e6a5cf6975d1ff/AgentSessions/Services/SessionDiscovery.swift)
