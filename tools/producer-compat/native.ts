@@ -225,7 +225,7 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
   assert.equal(session.id, inventory.id, 'native session identity')
   assert.equal(session.provider, provider, 'native session provider')
   assert.equal(session.source.path, inventory.path, 'native session source')
-  const format = provider === 'deepseek' ? 'jsonl_zstd' : ['cline', 'fx'].includes(provider) ? `${provider}_json` : ['opencode', 'openclaw', 'hermes'].includes(provider) ? `${provider}_sqlite` : 'jsonl'
+  const format = provider === 'fx' && basename(inventory.path) === 'log.jsonl' ? 'jsonl' : provider === 'deepseek' ? 'jsonl_zstd' : ['cline', 'fx'].includes(provider) ? `${provider}_json` : ['opencode', 'openclaw', 'hermes'].includes(provider) ? `${provider}_sqlite` : 'jsonl'
   assert.equal(session.source.format, format, 'native source format')
   for (const [index, record] of session.records.entries()) {
     assert.equal(record.sequence, index, 'native record sequence')
@@ -342,6 +342,11 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
       else if (native.type === 'step-finish') {
         usages.push({ record, usage: native })
       }
+    }
+    else if (provider === 'fx' && row.v === 1) {
+      time(record, row.ts)
+      if (row.kind === 'item' && ['user', 'assistant', 'steering'].includes(String(row.type)))
+        message(record, { role: row.type === 'assistant' ? 'assistant' : 'user' }, object(row.data).text)
     }
     else if (provider === 'fx' && row.event !== undefined) {
       const event = object(row.event)
@@ -486,9 +491,21 @@ async function walk(directory: string): Promise<string[]> {
   return result.sort()
 }
 async function companionInventory(provider: string, files: string[]): Promise<Inventory> {
-  const matches = files.filter(path => provider === 'fx' ? path.includes('/.fx/sessions/') && path.endsWith('/session.json') : path.includes('/.grok/sessions/') && path.endsWith('/updates.jsonl'))
+  const matches = files.filter(path => provider === 'fx' ? path.includes('/.fx/sessions/') && (path.endsWith('/session.json') || path.endsWith('/log.jsonl')) : path.includes('/.grok/sessions/') && path.endsWith('/updates.jsonl'))
   assert.equal(matches.length, 1)
   const path = matches[0]!
+  if (provider === 'fx' && basename(path) === 'log.jsonl') {
+    const evidence = physicalEvidence(path, await readFile(path, 'utf8'))
+    const rows = evidence.map(row => object(JSON.parse(row.text)))
+    const first = rows[0]!
+    assert.equal(first.v, 1)
+    assert.equal(first.kind, 'session_created')
+    assert.equal(typeof first.id, 'string')
+    const texts = rows.flatMap((row, record) => row.kind === 'item' && row.type === 'assistant' ? [{ record, text: String(object(row.data).text) }] : [])
+    return { path, id: String(first.id), rows, texts, evidence, assertRecords(session) {
+      assert.deepEqual(session.records.map(record => record.native), rows)
+    } }
+  }
   const statePath = provider === 'fx' ? path : join(dirname(path), 'summary.json')
   const stateText = await readFile(statePath, 'utf8')
   const state = object(JSON.parse(stateText))

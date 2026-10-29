@@ -211,7 +211,7 @@ input — and a second iterator throws `TypeError`; call `stream` again to repla
 | OpenClaw (`openclaw`)           | Current per-agent SQLite transcripts, compressed payloads and legacy JSONL                  | [Research](src/providers/openclaw/RESEARCH.md)    |
 | Qwen Code (`qwen`)              | Project chat JSONL, native Google message parts and system records                          | [Research](src/providers/qwen/RESEARCH.md)        |
 | Devin CLI (`devin`)             | SQLite session metadata and all message-tree nodes with main-chain markers                  | [Research](src/providers/devin/RESEARCH.md)       |
-| fx (`fx`)                       | Manifest/checkpoint snapshots and optional display title; event tail not replayed           | [Research](src/providers/fx/RESEARCH.md)          |
+| fx (`fx`)                       | V2 manager journals, conversation frames and legacy checkpoint snapshots                    | [Research](src/providers/fx/RESEARCH.md)          |
 | Cline CLI/Desktop (`cline`)     | Version-1 manifests and adjacent messages JSON                                              | [Research](src/providers/cline/RESEARCH.md)       |
 | DeepSeek Harness (`deepseek`)   | v0–v4 immutable JSONL generations and Zstandard logs                                        | [Research](src/providers/deepseek/RESEARCH.md)    |
 | Factory Droid (`droid`)         | Legacy interactive JSONL and captured stream-json records                                   | [Research](src/providers/droid/RESEARCH.md)       |

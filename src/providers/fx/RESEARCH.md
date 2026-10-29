@@ -58,3 +58,34 @@ Compacted summaries and background records retain their native kinds; output han
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
+
+## fx 0.0.15 manager journal
+
+Official [v0.0.15 schema](https://github.com/vercel-labs/fx/blob/v0.0.15/src/core/session_manager/schema.zig)
+records version-1 envelopes (`v`, `seq`, millisecond `ts`, `kind`, `crc`) under
+`~/.fx/sessions/v2/<id>/log.jsonl`.
+The manager owns lifecycle and setting records;
+conversation items carry their own `type` and `data`.
+The [log writer](https://github.com/vercel-labs/fx/blob/v0.0.15/src/core/session_manager/log.zig)
+uses CRC32C and separately implements transactional recovery.
+
+The unchanged synthetic `fixtures/fx/v2/log.jsonl` was captured by official fx 0.0.15
+(binary SHA-256 `9ecac1bf74b95c15d8e3a616b029748ff65382d7b1b0fab12a3164f8954aa89c`)
+in [run 40679658980](https://github.com/wibus-wee/huihua/actions/runs/40679658980),
+artifact 12812920441 (ZIP SHA-256 `d55fbdac3da2f031051b43eb7c8b6b0486df4fc4309923443a543e4b6c794f06`).
+Both model replies and resume succeeded; the old independent inventory and provider
+only discovered `session.json`, missing all 17 journal records.
+
+Huihua now composes the shared JSONL provider for this separate journal format.
+Discovery requires a bounded first `session_created` record with version 1 and native ID.
+It ignores index files and never follows blob references, snapshots, locks or embedded paths.
+Every physical row remains evidence, including lifecycle records and unknown/future items.
+Text/tool items reuse the existing conversation mapper while unknown payloads retain the
+original journal envelope.
+Preferences do not invent historical response models.
+Snapshots/compaction remain system facts; they do not erase or reconstruct conversation history.
+This is raw evidence acquisition, not the manager's CRC verification, committed-state fold
+or recovery algorithm.
+Uncommitted rows are retained, not asserted to be committed.
+No dependency or public schema changes are needed; legacy snapshot and conversation routes remain.
+The v2 native oracle and baseline are separate from the unchanged v0.0.13 baseline.

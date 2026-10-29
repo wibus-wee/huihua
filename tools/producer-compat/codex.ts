@@ -22,6 +22,11 @@ export function assertCodexBaseline(actual: DriftSummary, baseline: DriftSummary
     try {
       const reviewed = { ...baseline, ...shape }
       assertNoProducerDrift(actual, reviewed)
+      // 0.165.0 records two settings notifications where 0.164.0 recorded three.
+      // Only this reviewed one-record omission changes the diagnostic expectation;
+      // other missing diagnostics, new kinds, fields and count growth still fail.
+      if (reviewed.unknown.thread_settings_applied === 3 && actual.unknown.thread_settings_applied === 2 && reviewed.diagnosticCodes?.every(code => code === 'PartialParse'))
+        return { ...reviewed, diagnosticCodes: reviewed.diagnosticCodes.slice(1) }
       return reviewed
     }
     catch (error) {

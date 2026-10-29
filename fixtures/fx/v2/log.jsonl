@@ -1,0 +1,17 @@
+{"v":1,"seq":1,"ts":1793186733783,"kind":"session_created","id":"Yn2O-PmPgyYc","workspace":"/home/runner/work/_temp/huihua-live-fx-aHBbeN/workspace","role":"root","host":"ask","crc":"416db6fc"}
+{"v":1,"seq":2,"ts":1793186733699,"kind":"set","key":"prefs","value":{"provider":{"name":"synthetic","binding":"3b5579481e4edf81db43f3aa4d140bb7d3fd4559de5de39743696e1757bb5bc7"},"model":"gpt-test","effort":"auto","fast_mode":false},"crc":"0ae194c6"}
+{"v":1,"seq":3,"ts":1793186733699,"kind":"set","key":"permissions","value":{"schema_version":2,"next_generation":1,"rules":[]},"crc":"d694d8e5"}
+{"v":1,"seq":4,"ts":1793186733699,"kind":"set","key":"language","value":"und-Latn","crc":"30e8cefb"}
+{"v":1,"seq":5,"ts":1793186733783,"kind":"turn_started","turn":1,"crc":"9030d3ae"}
+{"v":1,"seq":6,"ts":1793186733783,"kind":"item","turn":1,"type":"user","data":{"text":"HUIHUA_FX_FIRST","images":[],"work_id":null},"crc":"098c8bf4"}
+{"v":1,"seq":7,"ts":1793186733784,"kind":"item","turn":1,"type":"assistant","data":{"text":"HUIHUA_FX_REPLY","provider_replay":null,"standalone_response":false},"crc":"ca27d401"}
+{"v":1,"seq":8,"ts":1793186733784,"kind":"item","turn":1,"type":"turn_end","data":{"files":[],"turn_summary":{"started_at_ms":1793186733700,"completed_at_ms":1793186733784,"thinking_duration_ms":78,"turn_duration_ms":84,"token_progress":{"input_tokens":4,"output_tokens":2,"input_exact":false,"output_exact":true}}},"crc":"a0871658"}
+{"v":1,"seq":9,"ts":1793186733784,"kind":"turn_committed","turn":1,"crc":"90e20755"}
+{"v":1,"seq":10,"ts":1793186733784,"kind":"set","key":"title","value":"HUIHUA_FX_FIRST","crc":"995853d5"}
+{"v":1,"seq":11,"ts":1793186733785,"kind":"closed","crc":"5d29aada"}
+{"v":1,"seq":12,"ts":1793186733806,"kind":"turn_started","turn":2,"crc":"1ad8bae0"}
+{"v":1,"seq":13,"ts":1793186733806,"kind":"item","turn":2,"type":"user","data":{"text":"HUIHUA_FX_RESUME","images":[],"work_id":null},"crc":"251d1567"}
+{"v":1,"seq":14,"ts":1793186733806,"kind":"item","turn":2,"type":"assistant","data":{"text":"HUIHUA_FX_RESUMED","provider_replay":null,"standalone_response":false},"crc":"daff0753"}
+{"v":1,"seq":15,"ts":1793186733806,"kind":"item","turn":2,"type":"turn_end","data":{"files":[],"turn_summary":{"started_at_ms":1793186733795,"completed_at_ms":1793186733806,"thinking_duration_ms":3,"turn_duration_ms":11,"token_progress":{"input_tokens":4,"output_tokens":2,"input_exact":false,"output_exact":true}}},"crc":"da8ad01c"}
+{"v":1,"seq":16,"ts":1793186733806,"kind":"turn_committed","turn":2,"crc":"5201caaa"}
+{"v":1,"seq":17,"ts":1793186733807,"kind":"closed","crc":"cb102d1f"}

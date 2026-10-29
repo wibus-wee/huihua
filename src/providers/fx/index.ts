@@ -3,9 +3,9 @@ import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
-import type { ReadOptions } from '../../contracts/provider.ts'
+import type { ReadOptions, ScanOptions } from '../../contracts/provider.ts'
 import type { SessionFrame, SessionRef } from '../../contracts/session.ts'
-import { contentBlocks, Ingestion, openFrom } from '../../shared/ingestion.ts'
+import { contentBlocks, Ingestion, jsonlProvider, openFrom } from '../../shared/ingestion.ts'
 import { readJson } from '../../shared/json-file.ts'
 import { jsonStoreProvider } from '../../shared/json-store.ts'
 import { jsonLines } from '../../shared/jsonl.ts'
@@ -94,12 +94,12 @@ const snapshots = jsonStoreProvider({
   },
 })
 
-function conversation(ingest: Ingestion, native: unknown) {
+function conversation(ingest: Ingestion, native: unknown, evidenceNative: unknown = native) {
   const v = object(native)
   const envelope = { timestamp: v.timestamp_ms }
   const evidence = { ...optional('seq', v.seq) }
   if (typeof v.schema_version !== 'number' || ![1, 2, 3].includes(v.schema_version)) {
-    ingest.unknown('fx_conversation', native, 'unsupported fx conversation schema', envelope, evidence)
+    ingest.unknown('fx_conversation', evidenceNative, 'unsupported fx conversation schema', envelope, evidence)
     ingest.diagnostic('UnsupportedSchema', `unsupported fx conversation schema ${String(v.schema_version)}`)
     return
   }
@@ -108,7 +108,7 @@ function conversation(ingest: Ingestion, native: unknown) {
   const kind = keys[0]
   const data = object(kind === undefined ? undefined : event[kind])
   if (keys.length !== 1) {
-    ingest.unknown('fx_conversation', native, 'invalid fx conversation event', envelope, evidence)
+    ingest.unknown('fx_conversation', evidenceNative, 'invalid fx conversation event', envelope, evidence)
     return
   }
   if ((kind === 'user' || kind === 'assistant' || kind === 'steering') && typeof data.text === 'string') {
@@ -129,13 +129,65 @@ function conversation(ingest: Ingestion, native: unknown) {
     ingest.emit('system', { sourceType: kind, payload: event[kind] }, envelope, evidence)
   }
   else {
-    ingest.unknown(kind ?? 'fx_conversation', native, undefined, envelope, evidence)
+    ingest.unknown(kind ?? 'fx_conversation', evidenceNative, undefined, envelope, evidence)
   }
 }
+
+// The v2 manager journal uses the shared bounded JSONL reader, not snapshot replay.
+const journal = jsonlProvider({
+  id: 'fx',
+  roots: options => options.roots?.fx ?? [join(options.homeDir ?? homedir(), '.fx/sessions')],
+  accepts: path => basename(path) === 'log.jsonl',
+  identify({ header }) {
+    const first = object(header[0])
+    return first.v === 1 && first.kind === 'session_created' && typeof first.id === 'string'
+      ? { id: first.id, metadata: { id_origin: 'native' } }
+      : false
+  },
+  time: native => timestamp(object(native).ts),
+  metadata(records) {
+    let facts: Partial<SessionRef> = {}
+    for (const native of records) {
+      const row = object(native)
+      if (row.v !== 1)
+        continue
+      if (row.kind === 'session_created') {
+        facts = { ...facts, ...optional('id', string(row.id)), ...optional('createdAt', timestamp(row.ts)), ...optional('workspace', typeof row.workspace === 'string' ? { path: row.workspace } : undefined), ...optional('parentSessionId', string(row.parent)) }
+      }
+      if (row.kind === 'set' && row.key === 'title' && typeof row.value === 'string')
+        facts = { ...facts, title: row.value }
+    }
+    return { ...facts, metadata: { ...optional('id_origin', facts.id === undefined ? undefined : 'native') } }
+  },
+  parse(ingest, native) {
+    const row = object(native)
+    const envelope = { timestamp: row.ts }
+    const evidence = { ...optional('seq', row.seq), ...optional('turn', row.turn) }
+    if (row.v !== 1) {
+      ingest.unknown('fx_journal', native, 'unsupported fx journal version', envelope, evidence)
+      ingest.diagnostic('UnsupportedSchema', `unsupported fx journal version ${String(row.v)}`)
+      return
+    }
+    if (row.kind === 'item') {
+      if (row.type === 'turn_end')
+        ingest.emit('system', { sourceType: 'turn_end', payload: native }, envelope, evidence)
+      else
+        conversation(ingest, { schema_version: 3, seq: row.seq, timestamp_ms: row.ts, event: { [String(row.type)]: row.data } }, native)
+    }
+    else if (['session_created', 'turn_started', 'turn_committed', 'turn_interrupted', 'set', 'compacted', 'child_spawned', 'child_finished', 'snapshot', 'closed'].includes(String(row.kind))) {
+      ingest.emit('system', { sourceType: String(row.kind), payload: native }, envelope, evidence)
+    }
+    else {
+      ingest.unknown(string(row.kind) ?? 'fx_journal', native, undefined, envelope, evidence)
+    }
+  },
+})
 
 async function open(ref: SessionRef, options: ReadOptions = {}) {
   if (ref.provider !== 'fx')
     throw new SessionError('ProviderNotFound', `expected fx, got ${ref.provider}`)
+  if (ref.source.format === 'jsonl')
+    return journal.open(ref, options)
   if (ref.source.format !== 'fx_json')
     throw new SessionError('UnsupportedSchema', `unsupported fx source format ${ref.source.format}`)
   async function* stream(): AsyncGenerator<SessionFrame> {
@@ -192,6 +244,10 @@ async function open(ref: SessionRef, options: ReadOptions = {}) {
 
 export const fxProvider = {
   ...snapshots,
+  async* scan(options: ScanOptions = {}) {
+    yield* snapshots.scan(options)
+    yield* journal.scan(options)
+  },
   open,
   async read(ref: SessionRef, options?: ReadOptions) {
     return (await open(ref, options)).snapshot()

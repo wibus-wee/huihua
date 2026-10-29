@@ -107,3 +107,20 @@ No third-party interpretation is used.
 Replay checks discovery, all four read surfaces,
 text/tool/resume facts and exact native evidence, without executing Codex.
 Artifact 12556025867 has SHA-256 5859d23a8fe94be85706ac37eacab8746d04205d337d406daca0e84420109092.
+
+## 0.165.0 diagnostic count review
+
+[Daily capture 40679658980](https://github.com/wibus-wee/huihua/actions/runs/40679658980)
+contains 29 intact native rows, including two `thread_settings_applied` notifications
+rather than the three observed in 0.164.0.
+Its grouped and ungrouped field/type sets
+exactly match the already reviewed provenance shape.
+Discovery, text/tool/resume scenarios
+and raw-record preservation passed before the fixed-length diagnostic assertion failed.
+The synthetic artifact 12811688448 has SHA-256
+`ee8581b601b61c4ac0bfeaac91baaadff59606d68f7d67c328ba90442616391f`.
+Only this reviewed two-versus-three settings count adjusts its expected PartialParse count
+by one.
+Each actual unknown record must still have its diagnostic; field changes, other
+diagnostic loss, new unknown kinds and count growth remain rejected.
+No production mapping changes.

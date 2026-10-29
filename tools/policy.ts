@@ -236,6 +236,8 @@ export async function policy(): Promise<void> {
   const fx = await readFile('src/providers/fx/index.ts', 'utf8')
   assert.match(fx, /snapshots\.open\(ref, options\)/, 'fx legacy snapshots retain their existing acquisition and diagnostics')
   assert.match(fx, /jsonLines\(path, false, options\)/, 'fx current conversation frames reuse bounded shared acquisition')
+  assert.match(fx, /journal\.scan\(options\)/, 'fx v2 reuses bounded JSONL discovery')
+  assert.match(fx, /journal\.open\(ref, options\)/, 'fx v2 reuses JSONL acquisition')
   assert.match(fx, /line\.position/, 'fx conversation evidence retains physical source positions')
   const jsonl = await readFile('src/shared/jsonl.ts', 'utf8')
   assert.match(jsonl, /chunk\.length <= 262144/, 'batch UTF-8 must remain bounded to the current chunk')

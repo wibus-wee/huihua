@@ -1049,3 +1049,55 @@ void it('captured old Copilot and OAR records retain replay and raw evidence', a
     }
   }
 })
+
+void it('fx v2 journal discovers and preserves the real resumed conversation', async () => {
+  const path = fixture('fx/v2/log.jsonl')
+  const scan = await sessions.scan({ providers: ['fx'], roots: { fx: [path] } })
+  assert.deepEqual(scan.failures, [])
+  assert.equal(scan.refs.length, 1)
+  assert.equal(scan.refs[0]!.id, 'Yn2O-PmPgyYc')
+  const session = await sessions.read(scan.refs[0]!)
+  assertSessionContract(session)
+  const text = await readFile(path, 'utf8')
+  assert.deepEqual(session.records.map(r => r.native), text.trim().split('\n').map(line => JSON.parse(line) as unknown))
+  assert.equal(session.records.map(r => r.text).join(''), text)
+  assert.deepEqual(conversationOf(session).map(e => e.data.content), ['HUIHUA_FX_FIRST', 'HUIHUA_FX_REPLY', 'HUIHUA_FX_RESUME', 'HUIHUA_FX_RESUMED'].map(data => [{ type: 'text', data }]))
+  assert.deepEqual(conversationOf(session).map(e => e.record), [5, 6, 12, 13])
+  assert.equal(session.title, 'HUIHUA_FX_FIRST')
+  assert.deepEqual(session.diagnostics, [])
+  const handle = await sessions.open(scan.refs[0]!)
+  assert.deepEqual(await handle.snapshot(), session)
+  const events = []
+  for await (const event of handle.events()) events.push(event)
+  const records = []
+  for await (const record of handle.records()) records.push(record)
+  assert.deepEqual(events, session.events)
+  assert.deepEqual(records, session.records)
+  assert.deepEqual(await sessions.parse('fx', { path }), session)
+})
+
+void it('fx v2 retains future and malformed evidence without following blobs or indexes', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-v2-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'log.jsonl')
+  const head = { v: 1, kind: 'session_created', id: 'native', ts: 0 }
+  const rows = [head, { v: 1, kind: 'item', type: 'tool_call', seq: 2, ts: 0, data: { call_id: 'repeat', tool_name: 'read', arguments_json: '{}' } }, { v: 1, kind: 'item', type: 'tool_result', seq: 2, ts: 0, data: { call_id: 'repeat', tool_name: 'read', status: 'failure', artifact_ref: '/do-not-open' } }, { v: 1, kind: 'item', type: 'future', data: { opaque: true }, blobs: ['/do-not-open'] }, { v: 9, kind: 'item', type: 'assistant', data: { text: 'future text' } }, { v: 1, kind: 'item', type: 'assistant', data: { text: 'after damaged row' } }]
+  const lines = rows.map(row => JSON.stringify(row))
+  lines.splice(5, 0, '{bad')
+  await writeFile(path, lines.join('\n'))
+  await writeFile(join(root, 'index.jsonl'), 'not a conversation')
+  const scan = await sessions.scan({ providers: ['fx'], roots: { fx: [root] } })
+  assert.equal(scan.refs.length, 1)
+  const read = await sessions.read(scan.refs[0]!)
+  assert.equal(read.records.length, 7)
+  assert.deepEqual(eventsOf(read, 'unknown').slice(0, 2).map(e => e.data.payload), rows.slice(3, 5))
+  assert.deepEqual(toolCallsOf(read)[0]?.data.arguments, '{}')
+  assert.equal(toolResultsOf(read)[0]?.data.isError, true)
+  assert.deepEqual(eventsOf(read, 'assistant_message').map(e => e.data.content), [[{ type: 'text', data: 'after damaged row' }]])
+  await assert.rejects(sessions.read(scan.refs[0]!, { maxRecordBytes: 16 }), { code: 'CorruptedSession' })
+  const controller = new AbortController()
+  controller.abort(new Error('stop v2'))
+  await assert.rejects(sessions.read(scan.refs[0]!, { signal: controller.signal }), /stop v2/)
+  await writeFile(path, JSON.stringify({ ...head, v: 9 }))
+  assert.equal((await sessions.scan({ providers: ['fx'], roots: { fx: [root] } })).refs.length, 0)
+})
