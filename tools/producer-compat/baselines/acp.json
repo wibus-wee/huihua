@@ -13,7 +13,8 @@
     "workflowRun": 37897567520,
     "artifact": "synthetic-acp-compatibility-pinned",
     "inventorySha256": "0114d7e007f57b8fdaf0ff7a0222e806418e41dea8a142d3381d544fbb76a46a",
-    "october22Review": "Run 39761943610: exact additive metadata reviewed against native artifacts; no canonical mapping changes. Other types, record kinds and required fields remain strict."
+    "october22Review": "Run 39761943610: exact additive metadata reviewed against native artifacts; no canonical mapping changes. Other types, record kinds and required fields remain strict.",
+    "october29Review": "Run 40866439284: Qwen ACP 0.26.3 workflow_mode option exposes qwen.workflowMode metadata; review only the five typed additive paths in the state response. Raw result remains preserved."
   },
   "unknown": {},
   "structured": 0,
@@ -334,7 +335,12 @@
     "$.result._meta.generatedUi.enabled:boolean",
     "$.result._meta.generatedUi.reason:string",
     "$.result._meta.generatedUi.version:number",
-    "$.result._meta.generatedUi:object"
+    "$.result._meta.generatedUi:object",
+    "$.result.configOptions[]._meta.qwen.workflowMode.available:boolean",
+    "$.result.configOptions[]._meta.qwen.workflowMode.effective:boolean",
+    "$.result.configOptions[]._meta.qwen.workflowMode.reason:string",
+    "$.result.configOptions[]._meta.qwen.workflowMode:object",
+    "$.result.configOptions[]._meta:object"
   ],
   "optionalGroupedFieldPaths": [
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.durationMs:number",
@@ -352,6 +358,11 @@
     "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi.enabled:boolean",
     "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi.reason:string",
     "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi.version:number",
-    "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi:object"
+    "[\"state\",null,null,null,null,null,null,null]:$.result._meta.generatedUi:object",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta.qwen.workflowMode.available:boolean",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta.qwen.workflowMode.effective:boolean",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta.qwen.workflowMode.reason:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta.qwen.workflowMode:object",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta:object"
   ]
 }
