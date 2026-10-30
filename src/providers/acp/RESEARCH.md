@@ -33,3 +33,12 @@ No third-party behavior claim is used.
 These are synthetic official-writer captures, not a universal format specification.
 Production mapping and public APIs are unchanged.
 See the [capture review](../../../docs/producer-compatibility.md#october-22-compatibility-review) for replay scope and remaining limits.
+
+## October 29 compatibility review
+
+The real Qwen ACP 0.26.3 writer capture in [daily run 40866439284](https://github.com/wibus-wee/huihua/actions/runs/40866439284) adds a `workflow_mode` configuration option with `_meta["qwen.workflowMode"]`: `available` and `effective` booleans and a `reason` string.
+The observed value was unavailable, not proof that workflow execution occurred.
+This is an observed producer extension, not an ACP-wide requirement or a third-party compatibility claim.
+Huihua retains the complete response as native evidence without mapping the metadata into a new public event.
+Only the five observed typed paths on the state response are optional in the compatibility baseline; other types, groups and fields remain strict.
+This one first-turn capture does not establish resume, tool roundtrips or other Qwen versions.

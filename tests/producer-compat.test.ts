@@ -1212,3 +1212,27 @@ await test('fx v2 native oracle and separate baseline reject lost evidence and u
   assert.throws(() => inventory.assertRecords({ ...session, records: session.records.slice(1) }))
   assert.throws(() => inventory.assertRecords({ ...session, events: session.events.filter(event => event.type !== 'assistant_message') }))
 })
+
+await test('Qwen ACP workflow mode metadata is preserved and reviewed narrowly', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/acp.json', 'utf8')) as DriftSummary
+  const prefix = '["state",null,null,null,null,null,null,null]:'
+  const paths = [
+    '$.result.configOptions[]._meta:object',
+    '$.result.configOptions[]._meta.qwen.workflowMode:object',
+    '$.result.configOptions[]._meta.qwen.workflowMode.available:boolean',
+    '$.result.configOptions[]._meta.qwen.workflowMode.effective:boolean',
+    '$.result.configOptions[]._meta.qwen.workflowMode.reason:string',
+  ]
+  const observed = { ...baseline, fieldPaths: [...baseline.fieldPaths, ...paths], groupedFieldPaths: [...baseline.groupedFieldPaths!, ...paths.map(path => prefix + path)] }
+  assertNoProducerDrift(observed, baseline)
+  for (const path of paths) {
+    assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, prefix + path.replace(/:[^:]+$/, ':null')] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `"other":${path}`] }, baseline), NativeDriftError)
+  }
+  assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `${prefix}$.result.configOptions[]._meta.future:string`] }, baseline), NativeDriftError)
+  const required = baseline.groupedFieldPaths!.find(path => !baseline.optionalGroupedFieldPaths?.includes(path))!
+  assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: observed.groupedFieldPaths.filter(path => path !== required) }, baseline), NativeDriftError)
+  const row = { jsonrpc: '2.0', id: 2, result: { sessionId: 'synthetic', configOptions: [{ id: 'workflow_mode', _meta: { 'qwen.workflowMode': { available: false, effective: false, reason: 'workflow_unavailable' } } }] } }
+  const session = await sessions.parse('acp', { jsonl: `${JSON.stringify(row)}\n` })
+  assert.deepEqual(session.records[0]?.native, row)
+})
