@@ -124,3 +124,12 @@ by one.
 Each actual unknown record must still have its diagnostic; field changes, other
 diagnostic loss, new unknown kinds and count growth remain rejected.
 No production mapping changes.
+
+## Codex 0.166.0 usage metadata
+
+The synthetic official-writer capture in [daily run 41048114939](https://github.com/wibus-wee/huihua/actions/runs/41048114939), artifact 12972409860 (ZIP SHA-256 `f325ae292b07f96c7a2c7ec78574883241cdf25480935379d1ba078c9915534b`), adds the boolean `last_usage_includes_reasoning` inside usage information.
+The observed 29 rows preserve native evidence and first-turn, resume, tool and usage records.
+This single capture does not prove behavior for every version.
+
+Only this typed path in the reviewed event message shape is optional.
+It remains native evidence, without a new public mapping; other changes remain subject to drift checks.
