@@ -89,3 +89,12 @@ or recovery algorithm.
 Uncommitted rows are retained, not asserted to be committed.
 No dependency or public schema changes are needed; legacy snapshot and conversation routes remain.
 The v2 native oracle and baseline are separate from the unchanged v0.0.13 baseline.
+
+## fx 0.0.16 observed journal additions
+
+The synthetic official-writer capture in [daily run 41048114939](https://github.com/wibus-wee/huihua/actions/runs/41048114939), artifact 12972678432 (ZIP SHA-256 `66c65e2d125d996622c953dfb5d322b25ba2056056ffd81d78ba0ed834e6ec23`), contains 20 journal rows.
+It adds one `runtime_context` item with messages and a `set` usage value with token counts and nullable cache/reasoning fields.
+This is one capture, not a complete format specification.
+
+The unknown context record remains native evidence with a corresponding `PartialParse` diagnostic.
+The baseline permits only the observed typed paths, at most one such unknown record, and its associated diagnostic; it does not map or discard the new record.

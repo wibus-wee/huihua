@@ -1941,6 +1941,12 @@
         "PartialParse",
         "PartialParse",
         "PartialParse"
+      ],
+      "optionalFieldPaths": [
+        "$.payload.info.last_usage_includes_reasoning:boolean"
+      ],
+      "optionalGroupedFieldPaths": [
+        "\"event_msg\":$.payload.info.last_usage_includes_reasoning:boolean"
       ]
     }
   ]

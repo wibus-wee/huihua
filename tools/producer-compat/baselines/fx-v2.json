@@ -1,5 +1,7 @@
 {
-  "unknown": {},
+  "unknown": {
+    "runtime_context": 1
+  },
   "structured": 0,
   "fieldPaths": [
     "$.crc:string",
@@ -138,5 +140,35 @@
     "[\"user\",null,\"\",null,null,null,null,null]:$.v:number",
     "[\"user\",null,\"\",null,null,null,null,null]:$:object"
   ],
-  "diagnosticCodes": []
+  "diagnosticCodes": [],
+  "optionalFieldPaths": [
+    "$.data.messages:array",
+    "$.data.messages[]:string",
+    "$.value.cache_read_tokens:null",
+    "$.value.cache_write_tokens:null",
+    "$.value.input_tokens:number",
+    "$.value.output_tokens:number",
+    "$.value.reasoning_tokens:null"
+  ],
+  "optionalGroupedFieldPaths": [
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.crc:string",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.data.messages:array",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.data.messages[]:string",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.data:object",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.kind:string",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.seq:number",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.ts:number",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.turn:number",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.type:string",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$.v:number",
+    "[\"runtime_context\",null,\"\",null,null,null,null,null]:$:object",
+    "[\"set\",null,\"\",null,null,null,null,null]:$.value.cache_read_tokens:null",
+    "[\"set\",null,\"\",null,null,null,null,null]:$.value.cache_write_tokens:null",
+    "[\"set\",null,\"\",null,null,null,null,null]:$.value.input_tokens:number",
+    "[\"set\",null,\"\",null,null,null,null,null]:$.value.output_tokens:number",
+    "[\"set\",null,\"\",null,null,null,null,null]:$.value.reasoning_tokens:null"
+  ],
+  "optionalDiagnosticRecords": {
+    "runtime_context": "PartialParse"
+  }
 }

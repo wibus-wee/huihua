@@ -1236,3 +1236,22 @@ await test('Qwen ACP workflow mode metadata is preserved and reviewed narrowly',
   const session = await sessions.parse('acp', { jsonl: `${JSON.stringify(row)}\n` })
   assert.deepEqual(session.records[0]?.native, row)
 })
+
+await test('October 30 Fx and Codex additions stay narrowly scoped', async () => {
+  const fx = JSON.parse(await readFile('tools/producer-compat/baselines/fx-v2.json', 'utf8')) as DriftSummary
+  assert.equal(fx.unknown.runtime_context, 1)
+  assert.equal(fx.optionalDiagnosticRecords?.runtime_context, 'PartialParse')
+  const fxPath = '["runtime_context",null,"",null,null,null,null,null]:$.data.messages:array'
+  const observedFx = { ...fx, groupedFieldPaths: [...fx.groupedFieldPaths!, fxPath] }
+  assertNoProducerDrift(observedFx, fx)
+  assert.throws(() => assertNoProducerDrift({ ...observedFx, groupedFieldPaths: [...observedFx.groupedFieldPaths, fxPath.replace(':array', ':string')] }, fx), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...observedFx, unknown: { runtime_context: 2 } }, fx), /unknown native/)
+
+  const codex = JSON.parse(await readFile('tools/producer-compat/baselines/codex.json', 'utf8')) as DriftSummary & { reviewedPathVariants: DriftSummary[] }
+  const latest = codex.reviewedPathVariants.at(-1)!
+  const field = '$.payload.info.last_usage_includes_reasoning:boolean'
+  const group = `"event_msg":${field}`
+  const observedCodex = { ...codex, ...latest, fieldPaths: [...latest.fieldPaths, field], groupedFieldPaths: [...latest.groupedFieldPaths!, group] }
+  assertCodexBaseline(observedCodex, codex)
+  assert.throws(() => assertCodexBaseline({ ...observedCodex, groupedFieldPaths: [...observedCodex.groupedFieldPaths, group.replace(':boolean', ':string')] }, codex), NativeDriftError)
+})
