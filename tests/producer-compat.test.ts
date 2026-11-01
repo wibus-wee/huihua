@@ -14,7 +14,7 @@ import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNat
 import { assertCodexBaseline, assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiFacts, assertKimiReplies } from '../tools/producer-compat/kimi.ts'
 import { grokTitleRequests } from '../tools/producer-compat/live.ts'
-import { inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
+import { assertFxCancellation, assertFxToolJourney, inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import type { DriftSummary } from '../tools/producer-compat/runtime.ts'
 import { assertNativeBaseline, assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
@@ -1195,6 +1195,123 @@ await test('Codex reviewed settings counts account for exactly their diagnostics
   }
 })
 
+await test('Codex archived session discovery preserves tool facts after a simulated move', async (t) => {
+  const home = await mkdtemp(join(tmpdir(), 'huihua-codex-archive-'))
+  t.after(async () => rm(home, { recursive: true, force: true }))
+  const active = join(home, '.codex/sessions')
+  const archived = join(home, '.codex/archived_sessions')
+  await mkdir(active, { recursive: true })
+  await mkdir(archived, { recursive: true })
+  const file = 'synthetic.jsonl'
+  await writeFile(join(active, file), await readFile('fixtures/codex/tool-call.jsonl'))
+  const before = await sessions.scan({ providers: ['codex'], homeDir: home })
+  assert.equal(before.refs.length, 1)
+  const previous = await sessions.read(before.refs[0]!)
+  await rename(join(active, file), join(archived, file))
+  const after = await sessions.scan({ providers: ['codex'], homeDir: home })
+  assert.deepEqual(after.failures, [])
+  assert.equal(after.refs.length, 1)
+  assert.equal(after.refs[0]!.source.path, join(archived, file))
+  assert.equal(after.refs[0]!.id, before.refs[0]!.id)
+  const restored = await sessions.read(after.refs[0]!)
+  assert.deepEqual(restored.events, previous.events)
+  assert.deepEqual(restored.records.map(record => record.native), previous.records.map(record => record.native))
+  assert(restored.events.some(event => event.type === 'tool_call'))
+  assert(restored.events.some(event => event.type === 'tool_result'))
+})
+
+await test('native Fx tool captures retain the full roundtrip in both storage formats', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-tool-oracle-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  for (const version of ['v1', 'v2']) {
+    const home = join(root, version)
+    const directory = join(home, version === 'v1' ? '.fx/sessions/native' : '.fx/sessions/v2/native')
+    await mkdir(directory, { recursive: true })
+    for (const name of version === 'v1' ? ['session.json', 'events.jsonl'] : ['log.jsonl'])
+      await writeFile(join(directory, name), await readFile(`fixtures/fx/tool-${version}/${name}`))
+    const inventory = await inventoryStore('fx', home)
+    const scan = await sessions.scan({ providers: ['fx'], homeDir: home })
+    assert.equal(scan.refs.length, 1)
+    const session = await sessions.read(scan.refs[0]!)
+    inventory.assertRecords(session)
+    assertFxToolJourney(session)
+    assert.throws(() => assertFxToolJourney({ ...session, events: session.events.filter(event => event.type !== 'tool_result') }), /tool result/)
+    assert.throws(() => assertFxToolJourney({ ...session, events: session.events.filter(event => event.type !== 'tool_call') }), /tool call/)
+    const changed = session.events.map(event => event.type === 'tool_result' ? { ...event, data: { ...event.data, result: 'wrong output' } } : event)
+    assert.throws(() => assertFxToolJourney({ ...session, events: changed }), /lost synthetic file contents/)
+    const summary = nativeDriftSummary('fx', inventory.rows, session)
+    await assertNativeBaseline('fx', summary, home, { stage: 'baseline', completed: [] })
+  }
+})
+
+await test('native Fx v1 cancellation remains a system fact even without partial text', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-cancel-v1-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const directory = join(root, '.fx/sessions/native')
+  await mkdir(directory, { recursive: true })
+  for (const name of ['session.json', 'events.jsonl'])
+    await writeFile(join(directory, name), await readFile(`fixtures/fx/cancel-v1/${name}`))
+  const inventory = await inventoryStore('fx', root)
+  const scan = await sessions.scan({ providers: ['fx'], homeDir: root })
+  const session = await sessions.read(scan.refs[0]!)
+  inventory.assertRecords(session)
+  assertFxCancellation(inventory.rows, session)
+  assert.throws(() => assertFxCancellation(inventory.rows, { ...session, events: session.events.filter(event => event.type !== 'system' || event.data.sourceType !== 'interrupted') }), /cancellation fact/)
+})
+
+await test('native Fx v2 cancellation retains partial assistant text and interruption fact', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-cancel-oracle-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const directory = join(root, '.fx/sessions/v2/native')
+  await mkdir(directory, { recursive: true })
+  await writeFile(join(directory, 'log.jsonl'), await readFile('fixtures/fx/cancel-v2/log.jsonl'))
+  const inventory = await inventoryStore('fx', root)
+  const scan = await sessions.scan({ providers: ['fx'], homeDir: root })
+  const session = await sessions.read(scan.refs[0]!)
+  inventory.assertRecords(session)
+  assertFxCancellation(inventory.rows, session)
+  const partial = session.events.find(event => event.type === 'assistant_message' && event.data.content.some(block => block.data === 'HUIHUA_FX_PARTIAL'))
+  const interrupted = session.events.find(event => event.type === 'system' && event.data.sourceType === 'interruption')
+  assert(partial && interrupted, 'cancellation must preserve partial text and native interruption')
+  assert.equal(partial.record, interrupted.record)
+  assert(session.events.some(event => event.type === 'system' && event.data.sourceType === 'turn_interrupted'))
+})
+
+await test('native Fx v1 compaction preserves its context checkpoint and prior tool facts', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-compact-v1-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const directory = join(root, '.fx/sessions/native')
+  await mkdir(directory, { recursive: true })
+  for (const name of ['session.json', 'events.jsonl'])
+    await writeFile(join(directory, name), await readFile(`fixtures/fx/compact-v1/${name}`))
+  const inventory = await inventoryStore('fx', root)
+  const scan = await sessions.scan({ providers: ['fx'], homeDir: root })
+  const session = await sessions.read(scan.refs[0]!)
+  inventory.assertRecords(session)
+  assertFxToolJourney(session)
+  const checkpoint = inventory.rows.findIndex(row => row.event !== undefined && Object.hasOwn(row.event as object, 'context_checkpoint'))
+  assert(checkpoint >= 0)
+  assert(session.events.some(event => event.record === checkpoint && event.type === 'system' && event.data.sourceType === 'context_checkpoint' && JSON.stringify(event.data.payload).includes('Synthetic session summary.')))
+})
+
+await test('native Fx v2 compaction keeps original evidence and the checkpoint', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-fx-compact-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const directory = join(root, '.fx/sessions/v2/native')
+  await mkdir(directory, { recursive: true })
+  await writeFile(join(directory, 'log.jsonl'), await readFile('fixtures/fx/compact-v2/log.jsonl'))
+  const inventory = await inventoryStore('fx', root)
+  const scan = await sessions.scan({ providers: ['fx'], homeDir: root })
+  const session = await sessions.read(scan.refs[0]!)
+  inventory.assertRecords(session)
+  assertFxToolJourney(session)
+  const compacted = inventory.rows.findIndex(row => row.kind === 'compacted')
+  const snapshot = inventory.rows.findIndex(row => row.kind === 'snapshot')
+  assert(compacted >= 0 && snapshot > compacted)
+  assert(session.events.some(event => event.record === compacted && event.type === 'system' && event.data.sourceType === 'compacted' && JSON.stringify(event.data.payload).includes('Synthetic session summary.')))
+  assert(session.events.some(event => event.record === snapshot && event.type === 'system' && event.data.sourceType === 'snapshot'))
+})
+
 await test('fx v2 native oracle and separate baseline reject lost evidence and unreviewed fields', async (t) => {
   const root = await mkdtemp(join(tmpdir(), 'huihua-fx-v2-oracle-'))
   t.after(async () => rm(root, { recursive: true, force: true }))
@@ -1240,6 +1357,9 @@ await test('Qwen ACP workflow mode metadata is preserved and reviewed narrowly',
 await test('October 30 Fx and Codex additions stay narrowly scoped', async () => {
   const fx = JSON.parse(await readFile('tools/producer-compat/baselines/fx-v2.json', 'utf8')) as DriftSummary
   assert.equal(fx.unknown.runtime_context, 1)
+  assert.equal(fx.unknown.tool_running, 1)
+  assert.equal(fx.optionalDiagnosticRecords?.tool_running, 'PartialParse')
+  assert.throws(() => assertNoProducerDrift({ ...fx, unknown: { ...fx.unknown, tool_running: 2 } }, fx), /unknown native/)
   assert.equal(fx.optionalDiagnosticRecords?.runtime_context, 'PartialParse')
   const fxPath = '["runtime_context",null,"",null,null,null,null,null]:$.data.messages:array'
   const observedFx = { ...fx, groupedFieldPaths: [...fx.groupedFieldPaths!, fxPath] }

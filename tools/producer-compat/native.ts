@@ -86,6 +86,8 @@ export async function auditNativeStore(provider: string, home: string, root: str
       : []), inventory.texts, 'assistant text or its native-record association was dropped, duplicated or changed')
     for (const event of session.events)
       assert(event.record >= 0 && event.record < session.records.length, 'event points outside native evidence')
+    if (provider === 'fx')
+      assertFxToolJourney(session)
     if (kind === 'read')
       await writeReviewPacket(provider, root, session)
     if (kind === 'read')
@@ -94,6 +96,60 @@ export async function auditNativeStore(provider: string, home: string, root: str
   }
   assert(read)
   await assertNativeBaseline(provider, nativeDriftSummary(provider, inventory.rows, read), root, progress)
+}
+
+// Require real producer facts, not merely a successful final reply or a permissive baseline.
+export function assertFxToolJourney(session: Session): void {
+  const calls = session.events.filter(event => event.type === 'tool_call' && event.data.callId === 'huihua_fx_read')
+  const results = session.events.filter(event => event.type === 'tool_result' && event.data.callId === 'huihua_fx_read')
+  assert.equal(calls.length, 1, 'Fx must persist exactly one requested tool call')
+  assert.equal(results.length, 1, 'Fx must persist exactly one tool result')
+  const call = calls[0]!
+  const result = results[0]!
+  assert(call.type === 'tool_call' && result.type === 'tool_result')
+  assert.equal(call.data.toolName, 'read_file')
+  assert.deepEqual(JSON.parse(String(call.data.arguments)), { path: 'synthetic.txt' })
+  assert.equal(result.data.toolName, 'read_file')
+  assert.equal(result.data.isError, false)
+  assert(JSON.stringify(result.data.result).includes('HUIHUA_FX_TOOL_RESULT'), 'Fx tool result lost synthetic file contents')
+  assert(call.record < result.record, 'Fx tool result precedes call')
+  const reply = session.events.find(event => event.type === 'assistant_message' && event.data.content.some(block => block.data === 'HUIHUA_FX_REPLY'))
+  assert(reply && result.record < reply.record, 'Fx final response must follow the tool result')
+}
+
+export function assertFxCancellation(rows: Row[], session: Session): void {
+  const index = rows.findIndex((row) => {
+    const event = row.event === undefined ? {} : object(row.event)
+    return (row.kind === 'item' && row.type === 'interruption') || event.interrupted !== undefined
+  })
+  assert(index >= 0, 'Fx native cancellation record is absent')
+  const row = rows[index]!
+  const data = object(row.kind === 'item' ? row.data : object(row.event).interrupted)
+  assert.equal(data.reason, 'cancelled')
+  const event = session.events.find(event => event.record === index && event.type === 'system' && ['interruption', 'interrupted'].includes(event.data.sourceType))
+  assert(event && event.type === 'system', 'Fx cancellation fact was not mapped')
+  assert.deepEqual(event.data.payload, data)
+  if (typeof data.partial_text === 'string') {
+    assert(session.events.some(event => event.record === index && event.type === 'assistant_message' && event.data.content.some(block => block.data === data.partial_text)), 'Fx cancellation lost partial text')
+  }
+  if (row.v === 1)
+    assert(session.events.some(event => event.type === 'system' && event.data.sourceType === 'turn_interrupted'), 'Fx journal lost turn interruption')
+}
+
+export function assertFxCompaction(rows: Row[], session: Session): void {
+  const index = rows.findIndex((row) => {
+    const event = row.event === undefined ? {} : object(row.event)
+    return row.kind === 'compacted' || event.context_checkpoint !== undefined
+  })
+  assert(index >= 0, 'Fx native compaction record is absent')
+  const row = rows[index]!
+  const payload = row.kind === 'compacted' ? row : object(object(row.event).context_checkpoint)
+  assert(JSON.stringify(payload).includes('HUIHUA_FX_COMPACT_SUMMARY'), 'Fx native compaction summary is missing')
+  const mapped = session.events.find(event => event.record === index && event.type === 'system' && ['compacted', 'context_checkpoint'].includes(event.data.sourceType))
+  assert(mapped && mapped.type === 'system', 'Fx compaction was not mapped')
+  assert.deepEqual(mapped.data.payload, payload)
+  if (row.v === 1)
+    assert(session.events.some(event => event.type === 'system' && event.data.sourceType === 'snapshot'), 'Fx compaction snapshot is missing')
 }
 
 // Observe native layouts before Huihua mapping, including JSON stored inside SQLite columns.
@@ -347,6 +403,8 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
       time(record, row.ts)
       if (row.kind === 'item' && ['user', 'assistant', 'steering'].includes(String(row.type)))
         message(record, { role: row.type === 'assistant' ? 'assistant' : 'user' }, object(row.data).text)
+      if (row.kind === 'item' && row.type === 'interruption' && typeof object(row.data).partial_text === 'string')
+        message(record, { role: 'assistant' }, object(row.data).partial_text)
     }
     else if (provider === 'fx' && row.event !== undefined) {
       const event = object(row.event)
@@ -355,6 +413,8 @@ function assertNativeFacts(provider: string, inventory: Inventory, session: Sess
       time(record, row.timestamp_ms)
       if (['user', 'assistant', 'steering'].includes(kind))
         message(record, { role: kind === 'assistant' ? 'assistant' : 'user' }, data.text)
+      if (kind === 'interrupted' && typeof data.partial_text === 'string')
+        message(record, { role: 'assistant' }, data.partial_text)
     }
     else if (['grok', 'acp'].includes(provider)) {
       const params = row.params === undefined ? {} : object(row.params)

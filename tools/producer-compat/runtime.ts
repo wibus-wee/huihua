@@ -227,7 +227,7 @@ async function runSimulator(directory: string, port: number): Promise<void> {
   interface Simulator {
     anthropicBaseUrl: string
     openaiBaseUrl: string
-    controller: { enqueue: (scenario: unknown) => void, reset: () => void, requests: () => unknown, assertExhausted: () => void }
+    controller: { enqueue: (scenario: unknown) => void, reset: () => void, requests: () => unknown, assertExhausted: () => void, waitForGate: (name: string) => Promise<void> }
     close: () => Promise<void>
   }
   const api = await import(pathToFileURL(join(directory, 'src/index.ts')).href) as { startModelApiSimulator: (options: { port?: number, autoRespond: boolean }) => Promise<Simulator> }
@@ -246,6 +246,10 @@ async function runSimulator(directory: string, port: number): Promise<void> {
           break
         case 'POST /_simulator/enqueue':
           simulator.controller.enqueue(input)
+          break
+        case 'POST /_simulator/wait-for-gate':
+          assert(typeof input.name === 'string')
+          await simulator.controller.waitForGate(input.name)
           break
         case 'POST /_simulator/reset':
           simulator.controller.reset()

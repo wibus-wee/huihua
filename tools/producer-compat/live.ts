@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
+import { setTimeout as delay } from 'node:timers/promises'
 
-import { auditNativeStore } from './native.ts'
+import { sessions } from '../../src/index.ts'
+import { assertFxCancellation, assertFxCompaction, assertFxToolJourney, auditNativeStore, inventoryStore } from './native.ts'
 import type { CompatibilityProgress } from './report.ts'
 import { assertSimulatorRequests, chatExchange, exchange, json, NativeDriftError, required, startSimulator } from './runtime.ts'
 
@@ -80,6 +82,7 @@ async function main(): Promise<void> {
     await writeFile(join(config, 'settings.json'), JSON.stringify({ provider: 'synthetic', providers: { synthetic: { protocol: 'openai-chat-completions', base_url: `${base}/v1`, auth: { type: 'bearer', env: 'SYNTHETIC_API_KEY' }, model_metadata: { 'gpt-test': { context_window: 200000, max_output_tokens: 1024, supports_tool_use: true } } } }, models: { synthetic: 'gpt-test' }, permission_mode: 'ask' }))
     Object.assign(env, { SYNTHETIC_API_KEY: 'synthetic-test-key', FX_PROVIDER: 'synthetic', FX_MODEL: 'gpt-test' })
     args = ['ask', '--json', '--no-color']
+    await writeFile(join(workspace, 'synthetic.txt'), 'HUIHUA_FX_TOOL_RESULT\n')
   }
   if (provider === 'grok') {
     const config = join(home, '.grok')
@@ -142,7 +145,17 @@ supports_backend_search = false
         await json(`${control}/enqueue`, { provider: 'openai', exchanges: titles.map((_, attempt) => metadataFailure(`${label}-title-${attempt}`, '/v1/responses', prompt, title)) })
       }
       requestPlan.push({ path: chat ? '/v1/chat/completions' : '/v1/messages', marker: prompt })
-      await json(`${control}/enqueue`, { provider: chat ? 'openai' : 'anthropic', exchanges: [chat ? chatExchange(label, prompt, reply) : response] })
+      if (provider === 'fx' && !index) {
+        const base = { id: 'chatcmpl_fx_tool', object: 'chat.completion.chunk', created: 1, model: 'gpt-test' }
+        await json(`${control}/enqueue`, { provider: 'openai', exchanges: [{ label: 'fx-tool', request: { method: 'POST', path: '/v1/chat/completions', bodyTextIncludes: [prompt] }, response: { kind: 'stream', steps: [
+          { kind: 'event', event: { ...base, choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, id: 'huihua_fx_read', type: 'function', function: { name: 'read_file', arguments: JSON.stringify({ path: 'synthetic.txt' }) } }] }, finish_reason: null }] } },
+          { kind: 'event', event: { ...base, choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] } },
+          { kind: 'event', event: '[DONE]' },
+          { kind: 'close' },
+        ] } }] })
+        requestPlan.push({ path: '/v1/chat/completions', marker: 'HUIHUA_FX_TOOL_RESULT' })
+      }
+      await json(`${control}/enqueue`, { provider: chat ? 'openai' : 'anthropic', exchanges: [chat ? chatExchange(label, provider === 'fx' && !index ? 'HUIHUA_FX_TOOL_RESULT' : prompt, reply) : response] })
       if (provider === 'grok') {
         const summary = 'ultra-short dashboard line'
         requestPlan.push({ path: '/v1/chat/completions', marker: prompt, bodyIncludes: summary })
@@ -182,6 +195,14 @@ supports_backend_search = false
     assertSimulatorRequests(ledger, requestPlan)
     await simulator.assertExhausted()
     await auditNativeStore(provider, home, root, progress)
+    if (provider === 'fx') {
+      progress.stage = 'fx-cancellation'
+      await runFxCancellation(bin, args, env, home, workspace, root, control, simulator)
+      progress.completed.push('fx-cancellation')
+      progress.stage = 'fx-compaction'
+      await runFxCompaction(bin, env, home, workspace, root, control, simulator)
+      progress.completed.push('fx-compaction')
+    }
     progress.completed.push('scenario')
     progress.stage = 'passed'
   }
@@ -197,6 +218,142 @@ supports_backend_search = false
     await writeFile(`${output}.progress.json`, JSON.stringify(progress, null, 2))
     console.log(JSON.stringify({ ...progress, artifacts: root }))
   }
+}
+async function runFxCancellation(binary: string, args: string[], env: NodeJS.ProcessEnv, home: string, workspace: string, root: string, control: string, simulator: ReturnType<typeof startSimulator>): Promise<void> {
+  const cancelHome = join(root, 'cancel-home')
+  await mkdir(join(cancelHome, '.fx'), { recursive: true })
+  await writeFile(join(cancelHome, '.fx/settings.json'), await readFile(join(home, '.fx/settings.json')))
+  await json(`${control}/reset`, {})
+  const base = { id: 'chatcmpl_fx_cancel', object: 'chat.completion.chunk', created: 1, model: 'gpt-test' }
+  await json(`${control}/enqueue`, { provider: 'openai', exchanges: [{ label: 'cancel', request: { method: 'POST', path: '/v1/chat/completions', bodyTextIncludes: ['HUIHUA_FX_CANCEL'] }, response: { kind: 'stream', steps: [
+    { kind: 'event', event: { ...base, choices: [{ index: 0, delta: { role: 'assistant', content: 'HUIHUA_FX_PARTIAL' }, finish_reason: null }] } },
+    { kind: 'gate', name: 'fx-cancel' },
+    { kind: 'event', event: { ...base, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] } },
+    { kind: 'event', event: '[DONE]' },
+    { kind: 'close' },
+  ] } }] })
+  const child = spawn(binary, [...args, 'HUIHUA_FX_CANCEL'], { env: { ...env, HOME: cancelHome }, cwd: workspace, stdio: ['ignore', 'pipe', 'pipe'] })
+  let stdout = ''
+  let stderr = ''
+  child.stdout.on('data', data => stdout += String(data))
+  child.stderr.on('data', data => stderr += String(data))
+  const exit = new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {
+    child.once('error', reject)
+    child.once('close', (code, signal) => resolve({ code, signal }))
+  })
+  const timer = setTimeout(() => child.kill('SIGKILL'), 15000)
+  try {
+    await json(`${control}/wait-for-gate`, { name: 'fx-cancel' })
+    assert(child.kill('SIGINT'), 'Fx cancellation signal was not delivered')
+    const outcome = await exit
+    assert(outcome.signal === 'SIGINT' || outcome.code === 130, `unexpected Fx cancellation exit: ${JSON.stringify(outcome)}`)
+  }
+  finally {
+    clearTimeout(timer)
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill('SIGKILL')
+      await exit
+    }
+    await writeFile(join(root, 'cancel.stdout'), stdout)
+    await writeFile(join(root, 'cancel.stderr'), stderr)
+  }
+  const ledger = await json(`${control}/requests`)
+  assertSimulatorRequests(ledger, [{ path: '/v1/chat/completions', marker: 'HUIHUA_FX_CANCEL' }])
+  await simulator.assertExhausted()
+  const inventory = await inventoryStore('fx', cancelHome)
+  const scan = await sessions.scan({ providers: ['fx'], homeDir: cancelHome })
+  assert.deepEqual(scan.failures, [])
+  assert.deepEqual(scan.refs.map(ref => ref.id), [inventory.id])
+  const ref = scan.refs[0]!
+  const handle = await sessions.open(ref)
+  for (const kind of ['read', 'snapshot', 'records', 'events']) {
+    let session = kind === 'snapshot' ? await handle.snapshot() : await sessions.read(ref)
+    if (kind === 'records') {
+      const records = []
+      for await (const record of handle.records()) records.push(record)
+      session = { ...session, records }
+    }
+    if (kind === 'events') {
+      const events = []
+      for await (const event of handle.events()) events.push(event)
+      session = { ...session, events }
+    }
+    inventory.assertRecords(session)
+    assertFxCancellation(inventory.rows, session)
+    await writeFile(join(root, `cancel-${kind}.json`), JSON.stringify(session, null, 2))
+  }
+}
+async function runFxCompaction(binary: string, env: NodeJS.ProcessEnv, home: string, workspace: string, root: string, control: string, simulator: ReturnType<typeof startSimulator>): Promise<void> {
+  await json(`${control}/reset`, {})
+  await json(`${control}/enqueue`, { provider: 'openai', exchanges: [chatExchange('compact', 'HUIHUA_FX_FIRST', 'HUIHUA_FX_COMPACT_SUMMARY')] })
+  // util-linux script supplies a real TTY for the official interactive /compact command.
+  const quoted = `'${binary.replaceAll('\'', '\'\\\'\'')}'`
+  const child = spawn('script', ['-q', '-c', `stty rows 40 cols 120; exec ${quoted} --resume last`, '/dev/null'], { env: { ...env, TERM: 'xterm-256color' }, cwd: workspace, stdio: ['pipe', 'pipe', 'pipe'] })
+  let output = ''
+  child.stdout.on('data', data => output += String(data))
+  child.stderr.on('data', data => output += String(data))
+  const exit = new Promise<{ code: number | null, signal: NodeJS.Signals | null }>((resolve, reject) => {
+    child.once('error', reject)
+    child.once('close', (code, signal) => resolve({ code, signal }))
+  })
+  try {
+    for (let attempt = 0; !output.includes('session resumed'); attempt++) {
+      assert(attempt < 100 && child.exitCode === null, 'Fx interactive resume did not become ready')
+      await delay(100)
+    }
+    child.stdin.write('/compact\r')
+    let found = false
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const inventory = await inventoryStore('fx', home)
+      found = inventory.rows.some(row => row.kind === 'compacted' || objectIsCheckpoint(row))
+      if (found)
+        break
+      assert(child.exitCode === null, 'Fx exited before compaction was persisted')
+      await delay(100)
+    }
+    assert(found, 'Fx did not persist compaction before the deadline')
+    child.stdin.write('/quit\r')
+    const result = await Promise.race([exit, delay(5000).then(() => {
+      throw new Error('Fx did not exit after /quit')
+    })])
+    assert.equal(result.code, 0)
+  }
+  finally {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill('SIGTERM')
+      await Promise.race([exit, delay(2000)])
+    }
+    await writeFile(join(root, 'compact-terminal.txt'), output)
+  }
+  const ledger = await json(`${control}/requests`)
+  assertSimulatorRequests(ledger, [{ path: '/v1/chat/completions', marker: 'HUIHUA_FX_FIRST' }])
+  await simulator.assertExhausted()
+  const inventory = await inventoryStore('fx', home)
+  const scan = await sessions.scan({ providers: ['fx'], homeDir: home })
+  assert.deepEqual(scan.failures, [])
+  assert.deepEqual(scan.refs.map(ref => ref.id), [inventory.id])
+  const ref = scan.refs[0]!
+  const handle = await sessions.open(ref)
+  for (const kind of ['read', 'snapshot', 'records', 'events']) {
+    let session = kind === 'snapshot' ? await handle.snapshot() : await sessions.read(ref)
+    if (kind === 'records') {
+      const records = []
+      for await (const record of handle.records()) records.push(record)
+      session = { ...session, records }
+    }
+    if (kind === 'events') {
+      const events = []
+      for await (const event of handle.events()) events.push(event)
+      session = { ...session, events }
+    }
+    inventory.assertRecords(session)
+    assertFxToolJourney(session)
+    assertFxCompaction(inventory.rows, session)
+    await writeFile(join(root, `compact-${kind}.json`), JSON.stringify(session, null, 2))
+  }
+}
+function objectIsCheckpoint(row: Record<string, unknown>): boolean {
+  return row.event !== null && typeof row.event === 'object' && 'context_checkpoint' in row.event
 }
 function metadataFailure(label: string, path: string, marker: string, purpose: string) {
   return { label, request: { method: 'POST', path, bodyTextIncludes: [marker, purpose] }, response: { kind: 'json', status: 400, body: { error: { type: 'invalid_request_error', message: 'Synthetic metadata service unavailable' } } } }

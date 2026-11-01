@@ -837,3 +837,22 @@ Fresh local Grok 1.0.70 and OpenClaw 2026.10.6 journeys also pass the full order
 request plan, simulator queue exhaustion, native inventory, all four read surfaces and baseline,
 with eight and eleven records respectively, on Node 24.22.1 against pinned simulator 4357945b.
 The package's own minimum supported Node version is not raised by this CI-only producer requirement.
+
+### Fx real tool, cancellation and compaction journeys
+
+The Fx live lane uses the loopback simulator to request `read_file` on a
+synthetic workspace file, verifies the actual result is returned to the model,
+then checks the native session and resumes it.
+A separate gated stream is
+interrupted by SIGINT; its independent inventory is checked through scan,
+read, snapshot, records and events.
+The recorded interruption and any native
+partial text must survive.
+This tests the real producer, not a manufactured
+journal.
+An interactive pseudo-terminal then resumes the same session and runs
+`/compact`; the native checkpoint and earlier evidence must survive.
+The live journey does not cover a native archive transition.
+A separate simulated Codex active-to-archive filesystem move checks discovery and
+read preservation; it is not a real Codex archive operation.
+See [Fx evidence](../src/providers/fx/RESEARCH.md#november-1-native-tool-cancellation-and-compaction-journeys).

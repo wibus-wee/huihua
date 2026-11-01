@@ -123,8 +123,8 @@ function conversation(ingest: Ingestion, native: unknown, evidenceNative: unknow
   else if (kind === 'tool_result' && typeof data.tool_name === 'string') {
     ingest.emit('tool_result', { ...optional('callId', string(data.call_id)), toolName: data.tool_name, result: data, isError: data.status === 'failure' }, envelope, evidence)
   }
-  else if (kind === 'turn_completed' || kind === 'interrupted' || kind === 'context_checkpoint') {
-    if (kind === 'interrupted' && typeof data.partial_text === 'string')
+  else if (kind === 'turn_completed' || kind === 'interrupted' || kind === 'interruption' || kind === 'context_checkpoint') {
+    if ((kind === 'interrupted' || kind === 'interruption') && typeof data.partial_text === 'string')
       ingest.emit('assistant_message', { content: contentBlocks(data.partial_text) }, envelope, evidence)
     ingest.emit('system', { sourceType: kind, payload: event[kind] }, envelope, evidence)
   }
