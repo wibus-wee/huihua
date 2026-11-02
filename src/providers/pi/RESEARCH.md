@@ -105,3 +105,31 @@ Decoder metadata and parent-candidate provenance are final aggregate state publi
 successful EOF; event contributions remain incremental.
 Private append-only candidate lists preserve all evidence without repeatedly copying published prefixes.
 Omitted metadata delivery skips aggregate construction without changing decoder input or lineage validation.
+
+## Provider-reported cost provenance (2026-11-02)
+
+### Official facts
+
+[Pi's usage documentation](https://github.com/earendil-works/pi/blob/62752fd4c37a72e0f3c1cc83e9ac3b4299f31fe6/packages/ai/README.md)
+distinguishes provider-reported total cost (`totalFromProvider: true`) from catalog-estimated
+total cost (`false` or absent).
+The total need not equal the estimated component costs.
+
+### Third-party compatibility experience
+
+The [daily run](https://github.com/wibus-wee/huihua/actions/runs/41454440874) observed the boolean
+in Pi 1.5.0.
+The 1.1.0 lane did not require it.
+Native read surfaces completed before the
+shape baseline flagged the addition; this does not certify unexercised journeys.
+
+### Huihua decisions
+
+The existing usage event retains the original native usage object, including this optional
+flag and total.
+It must not infer the flag when absent or recompute the total from components.
+No new canonical primitive is justified by this evidence: the usage payload is intentionally
+provider-shaped, and the separate usage report aggregates tokens rather than cost.
+Synthetic
+regressions cover true, false and absence; the reviewed baseline accepts only the observed
+boolean path and still detects other changes.

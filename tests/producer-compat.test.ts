@@ -1375,3 +1375,45 @@ await test('October 30 Fx and Codex additions stay narrowly scoped', async () =>
   assertCodexBaseline(observedCodex, codex)
   assert.throws(() => assertCodexBaseline({ ...observedCodex, groupedFieldPaths: [...observedCodex.groupedFieldPaths, group.replace(':boolean', ':string')] }, codex), NativeDriftError)
 })
+
+await test('Pi provider cost provenance and OAR native frames remain evidence, not inferred cost', async () => {
+  for (const flag of [true, false, undefined]) {
+    const cost = { input: 0.1, output: 0.2, total: 0.7, ...(flag === undefined ? {} : { totalFromProvider: flag }) }
+    const usage = { input: 1, output: 2, cost }
+    const piRow = { type: 'message', message: { role: 'assistant', content: 'answer', usage } }
+    const pi = await sessions.parse('pi', { jsonl: JSON.stringify(piRow) })
+    assert.deepEqual(pi.records[0]?.native, piRow)
+    const piUsage = pi.events.find(event => event.type === 'usage')
+    assert(piUsage?.type === 'usage')
+    assert.deepEqual(piUsage.data.usage, usage)
+
+    const oarRow = { kind: 'record', record: { kind: 'frame', body: { native: { message: { usage } }, events: [{ kind: 'usage', usage }] } } }
+    const oar = await sessions.parse('oar', { jsonl: JSON.stringify(oarRow) })
+    assert.deepEqual(oar.records[0]?.native, oarRow)
+    const oarUsage = oar.events.find(event => event.type === 'usage')
+    assert(oarUsage?.type === 'usage')
+    assert.deepEqual(oarUsage.data.usage, usage)
+    const nativeOnly = { kind: 'record', record: { kind: 'frame', body: { native: { message: { usage } }, events: [{ kind: 'text_delta', text: 'answer' }] } } }
+    const oarNativeOnly = await sessions.parse('oar', { jsonl: JSON.stringify(nativeOnly) })
+    assert.deepEqual(oarNativeOnly.records[0]?.native, nativeOnly)
+    assert.equal(oarNativeOnly.events.some(event => event.type === 'usage'), false)
+  }
+})
+
+await test('November 2 Pi and OAR drift accepts only reviewed field shapes', async (t) => {
+  const cases = [
+    { provider: 'pi', prefix: '["message","assistant",null,null,null,null,null,null]:', added: ['$.message.usage.cost.totalFromProvider:boolean'], removed: [] as string[] },
+    { provider: 'oar', prefix: '["record",null,null,null,"frame",null,null,null]:', added: ['$.record.body.native.assistantMessageEvent.partial.usage.cost.totalFromProvider:boolean', '$.record.body.native.message.usage.cost.totalFromProvider:boolean', '$.record.body.native.messages[].usage.cost.totalFromProvider:boolean'], removed: ['$.record.body.native.message.content[].index:number'] },
+  ]
+  for (const { provider, prefix, added, removed } of cases) {
+    await t.test(provider, async () => {
+      const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider}.json`, 'utf8')) as DriftSummary
+      const observed = { ...baseline, fieldPaths: [...baseline.fieldPaths.filter(path => !removed.includes(path)), ...added], groupedFieldPaths: [...baseline.groupedFieldPaths!.filter(path => !removed.map(item => prefix + item).includes(path)), ...added.map(path => prefix + path)] }
+      assertNoProducerDrift(observed, baseline)
+      assertNoProducerDrift(baseline, baseline)
+      for (const path of added)
+        assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, prefix + path.replace(':boolean', ':string')] }, baseline), NativeDriftError)
+      assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `${prefix}$.unexpected:boolean`] }, baseline), NativeDriftError)
+    })
+  }
+})

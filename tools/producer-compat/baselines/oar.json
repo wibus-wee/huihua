@@ -537,5 +537,17 @@
     "PartialParse",
     "PartialParse",
     "PartialParse"
+  ],
+  "optionalFieldPaths": [
+    "$.record.body.native.assistantMessageEvent.partial.usage.cost.totalFromProvider:boolean",
+    "$.record.body.native.message.content[].index:number",
+    "$.record.body.native.message.usage.cost.totalFromProvider:boolean",
+    "$.record.body.native.messages[].usage.cost.totalFromProvider:boolean"
+  ],
+  "optionalGroupedFieldPaths": [
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.assistantMessageEvent.partial.usage.cost.totalFromProvider:boolean",
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.message.content[].index:number",
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.message.usage.cost.totalFromProvider:boolean",
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.messages[].usage.cost.totalFromProvider:boolean"
   ]
 }

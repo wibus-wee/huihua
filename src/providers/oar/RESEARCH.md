@@ -28,3 +28,31 @@ message.
 Unknown projections remain unknown.
 The older 0.40.0 fixture is replayed separately;
 the strict live baseline now describes the reviewed 0.54.3 writer.
+
+## Pi cost provenance in OAR frames (2026-11-02)
+
+### Official facts
+
+Pi documents `usage.cost.totalFromProvider` as distinguishing provider-reported total cost
+from catalog estimates.
+OAR recordings retain native frames separately from projected events.
+
+### Third-party compatibility experience
+
+The [daily run](https://github.com/wibus-wee/huihua/actions/runs/41454440874) observed this
+boolean at three native Pi frame paths in OAR 0.54.3 and 0.84.0, and did not observe one
+previously recorded native content `index`.
+A missing field in this journey does not prove
+that future frames omit it.
+Both lanes reached the baseline after the independent read checks;
+this text-only journey does not certify tool calls or resume.
+
+### Huihua decisions
+
+Retain the entire native OAR record and interpret only its projected events.
+Do not manufacture
+an OAR usage event from the nested native field or assume the projected usage contains the flag.
+The reviewed baseline allows exactly these boolean paths and the presence or absence of the
+previously observed numeric index; unrelated paths and types still cause drift.
+No producer
+dependency is constrained and no public primitive is added.

@@ -149,5 +149,11 @@
   ],
   "diagnosticCodes": [
     "PartialParse"
+  ],
+  "optionalFieldPaths": [
+    "$.message.usage.cost.totalFromProvider:boolean"
+  ],
+  "optionalGroupedFieldPaths": [
+    "[\"message\",\"assistant\",null,null,null,null,null,null]:$.message.usage.cost.totalFromProvider:boolean"
   ]
 }
