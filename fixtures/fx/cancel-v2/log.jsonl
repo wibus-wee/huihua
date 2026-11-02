@@ -1,0 +1,11 @@
+{"v":1,"seq":1,"ts":1793537293552,"kind":"session_created","id":"dlFj1YFg_tWa","workspace":"/tmp/fx-cancel-1t5Zd3/work","role":"root","host":"ask","crc":"f482434f"}
+{"v":1,"seq":2,"ts":1793537293395,"kind":"set","key":"prefs","value":{"provider":{"name":"synthetic","binding":"722ef5a793523c5497e1eee892b06dffe9a583375c6710fa2c437d1b4764f8e1"},"model":"gpt-test","effort":"auto","fast_mode":false},"crc":"7b301151"}
+{"v":1,"seq":3,"ts":1793537293395,"kind":"set","key":"permissions","value":{"schema_version":2,"next_generation":1,"rules":[]},"crc":"03d19533"}
+{"v":1,"seq":4,"ts":1793537293395,"kind":"set","key":"language","value":"und-Latn","crc":"60bec65e"}
+{"v":1,"seq":5,"ts":1793537293552,"kind":"turn_started","turn":1,"crc":"142eb073"}
+{"v":1,"seq":6,"ts":1793537293552,"kind":"item","turn":1,"type":"user","data":{"text":"HUIHUA_FX_CANCEL","images":[],"work_id":null},"crc":"a04e95be"}
+{"v":1,"seq":7,"ts":1793537293552,"kind":"item","turn":1,"type":"runtime_context","data":{"messages":["<fx-turn-context>\nworkspace_root: /tmp/fx-cancel-1t5Zd3/work\ncurrent_directory: /tmp/fx-cancel-1t5Zd3/work\noperating_system: Linux 6.18.57\nshell_path: /bin/bash\ndate_utc: 2026-11-01\nhome_directory: /tmp/fx-cancel-1t5Zd3/home\ngit_worktree: unknown\n</fx-turn-context>\nRuntime context: this is a noninteractive run without live question UI; when a user-owned decision remains after inspection, stop and surface a concrete blocker in freeform text with the available options. Do not recommend or label one option as preferred.","Runtime context: permission mode is ask. Sensitive tool calls may require user approval unless configured rules or session grants already decide them. Tool admission remains authoritative."]},"crc":"54355ac4"}
+{"v":1,"seq":8,"ts":1793537293553,"kind":"item","turn":1,"type":"interruption","data":{"reason":"cancelled","partial_text":"HUIHUA_FX_PARTIAL","command_replay_ref":null,"command_replay_bytes":null,"command_artifact_ref":null,"files":[],"turn_summary":null},"crc":"a438c593"}
+{"v":1,"seq":9,"ts":1793537293553,"kind":"turn_interrupted","turn":1,"reason":"cancel","crc":"c4f4bb28"}
+{"v":1,"seq":10,"ts":1793537293553,"kind":"set","key":"title","value":"HUIHUA_FX_CANCEL","crc":"05ba8f74"}
+{"v":1,"seq":11,"ts":1793537293553,"kind":"closed","crc":"3b768144"}

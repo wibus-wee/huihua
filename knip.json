@@ -18,5 +18,8 @@
     "src/index.ts": [
       "duplicates"
     ]
-  }
+  },
+  "ignoreBinaries": [
+    "script"
+  ]
 }
