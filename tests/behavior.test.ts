@@ -1108,7 +1108,7 @@ void it('Claude subagent transcripts have independent native identities and reta
     ]
     await put(path, rows.map(row => JSON.stringify(row)).join('\n'))
     if (agentId === 'child-a')
-      await put(path.replace('.jsonl', '.meta.json'), JSON.stringify({ agentType: 'Explore', description: 'synthetic task', toolUseId: 'spawn-a', spawnDepth: 1, requestShape: 'background', future: { retained: true } }))
+      await put(path.replace('.jsonl', '.meta.json'), JSON.stringify({ agentType: 'Explore', description: 'synthetic task', toolUseId: 'spawn-a', spawnDepth: 1, requestShape: 'background', pickedEffortModel: 'claude-sonnet-4-5', future: { retained: true } }))
   }
   const scan = await sessions.scan({ providers: ['claude'], homeDir: root })
   assert.deepEqual(scan.failures, [])

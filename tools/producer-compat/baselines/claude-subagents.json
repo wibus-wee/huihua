@@ -163,6 +163,7 @@
     "$.parentUuid:string",
     "$.perTurnEffort:null",
     "$.permissionMode:string",
+    "$.pickedEffortModel:string",
     "$.promptId:string",
     "$.promptSource:string",
     "$.rendered:array",
@@ -483,6 +484,7 @@
     "\"user\":$:object",
     "null:$.agentType:string",
     "null:$.description:string",
+    "null:$.pickedEffortModel:string",
     "null:$.requestNonInteractive:boolean",
     "null:$.requestShape:string",
     "null:$.spawnDepth:number",
@@ -563,6 +565,7 @@
     "$.permissionDecision.source:string",
     "$.permissionDecision:object",
     "$.permissionMode:string",
+    "$.pickedEffortModel:string",
     "$.promptSource:string",
     "$.querySource:string",
     "$.requestDigest:string",
@@ -887,7 +890,8 @@
     "\"user\":$.turnPosition.turnIndex:number",
     "\"user\":$.turnPosition:object",
     "null:$.finished:boolean",
-    "null:$.isBuiltIn:boolean"
+    "null:$.isBuiltIn:boolean",
+    "null:$.pickedEffortModel:string"
   ],
   "evidence": {
     "october22Review": "Run 39761943610: permissionDecision.ruleSource is preserved on native user records in ordinary and foreground-child journeys.",
