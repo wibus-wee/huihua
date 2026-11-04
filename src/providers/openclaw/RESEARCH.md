@@ -48,7 +48,8 @@ No third-party interpretation or unexercised tool/compaction coverage is claimed
 Official OpenClaw 2026.10.10 synthetic capture in
 [run 41639210755](https://github.com/wibus-wee/huihua/actions/runs/41639210755)
 adds navigation and role columns, `modelPromptProjection`, and `usageReport` paths.
-The exact observed typed paths are optional for older stores. Huihua retains the native
+The exact observed typed paths are optional for older stores.
+Huihua retains the native
 rows and emits the original usage object; no new cross-provider primitive is inferred.
 The capture covers first turn and resume, not a tool roundtrip or all SQLite migrations.
 No third-party interpretation is used.

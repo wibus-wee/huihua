@@ -317,4 +317,5 @@ The official Claude Code 2.1.317 synthetic producer run
 recorded `pickedEffortModel` as a string in both foreground child sidecars.
 Huihua retained the complete sidecars in native records and subagent metadata.
 Review this exact optional path for compatibility with older recordings; do not infer a
-cross-provider model-selection event from it. No third-party interpretation is used.
+cross-provider model-selection event from it.
+No third-party interpretation is used.
