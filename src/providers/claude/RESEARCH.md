@@ -309,3 +309,12 @@ in raw records and subagent metadata, so no new canonical meaning is inferred.
 All five captured sessions pass independent native evidence and four-surface replay.
 No third-party claim or fresh CLI execution is implied by replay.
 Artifact 12555931348 SHA-256: b47b8d41941f47b367a46e33338a46e72656043469a8d4689c8cb68aab3983be.
+
+## November 3 foreground-child metadata
+
+The official Claude Code 2.1.317 synthetic producer run
+[41639210755](https://github.com/wibus-wee/huihua/actions/runs/41639210755)
+recorded `pickedEffortModel` as a string in both foreground child sidecars.
+Huihua retained the complete sidecars in native records and subagent metadata.
+Review this exact optional path for compatibility with older recordings; do not infer a
+cross-provider model-selection event from it. No third-party interpretation is used.
