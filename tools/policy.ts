@@ -100,7 +100,7 @@ export async function policy(): Promise<void> {
   assert(manifest.selection.qualityOnly.files.includes('tools/policy.ts'))
   const nativeAudit = await readFile('tools/producer-compat/native.ts', 'utf8')
   assert(nativeAudit.includes('await assertNativeBaseline(provider,'), 'shared native lanes must execute their reviewed field baseline')
-  assert(kimiAudit.includes('await assertNativeBaseline(\'kimi\','), 'Kimi must execute its reviewed field baseline')
+  assert(kimiAudit.includes('await assertNativeBaseline(process.env.COMPAT_LANE === \'latest\' ? \'kimi-latest\' : \'kimi\','), 'Kimi must execute the reviewed baseline for each lane')
   assert(!/from ['"][^'"]*src\/(?:shared|providers|ingest)\//.test(nativeAudit))
   assert(nativeAudit.includes('from \'node:sqlite\''))
   const simulatorRuntime = await readFile('tools/producer-compat/runtime.ts', 'utf8')

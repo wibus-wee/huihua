@@ -156,6 +156,7 @@
     "$.permissionDecision.ruleSource:string",
     "$.permissionDecision.source:string",
     "$.permissionDecision:object",
+    "$.promptCacheRequested:string",
     "$.querySource:string",
     "$.requestDigest:string",
     "$.requestRef:string",
@@ -440,6 +441,7 @@
     "\"api-request-shape\":$.type:string",
     "\"api-request-shape\":$.version:string",
     "\"api-request-shape\":$:object",
+    "\"assistant\":$.promptCacheRequested:string",
     "\"assistant\":$.requestRef:string",
     "\"assistant\":$.requestedModel:string",
     "\"attachment\":$.attachment.context.gitStatus:string",
@@ -458,5 +460,6 @@
   ],
   "evidence": {
     "october22Review": "Run 39761943610: exact additive metadata reviewed against native artifacts; no canonical mapping changes. Other types, record kinds and required fields remain strict."
-  }
+  },
+  "latestReview": "2026-11-05 run 42034359391, Claude 2.1.318: assistant promptCacheRequested string retained in raw records."
 }

@@ -148,3 +148,10 @@ No third-party interpretation is used.
 These are observed synthetic official-writer captures, not a release-wide storage contract.
 Pinned and latest captures pass local replay; existing journey coverage gaps remain.
 See [capture evidence](../../../docs/producer-compatibility.md#october-21-telemetry-review).
+
+## Captured CLI 1.0.106 instruction update (2026-11-06)
+
+The [synthetic latest compatibility run](https://github.com/wibus-wee/huihua/actions/runs/42183864123) records an `instruction.update` containing runtime sandbox guidance and its authority, lifetime, boundary and fallback metadata.
+Huihua maps this native update to the existing system event, preserving its complete envelope and content.
+It does not infer a permission grant or execute the instruction.
+This is one observed producer record, not a guarantee that all variants have identical fields.

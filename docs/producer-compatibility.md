@@ -856,3 +856,12 @@ The live journey does not cover a native archive transition.
 A separate simulated Codex active-to-archive filesystem move checks discovery and
 read preservation; it is not a real Codex archive operation.
 See [Fx evidence](../src/providers/fx/RESEARCH.md#november-1-native-tool-cancellation-and-compaction-journeys).
+
+### November 6 producer observations
+
+The [latest compatibility run](https://github.com/wibus-wee/huihua/actions/runs/42183864123) captured additional ACP model metadata, Copilot instruction and usage metadata, and OAR prompt/frame metadata.
+DeepSeek's observed latest tool definitions omit the `plan` and `queries` properties present in the pinned capture.
+Only the observed field paths are optional; unrelated drift remains an error.
+Copilot's runtime `instruction.update` is retained as a system event, not an authorization decision.
+Grok 1.0.77 retries the forced title request with `tool_choice: auto` after the synthetic metadata endpoint fails; the request ledger still checks the exact pair and unchanged body.
+These are scenario-specific observations, not guarantees about future releases.

@@ -539,15 +539,23 @@
     "PartialParse"
   ],
   "optionalFieldPaths": [
+    "$.record.body.admission:string",
+    "$.record.body.events[].inputId:string",
     "$.record.body.native.assistantMessageEvent.partial.usage.cost.totalFromProvider:boolean",
+    "$.record.body.native.disposition:string",
     "$.record.body.native.message.content[].index:number",
     "$.record.body.native.message.usage.cost.totalFromProvider:boolean",
-    "$.record.body.native.messages[].usage.cost.totalFromProvider:boolean"
+    "$.record.body.native.messages[].usage.cost.totalFromProvider:boolean",
+    "$.record.body.responseTo:string"
   ],
   "optionalGroupedFieldPaths": [
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.events[].inputId:string",
     "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.assistantMessageEvent.partial.usage.cost.totalFromProvider:boolean",
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.disposition:string",
     "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.message.content[].index:number",
     "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.message.usage.cost.totalFromProvider:boolean",
-    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.messages[].usage.cost.totalFromProvider:boolean"
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.messages[].usage.cost.totalFromProvider:boolean",
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.responseTo:string",
+    "[\"record\",null,null,null,\"request\",\"prompt\",null,null]:$.record.body.admission:string"
   ]
 }

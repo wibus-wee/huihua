@@ -14,6 +14,18 @@ import { assertSessionContract } from '../src/testing/index.ts'
 const fixture = (path: string) => resolve('fixtures', path)
 const compatibility = (path: string) => fixture(`compatibility/${path}`)
 
+void it('Kimi keeps injected reminders out of user conversation', async () => {
+  const rows = [
+    { type: 'context.append_message', time: 1, message: { role: 'user', content: [{ type: 'text', text: 'hello' }], origin: { kind: 'user' } } },
+    { type: 'context.append_message', time: 2, message: { role: 'user', content: [{ type: 'text', text: 'reminder' }], origin: { kind: 'injection', variant: 'date_change' } } },
+    { type: 'context.append_message', time: 3, message: { role: 'user', content: [{ type: 'text', text: 'legacy' }] } },
+  ]
+  const session = await sessions.parse('kimi', { jsonl: rows.map(row => JSON.stringify(row)).join('\n') })
+  assert.deepEqual(session.records.map(record => record.native), rows)
+  assert.deepEqual(conversationOf(session).map(event => event.data.content), [[{ type: 'text', data: 'hello' }], [{ type: 'text', data: 'legacy' }]])
+  assert.deepEqual(eventsOf(session, 'system').map(event => event.data.payload), [rows[1]])
+})
+
 void it('Cursor normalizes role-less turn failures and preserves native evidence', async () => {
   const native = { type: 'turn_ended', status: 'error', error: 'upstream request failed' }
   const jsonl = `${JSON.stringify(native)}\n`
@@ -1100,4 +1112,13 @@ void it('fx v2 retains future and malformed evidence without following blobs or 
   await assert.rejects(sessions.read(scan.refs[0]!, { signal: controller.signal }), /stop v2/)
   await writeFile(path, JSON.stringify({ ...head, v: 9 }))
   assert.equal((await sessions.scan({ providers: ['fx'], roots: { fx: [root] } })).refs.length, 0)
+})
+
+void it('Copilot runtime instruction updates are preserved as system evidence', async () => {
+  const native = { type: 'instruction.update', data: { content: '<system_reminder>runtime guidance</system_reminder>', authority: 'runtime', lifetime: 'persistent', boundary: 'nextModelRequest', fallback: 'rebuildSystemPrompt', name: 'sandbox-guidance', postInitial: false }, id: 'instruction-1', parentId: 'start-1', timestamp: '2026-11-06T07:54:14Z' }
+  const session = await sessions.parse('copilot', { jsonl: JSON.stringify(native) })
+  assert.deepEqual(session.records[0]!.native, native)
+  assert.equal(session.events[0]?.type, 'system')
+  assert.equal(session.events[0]?.record, 0)
+  assert.deepEqual(session.diagnostics, [])
 })

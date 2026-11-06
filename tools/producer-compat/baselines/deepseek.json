@@ -739,7 +739,15 @@
     "$.data.header.tools[].parameters.properties.cd:object",
     "$.data.header.tools[].parameters.properties.cwd.description:string",
     "$.data.header.tools[].parameters.properties.cwd.type:string",
-    "$.data.header.tools[].parameters.properties.cwd:object"
+    "$.data.header.tools[].parameters.properties.cwd:object",
+    "$.data.header.tools[].parameters.properties.plan.description:string",
+    "$.data.header.tools[].parameters.properties.plan.type:string",
+    "$.data.header.tools[].parameters.properties.plan:object",
+    "$.data.header.tools[].parameters.properties.queries.description:string",
+    "$.data.header.tools[].parameters.properties.queries.items.type:string",
+    "$.data.header.tools[].parameters.properties.queries.items:object",
+    "$.data.header.tools[].parameters.properties.queries.type:string",
+    "$.data.header.tools[].parameters.properties.queries:object"
   ],
   "optionalGroupedFieldPaths": [
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cd.description:string",
@@ -747,6 +755,14 @@
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cd:object",
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cwd.description:string",
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cwd.type:string",
-    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cwd:object"
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cwd:object",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.plan.description:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.plan.type:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.plan:object",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries.description:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries.items.type:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries.items:object",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries.type:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries:object"
   ]
 }
