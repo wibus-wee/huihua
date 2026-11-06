@@ -7,7 +7,8 @@
     "tools/producer-compat/publish.ts",
     "tools/producer-compat/live.ts",
     "tools/producer-compat/catalog.ts",
-    "tools/producer-compat/recording.ts"
+    "tools/producer-compat/recording.ts",
+    "src/shared/platform/*.ts"
   ],
   "project": [
     "src/**/*.ts",

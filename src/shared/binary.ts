@@ -1,10 +1,14 @@
-import { Buffer } from 'node:buffer'
-
 import XXH from 'xxhashjs'
+
+import { Buffer } from '#bytes'
 
 import { SessionError } from '../contracts/diagnostic.ts'
 
-/** Adapter for the established pure-JS XXH64 implementation; no hashing algorithm lives here. */
+/**
+ * Adapter for the established pure-JS XXH64 implementation; no hashing algorithm lives here.
+ * Streaming input must stay a Buffer: the library's ArrayBuffer path was measured to hash
+ * incrementally fed spans differently from the same bytes fed as Buffers.
+ */
 export class ContentHash {
   readonly #hash = XXH.h64(0)
   update(data: Buffer): void {

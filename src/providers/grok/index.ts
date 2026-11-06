@@ -1,7 +1,7 @@
-import { readdir } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { basename, dirname, join, resolve } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { fs } from '#fs'
+import { homedir } from '#os'
+import { basename, dirname, join, resolve } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ScanOptions } from '../../contracts/provider.ts'
@@ -37,7 +37,7 @@ const provider = jsonlProvider({
     const bucket = dirname(dirname(path))
     let siblings
     try {
-      siblings = await readdir(bucket, { withFileTypes: true })
+      siblings = await fs.readdir(bucket)
     }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT')
@@ -111,6 +111,6 @@ export const grokProvider = {
   },
 }
 function providerRoots(options: ScanOptions) {
-  const home = options.homeDir === undefined ? process.env.GROK_HOME : undefined
+  const home = options.homeDir === undefined ? env.GROK_HOME : undefined
   return options.roots?.grok ?? [join(home !== undefined && home !== '' ? home : join(options.homeDir ?? homedir(), '.grok'), 'sessions')]
 }

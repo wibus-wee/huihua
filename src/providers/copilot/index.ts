@@ -1,5 +1,5 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { homedir } from '#os'
+import { join } from '#path'
 
 import type { Session } from '../../contracts/session.ts'
 import { contentBlocks, jsonlProvider } from '../../shared/ingestion.ts'

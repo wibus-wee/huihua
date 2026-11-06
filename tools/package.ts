@@ -144,6 +144,19 @@ export async function packageCheck(): Promise<void> {
       const usageFacts=[];await directOpened.consumeUsageFacts(item=>{usageFacts.push(item);});
       const expectedFacts=usageFrames.map(frame=>{if(frame.type!=='event')return frame;const {sequence,...fact}=frame.event;assert.ok(Number.isInteger(sequence));return fact;});
       assert.deepEqual(usageFacts,expectedFacts);
+      const portable = await import('huihua/browser');
+      const {readFile: readPortable} = await import('node:fs/promises');
+      const portableStore = portable.mount([{path:'codex/simple.jsonl',blob:new File([new Uint8Array(await readPortable(${JSON.stringify(fixture)}))],'simple.jsonl')}],{as:'files'});
+      const portableScan = await portable.sessions.scan({providers:['codex'],roots:{codex:portableStore.paths}});
+      assert.equal(portableScan.failures.length,0);assert.equal(portableScan.refs.length,1);
+      const portableSession = await portable.sessions.read(portableScan.refs[0]);
+      assert.equal(portableSession.schema,'agent-session/v1');
+      assert.equal(portableSession.records.length,session.records.length);
+      assert.equal(portableSession.events.length,session.events.length);
+      assert.deepEqual(portable.conversationOf(portableSession),conversationOf(session));
+      assert.equal(portableStore.describe(portableScan.refs[0].source.path),'codex/simple.jsonl');
+      assert.equal(portable.allProviderRoots(portableStore.paths).codex.length,1);
+      portableStore.dispose();
       await assert.rejects(()=>import('huihua/dist/shared/value.js'),{code:'ERR_PACKAGE_PATH_NOT_EXPORTED'});
     `,
     )
@@ -204,6 +217,12 @@ export async function packageCheck(): Promise<void> {
       const decoder:SessionDecoder={id:'consumer',create:()=>{const replay:DecoderReplay={decode:(input:DecoderInput):readonly DecoderContribution[]=>input.type==='gap'?[]:[{type:'metadata',record:input.record,data:{observed:true}}]};return replay;}};
       const piOptions:PiProviderOptions={decoders:[decoder]};const configuredPi=createPiProvider(piOptions);
       const configuredFrames:AsyncIterable<SessionFrame>=configuredPi.stream({jsonl:''});void configuredFrames;
+      import {allProviderRoots,entriesFromFileList,mount} from 'huihua/browser';
+      const portableStore=mount(entriesFromFileList([]),{as:'files'});
+      const portableHome:string|undefined=portableStore.homeDir;
+      const portableRoots:Record<string,readonly string[]>=allProviderRoots(portableStore.paths);
+      const describedHandOff:string|undefined=portableStore.describe(portableStore.root);
+      portableStore.dispose();void portableHome;void portableRoots;void describedHandOff;
       const adapter:SessionProvider=provider;
       if(adapter.stream){const customFrames:AsyncIterable<SessionFrame>=adapter.stream({jsonl:''});void customFrames;}
       for await(const frame of frames){if(frame.type==='event'){const event:SessionEvent=frame.event;void event;}}

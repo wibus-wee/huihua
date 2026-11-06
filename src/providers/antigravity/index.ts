@@ -1,9 +1,9 @@
-import { Buffer } from 'node:buffer'
-import { homedir } from 'node:os'
-import { basename, join, resolve } from 'node:path'
-import process from 'node:process'
-
 import { BinaryReader, WireType } from '@bufbuild/protobuf/wire'
+
+import { Buffer } from '#bytes'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, join, resolve } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
@@ -17,7 +17,7 @@ import { binarySafe, SqliteReader } from '../../shared/sqlite.ts'
 import { array, object, optional, parseNative, string, timestamp } from '../../shared/value.ts'
 
 function roots(options: ScanOptions): readonly string[] {
-  const root = options.homeDir === undefined ? process.env.AGY_CONVERSATIONS_DIR : undefined
+  const root = options.homeDir === undefined ? env.AGY_CONVERSATIONS_DIR : undefined
   const home = options.homeDir ?? homedir()
   return options.roots?.antigravity ?? [root !== undefined && root !== '' ? root : join(home, '.gemini/antigravity-cli/conversations'), join(home, '.gemini/antigravity-cli/brain'), join(home, '.gemini/antigravity/brain')]
 }

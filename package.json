@@ -14,11 +14,49 @@
   "bugs": {
     "url": "https://github.com/wibus-wee/huihua/issues"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/browser/index.js"
+  ],
+  "imports": {
+    "#bytes": {
+      "browser": "./src/shared/platform/bytes.browser.ts",
+      "node": "./src/shared/platform/bytes.node.ts",
+      "default": "./src/shared/platform/bytes.node.ts"
+    },
+    "#crypto": {
+      "browser": "./src/shared/platform/crypto.browser.ts",
+      "node": "./src/shared/platform/crypto.node.ts",
+      "default": "./src/shared/platform/crypto.node.ts"
+    },
+    "#env": {
+      "browser": "./src/shared/platform/env.browser.ts",
+      "node": "./src/shared/platform/env.node.ts",
+      "default": "./src/shared/platform/env.node.ts"
+    },
+    "#fs": {
+      "browser": "./src/shared/platform/fs.browser.ts",
+      "node": "./src/shared/platform/fs.node.ts",
+      "default": "./src/shared/platform/fs.node.ts"
+    },
+    "#os": {
+      "browser": "./src/shared/platform/os.browser.ts",
+      "node": "./src/shared/platform/os.node.ts",
+      "default": "./src/shared/platform/os.node.ts"
+    },
+    "#path": {
+      "browser": "./src/shared/platform/path.browser.ts",
+      "node": "./src/shared/platform/path.node.ts",
+      "default": "./src/shared/platform/path.node.ts"
+    }
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "import": "./dist/browser/index.js"
     },
     "./registry": {
       "types": "./dist/registry.d.ts",
@@ -131,7 +169,7 @@
     "bench": "node tools/bench-jsonl.ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
     "test": "node --test tests/*.test.ts",
-    "build": "tsdown",
+    "build": "tsdown && tsdown --config tsdown.browser.config.ts",
     "goldens": "node tools/goldens.ts",
     "fixtures": "node tools/fixtures.ts",
     "lint": "eslint . --max-warnings=0",
@@ -149,9 +187,11 @@
     "xxhashjs": "0.2.2"
   },
   "devDependencies": {
+    "@noble/hashes": "^2.0.0",
     "@types/node": "^22.18.0",
     "@types/picomatch": "4.0.3",
     "@types/xxhashjs": "^0.2.4",
+    "buffer": "^6.0.3",
     "eslint": "^10.12.0",
     "eslint-config-hyoban": "^7.0.3",
     "knip": "^6.39.0",

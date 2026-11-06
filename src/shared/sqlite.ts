@@ -1,10 +1,10 @@
-import { Buffer } from 'node:buffer'
-import type { FileHandle } from 'node:fs/promises'
-import { open, stat } from 'node:fs/promises'
+import { Buffer } from '#bytes'
+import { fs } from '#fs'
 
 import { SessionError } from '../contracts/diagnostic.ts'
 import type { ReadOptions } from '../contracts/provider.ts'
 import { ioError, positiveLimit } from './paths.ts'
+import type { ReadHandle } from './platform/types.ts'
 
 export type Row = Record<string, unknown>
 interface Table {
@@ -32,7 +32,7 @@ interface WalIndex {
 const walIndexes = new Map<string, Promise<WalIndex>>()
 async function fingerprint(path: string): Promise<string> {
   try {
-    const s = await stat(path, { bigint: true })
+    const s = await fs.identity(path)
     return `${s.dev}:${s.ino}:${s.size}:${s.mtimeNs}:${s.ctimeNs}`
   }
   catch (error) {
@@ -363,8 +363,8 @@ function schema(sql: string, root: number): Table {
 export class SqliteReader {
   readonly tables = new Map<string, Table>()
   readonly #indexes: Index[] = []
-  readonly #db: FileHandle
-  #wal: FileHandle | undefined
+  readonly #db: ReadHandle
+  #wal: ReadHandle | undefined
   readonly #path: string
   readonly #options: ReadOptions
   #fingerprints = new Map<string, string>()
@@ -375,7 +375,7 @@ export class SqliteReader {
   #overlay = new Map<number, number>()
   #cache = new Map<number, Buffer>()
   #closed = false
-  private constructor(db: FileHandle, path: string, options: ReadOptions) {
+  private constructor(db: ReadHandle, path: string, options: ReadOptions) {
     this.#db = db
     this.#path = path
     this.#options = options
@@ -388,7 +388,7 @@ export class SqliteReader {
     options.signal?.throwIfAborted()
     let reader: SqliteReader
     try {
-      reader = new SqliteReader(await open(path, 'r'), path, options)
+      reader = new SqliteReader(await fs.open(path), path, options)
     }
     catch (error) {
       ioError(error, path)
@@ -407,7 +407,7 @@ export class SqliteReader {
     }
   }
 
-  async #read(file: FileHandle, offset: number, size: number): Promise<Buffer> {
+  async #read(file: ReadHandle, offset: number, size: number): Promise<Buffer> {
     this.#options.signal?.throwIfAborted()
     const data = Buffer.alloc(size)
     let done = 0
@@ -432,7 +432,7 @@ export class SqliteReader {
         paths.map(async path => [path, await fingerprint(path)] as const),
       ),
     )
-    if (this.#fingerprints.get(paths[2]!) !== 'absent' && (await stat(paths[2]!)).size > 0) {
+    if (this.#fingerprints.get(paths[2]!) !== 'absent' && (await fs.stat(paths[2]!)).size > 0) {
       throw new SessionError(
         'PartialParse',
         'nonempty SQLite rollback journal; read a quiescent backup',
@@ -470,7 +470,7 @@ export class SqliteReader {
       fail('truncated SQLite database')
     this.#pages = size / this.#pageSize
     if (this.#fingerprints.get(paths[1]!) !== 'absent') {
-      this.#wal = await open(paths[1]!, 'r')
+      this.#wal = await fs.open(paths[1]!)
       await this.#loadWal()
     }
     const effective = await this.#page(1)
@@ -501,7 +501,7 @@ export class SqliteReader {
   }
 
   async #scanWal(
-    file: FileHandle,
+    file: ReadHandle,
     head: Buffer,
     little: boolean,
     salt: string,

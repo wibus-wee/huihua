@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, dirname, join } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ScanEvent, ScanOptions } from '../../contracts/provider.ts'
@@ -10,7 +10,7 @@ import { files } from '../../shared/paths.ts'
 import { array, object, optional, string, timestamp } from '../../shared/value.ts'
 
 function roots(options: ScanOptions): readonly string[] {
-  const root = options.homeDir === undefined ? process.env.DSH_HOME : undefined
+  const root = options.homeDir === undefined ? env.DSH_HOME : undefined
   return options.roots?.deepseek ?? [join(root ?? join(options.homeDir ?? homedir(), '.dsh'), 'sessions')]
 }
 const accepts = (path: string) => /^session(?:\.v[1-9]\d*)?\.jsonl(?:\.zstd)?$/.test(basename(path))

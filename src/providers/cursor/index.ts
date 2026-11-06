@@ -1,5 +1,5 @@
-import { homedir } from 'node:os'
-import { basename, dirname, join, resolve } from 'node:path'
+import { homedir } from '#os'
+import { basename, dirname, join, resolve } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
