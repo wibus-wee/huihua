@@ -11,6 +11,11 @@ import type { CompatibilityProgress } from './report.ts'
 import { writeReviewPacket } from './review.ts'
 import { assertNativeBaseline, assertSimulatorRequests, exchange, json, NativeDriftError, nativeReadSummary, required, startSimulator } from './runtime.ts'
 
+// Workspace IDs are generated from the temporary workspace path on each run.
+export function normalizeKimiWorkspacePaths(paths: string[]): string[] {
+  return [...new Set(paths.map(path => path.replace(/(\.workspacePrimaryByWorkspace\.)wd_workspace_[0-9a-f]+(?=:)/g, '$1<workspace>')))].sort()
+}
+
 // Scenario-local oracle over real writer records, not Huihua's parsing output.
 export function assertKimiReplies(rows: unknown[], events: Session['events']): void {
   const expected: string[] = []
@@ -58,8 +63,11 @@ export function assertKimiFacts(rows: Record<string, unknown>[], state: Record<s
         assert.deepEqual(event.data.payload, native, 'Kimi unknown evidence')
     }
     if (native.type === 'context.append_message') {
-      const message = native.message as { role: string, content: { type: string, text?: string }[], usage?: unknown }
-      if (message.role === 'user' || message.role === 'assistant') {
+      const message = native.message as { role: string, content: { type: string, text?: string }[], usage?: unknown, origin?: { kind?: string } }
+      if (message.role === 'user' && message.origin?.kind === 'injection') {
+        assert(events.some(event => event.type === 'system' && event.data.sourceType === native.type && JSON.stringify(event.data.payload) === JSON.stringify(native)), 'Kimi injected context evidence')
+      }
+      else if (message.role === 'user' || message.role === 'assistant') {
         for (const part of message.content) {
           assert.equal(part.type, 'text', 'unreviewed Kimi live content')
           messages.push({ record: index, role: message.role, text: part.text })
@@ -181,7 +189,11 @@ async function main(): Promise<void> {
       assertKimiReplies(rows, session.events)
       progress.completed.push(kind)
     }
-    await assertNativeBaseline('kimi', nativeReadSummary([{ path, id: String(state.id), rows: [state, ...rows as Record<string, unknown>[]].map((native, index) => ({ native, position: index + 1, text: '' })) }], await handle.snapshot(), native => JSON.stringify([native.type ?? 'state', (native.event as { type?: string } | undefined)?.type ?? null])), root, progress)
+    const summary = nativeReadSummary([{ path, id: String(state.id), rows: [state, ...rows as Record<string, unknown>[]].map((native, index) => ({ native, position: index + 1, text: '' })) }], await handle.snapshot(), native => JSON.stringify([native.type ?? 'state', (native.event as { type?: string } | undefined)?.type ?? null]))
+    summary.fieldPaths = normalizeKimiWorkspacePaths(summary.fieldPaths)
+    if (summary.groupedFieldPaths)
+      summary.groupedFieldPaths = normalizeKimiWorkspacePaths(summary.groupedFieldPaths)
+    await assertNativeBaseline(process.env.COMPAT_LANE === 'latest' ? 'kimi-latest' : 'kimi', summary, root, progress)
     progress.stage = 'passed'
   }
   catch (error) {

@@ -54,7 +54,10 @@ export const kimiProvider = jsonlProvider({
     const envelope = { ...v, timestamp: v.time }
     if (type === 'context.append_message') {
       const m = object(v.message)
-      if (m.role === 'user' || m.role === 'assistant') {
+      if (m.role === 'user' && object(m.origin).kind === 'injection') {
+        ingest.emit('system', { sourceType: type, payload: native }, envelope)
+      }
+      else if (m.role === 'user' || m.role === 'assistant') {
         for (const part of array(m.content)) {
           const p = object(part)
           if (p.type === 'think') {

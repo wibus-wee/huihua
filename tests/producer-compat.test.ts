@@ -12,12 +12,25 @@ import { sessions } from '../src/index.ts'
 import { activeProviders, manifest, selectProviders } from '../tools/producer-compat/catalog.ts'
 import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexBaseline, assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
-import { assertKimiFacts, assertKimiReplies } from '../tools/producer-compat/kimi.ts'
+import { assertKimiFacts, assertKimiReplies, normalizeKimiWorkspacePaths } from '../tools/producer-compat/kimi.ts'
 import { grokTitleRequests } from '../tools/producer-compat/live.ts'
 import { assertFxCancellation, assertFxToolJourney, inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import type { DriftSummary } from '../tools/producer-compat/runtime.ts'
 import { assertNativeBaseline, assertNoProducerDrift, assertSimulatorRequests, json, NativeDriftError, nativeFieldPaths, startSimulator } from '../tools/producer-compat/runtime.ts'
+
+await test('Kimi normalizes only generated workspace map keys in drift paths', () => {
+  const paths = ['["changeNotifier.snapshot",null]:$.workspacePrimaryByWorkspace.wd_workspace_abc123:string']
+  assert.deepEqual(normalizeKimiWorkspacePaths(paths), ['["changeNotifier.snapshot",null]:$.workspacePrimaryByWorkspace.<workspace>:string'])
+  assert.deepEqual(normalizeKimiWorkspacePaths(['$.other.wd_workspace_abc123:string']), ['$.other.wd_workspace_abc123:string'])
+  assert.deepEqual(normalizeKimiWorkspacePaths(['$.workspacePrimaryByWorkspace.wd_workspace_xyz:string']), ['$.workspacePrimaryByWorkspace.wd_workspace_xyz:string'])
+})
+
+await test('Kimi latest baseline still detects unreviewed native changes', async () => {
+  const baseline = JSON.parse(await readFile(new URL('../tools/producer-compat/baselines/kimi-latest.json', import.meta.url), 'utf8')) as DriftSummary
+  assertNoProducerDrift(baseline, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...baseline, groupedFieldPaths: [...baseline.groupedFieldPaths!, '["new.record",null]:$.newField:string'] }, baseline), NativeDriftError)
+})
 
 await test('test launcher disables automatic model replies and checks unconsumed exchanges', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'huihua-simulator-launch-'))

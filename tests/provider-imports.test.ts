@@ -14,6 +14,18 @@ import { assertSessionContract } from '../src/testing/index.ts'
 const fixture = (path: string) => resolve('fixtures', path)
 const compatibility = (path: string) => fixture(`compatibility/${path}`)
 
+void it('Kimi keeps injected reminders out of user conversation', async () => {
+  const rows = [
+    { type: 'context.append_message', time: 1, message: { role: 'user', content: [{ type: 'text', text: 'hello' }], origin: { kind: 'user' } } },
+    { type: 'context.append_message', time: 2, message: { role: 'user', content: [{ type: 'text', text: 'reminder' }], origin: { kind: 'injection', variant: 'date_change' } } },
+    { type: 'context.append_message', time: 3, message: { role: 'user', content: [{ type: 'text', text: 'legacy' }] } },
+  ]
+  const session = await sessions.parse('kimi', { jsonl: rows.map(row => JSON.stringify(row)).join('\n') })
+  assert.deepEqual(session.records.map(record => record.native), rows)
+  assert.deepEqual(conversationOf(session).map(event => event.data.content), [[{ type: 'text', data: 'hello' }], [{ type: 'text', data: 'legacy' }]])
+  assert.deepEqual(eventsOf(session, 'system').map(event => event.data.payload), [rows[1]])
+})
+
 void it('Cursor normalizes role-less turn failures and preserves native evidence', async () => {
   const native = { type: 'turn_ended', status: 'error', error: 'upstream request failed' }
   const jsonl = `${JSON.stringify(native)}\n`

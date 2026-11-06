@@ -566,6 +566,7 @@
     "$.permissionDecision:object",
     "$.permissionMode:string",
     "$.pickedEffortModel:string",
+    "$.promptCacheRequested:string",
     "$.promptSource:string",
     "$.querySource:string",
     "$.requestDigest:string",
@@ -777,6 +778,7 @@
     "\"assistant\":$.message.content[].input.subagent_type:string",
     "\"assistant\":$.message.content[].input:object",
     "\"assistant\":$.message.content[].name:string",
+    "\"assistant\":$.promptCacheRequested:string",
     "\"assistant\":$.requestRef:string",
     "\"assistant\":$.requestedModel:string",
     "\"atis-latch\":$.atis:string",
@@ -896,5 +898,6 @@
   "evidence": {
     "october22Review": "Run 39761943610: permissionDecision.ruleSource is preserved on native user records in ordinary and foreground-child journeys.",
     "october24Review": "Run 40082602386, Claude 2.1.310: both foreground-child companion files contain isBuiltIn:true; raw companion metadata is retained without new canonical semantics."
-  }
+  },
+  "latestReview": "2026-11-05 run 42034359391, Claude 2.1.318: assistant promptCacheRequested string retained in raw records."
 }
