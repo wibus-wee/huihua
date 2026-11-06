@@ -6,16 +6,18 @@ native evidence.
 It does not execute agents, connect to networks, mutate stores or provide runtime
 control, search, indexing, memory, analytics or UI.
 
-| Layer / owner   | Contract                                                                                |
-| --------------- | --------------------------------------------------------------------------------------- |
-| src/contracts   | Public types, validation and thin provider SPI; depends only on contracts               |
-| src/registry.ts | Consumer-extensible composition, scan orchestration and dispatch; no builtin identities |
-| src/index.ts    | The sole builtin composition root; exports sessions and its AgentSession alias          |
-| src/providers/* | Discovery policy and native-to-canonical mapping; no inter-provider imports             |
-| src/shared      | Provider-independent discovery failures, paths and bounded ingestion primitives         |
-| src/observe     | Disposable projections using public contracts only                                      |
-| src/ingest      | Provider-authoring kit re-exporting the bounded shared primitives and store factories   |
-| src/testing     | Runner-independent evidence and ordering assertions                                     |
+| Layer / owner       | Contract                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| src/contracts       | Public types, validation and thin provider SPI; depends only on contracts               |
+| src/registry.ts     | Consumer-extensible composition, scan orchestration and dispatch; no builtin identities |
+| src/index.ts        | The sole builtin composition root; exports sessions and its AgentSession alias          |
+| src/providers/*     | Discovery policy and native-to-canonical mapping; no inter-provider imports             |
+| src/shared          | Provider-independent discovery failures, paths and bounded ingestion primitives         |
+| src/observe         | Disposable projections using public contracts only                                      |
+| src/ingest          | Provider-authoring kit re-exporting the bounded shared primitives and store factories   |
+| src/shared/platform | The only platform boundary: #fs, #path, #bytes, #os, #env and #crypto arms              |
+| src/browser         | Portable entry: mounts handed-over Blobs and exposes gesture adapters; owns no parser   |
+| src/testing         | Runner-independent evidence and ordering assertions                                     |
 
 ## Evidence and schema
 
@@ -544,6 +546,42 @@ Network acquisition, uploads and batch persistence remain caller responsibilitie
 [Acquisition tests](../tests/parse.test.ts) enforce frame equivalence using the existing fixture manifest, backpressure, evidence, lifecycle and capability dispatch.
 The [installed-package checks](../tools/package.ts) enforce runtime access and emitted declaration types for both the registry and provider subpaths.
 The [stream performance experiment](performance.md) compares each removed forwarding layer with the retained lifecycle protections and records reproducible benchmark commands and raw measurements.
+
+## Portable platform seams
+
+[src/shared/platform](../src/shared/platform) owns the only platform boundary in the package.
+Six internal specifiers (`#fs`, `#path`, `#bytes`, `#os`, `#env`, `#crypto`) are declared once in
+package.json#imports and resolved per condition.
+Node arms delegate to the builtins this package always used; browser arms implement the same shapes
+over Blob, a POSIX path subset, a maintained Buffer implementation, a synthetic home, an empty
+environment and @noble/hashes SHA-256.
+Providers, mapping, decoding and projections import the seam rather than a builtin, so one parser
+graph runs on both platforms without a platform branch in discovery, failure boundaries or schema.
+[tools/policy.ts](../tools/policy.ts) enforces arm pairing, forbids builtins inside browser arms and
+the browser layer, restricts browser-only dependencies to that arm, and keeps the portable layer
+DOM-free so a worker can import it.
+
+[src/browser](../src/browser) is the portable entry surface.
+It re-exports the builtin composition and adds mount helpers plus gesture adapters; it owns no
+parser, no discovery policy and no UI.
+A mount is a read-only virtual POSIX tree over handed-over Blobs: `home` mode places the tree under a
+synthetic home so provider default roots resolve unchanged, while `files` mode passes explicit roots
+for every registered provider.
+Synthetic paths stay in evidence and `describe` maps them back to what the caller handed over.
+[The portable guide](browser-portable.md) owns the API, gestures, limits and validation evidence.
+
+Two alternatives were rejected.
+Injecting a driver object through ScanOptions/ReadOptions would leave a node:fs fallback inside
+providers, so a portable bundle would still contain builtins unless every consumer configured
+externals.
+A second browser parser would duplicate twenty providers and let the fixture corpus drift from the
+portable behaviour.
+Buffer stays behind a seam instead of a Uint8Array migration because the JSONL framing hot path is
+shared and the rewrite would need benchmarks this change does not authorize.
+The maintained `buffer` implementation is inlined into the portable bundle and installed as the host
+global only when the host has none, because XXH64 allocates its scratch buffer through that global.
+The Node build keeps resolving every seam to its original builtin, which the unchanged v1 goldens
+verify.
 
 ## Provider coverage and format ownership
 
