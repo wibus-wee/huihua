@@ -1113,3 +1113,12 @@ void it('fx v2 retains future and malformed evidence without following blobs or 
   await writeFile(path, JSON.stringify({ ...head, v: 9 }))
   assert.equal((await sessions.scan({ providers: ['fx'], roots: { fx: [root] } })).refs.length, 0)
 })
+
+void it('Copilot runtime instruction updates are preserved as system evidence', async () => {
+  const native = { type: 'instruction.update', data: { content: '<system_reminder>runtime guidance</system_reminder>', authority: 'runtime', lifetime: 'persistent', boundary: 'nextModelRequest', fallback: 'rebuildSystemPrompt', name: 'sandbox-guidance', postInitial: false }, id: 'instruction-1', parentId: 'start-1', timestamp: '2026-11-06T07:54:14Z' }
+  const session = await sessions.parse('copilot', { jsonl: JSON.stringify(native) })
+  assert.deepEqual(session.records[0]!.native, native)
+  assert.equal(session.events[0]?.type, 'system')
+  assert.equal(session.events[0]?.record, 0)
+  assert.deepEqual(session.diagnostics, [])
+})

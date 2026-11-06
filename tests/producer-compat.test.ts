@@ -1448,3 +1448,21 @@ await test('November 3 Claude and OpenClaw native additions remain bounded', asy
   assert.throws(() => assertNoProducerDrift({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths, '[\"state\",null,null,null,null,null,\"message\",null]:$.row.navigation_valid:string'] }, baseline), NativeDriftError)
   assert.throws(() => assertNoProducerDrift({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths, 'null:$.future:string'] }, baseline), NativeDriftError)
 })
+
+await test('Grok 1.0.77 uses the observed exact title fallback', () => {
+  const plan = grokTitleRequests('1.0.77', 'FIRST')
+  assert.equal(plan.length, 2)
+  assert.equal(plan[1]!.toolChoice, 'auto')
+  assert.equal(plan[1]!.sameBodyAsPrevious, true)
+  assert.equal(grokTitleRequests('1.0.78', 'FIRST').length, 1)
+})
+
+await test('reviewed November provider metadata remains narrow', async () => {
+  for (const provider of ['acp', 'copilot', 'deepseek', 'oar']) {
+    const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider}.json`, 'utf8')) as DriftSummary
+    assertNoProducerDrift(baseline, baseline)
+    const withReviewed = { ...baseline, fieldPaths: [...baseline.fieldPaths, ...(baseline.optionalFieldPaths ?? [])], groupedFieldPaths: [...baseline.groupedFieldPaths!, ...(baseline.optionalGroupedFieldPaths ?? [])] }
+    assertNoProducerDrift(withReviewed, baseline)
+    assert.throws(() => assertNoProducerDrift({ ...withReviewed, groupedFieldPaths: [...withReviewed.groupedFieldPaths, '["future",null]:$.unreviewed:string'] }, baseline), /drift/)
+  }
+})

@@ -340,7 +340,15 @@
     "$.result.configOptions[]._meta.qwen.workflowMode.effective:boolean",
     "$.result.configOptions[]._meta.qwen.workflowMode.reason:string",
     "$.result.configOptions[]._meta.qwen.workflowMode:object",
-    "$.result.configOptions[]._meta:object"
+    "$.result.configOptions[]._meta:object",
+    "$.result.models.availableModels[]._meta.authType:string",
+    "$.result.models.availableModels[]._meta.baseModelId:string",
+    "$.result.models.availableModels[]._meta.baseUrl:string",
+    "$.result.models.availableModels[]._meta.envKey:string",
+    "$.result.models.availableModels[]._meta.isRuntime:boolean",
+    "$.result.models.availableModels[]._meta.modalities.image:boolean",
+    "$.result.models.availableModels[]._meta.modalities.pdf:boolean",
+    "$.result.models.availableModels[]._meta.modalities:object"
   ],
   "optionalGroupedFieldPaths": [
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.durationMs:number",
@@ -363,6 +371,14 @@
     "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta.qwen.workflowMode.effective:boolean",
     "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta.qwen.workflowMode.reason:string",
     "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta.qwen.workflowMode:object",
-    "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta:object"
+    "[\"state\",null,null,null,null,null,null,null]:$.result.configOptions[]._meta:object",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.authType:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.baseModelId:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.baseUrl:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.envKey:string",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.isRuntime:boolean",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.modalities.image:boolean",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.modalities.pdf:boolean",
+    "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.modalities:object"
   ]
 }
