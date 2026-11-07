@@ -1122,3 +1122,12 @@ void it('Copilot runtime instruction updates are preserved as system evidence', 
   assert.equal(session.events[0]?.record, 0)
   assert.deepEqual(session.diagnostics, [])
 })
+
+void it('Claude preserves tool input timing without changing tool calls', async () => {
+  const native = { type: 'assistant', toolInputStreamMs: 1, message: { role: 'assistant', content: [{ type: 'tool_use', id: 'call-1', name: 'Read', input: { file_path: 'synthetic.txt' } }] } }
+  const session = await sessions.parse('claude', { jsonl: JSON.stringify(native) })
+  assert.deepEqual(session.records[0]?.native, native)
+  const calls = eventsOf(session, 'tool_call')
+  assert.equal(calls.length, 1)
+  assert.deepEqual(calls[0]?.data, { callId: 'call-1', toolName: 'Read', arguments: { file_path: 'synthetic.txt' } })
+})

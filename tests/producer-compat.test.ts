@@ -1466,3 +1466,15 @@ await test('reviewed November provider metadata remains narrow', async () => {
     assert.throws(() => assertNoProducerDrift({ ...withReviewed, groupedFieldPaths: [...withReviewed.groupedFieldPaths, '["future",null]:$.unreviewed:string'] }, baseline), /drift/)
   }
 })
+
+await test('Claude tool input timing drift is narrowly reviewed', async () => {
+  for (const provider of ['claude', 'claude-subagents']) {
+    const baseline = JSON.parse(await readFile(`tools/producer-compat/baselines/${provider}.json`, 'utf8')) as DriftSummary
+    const actual = { ...baseline, fieldPaths: [...baseline.fieldPaths, '$.toolInputStreamMs:number'], groupedFieldPaths: [...baseline.groupedFieldPaths!, '"assistant":$.toolInputStreamMs:number'] }
+    assertNoProducerDrift(baseline, baseline)
+    assertNoProducerDrift(actual, baseline)
+    assert.throws(() => assertNoProducerDrift({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths, '"assistant":$.toolInputStreamMs:string'] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths, '"user":$.toolInputStreamMs:number'] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths, '"assistant":$.futureField:number'] }, baseline), NativeDriftError)
+  }
+})
