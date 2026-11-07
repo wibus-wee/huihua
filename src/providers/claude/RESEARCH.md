@@ -319,3 +319,13 @@ Huihua retained the complete sidecars in native records and subagent metadata.
 Review this exact optional path for compatibility with older recordings; do not infer a
 cross-provider model-selection event from it.
 No third-party interpretation is used.
+
+## November 7 tool input timing
+
+The official Claude Code 2.1.319 synthetic capture in [daily run 42369600010](https://github.com/wibus-wee/huihua/actions/runs/42369600010) contains `toolInputStreamMs: 1` on three assistant records with tool-use content.
+The exact numeric field is reviewed as optional in the ordinary and foreground-child baselines; unrelated fields, record types and value types remain subject to drift checks.
+Huihua retains the native record and maps the tool call as before.
+No new canonical timing semantics are inferred from the name alone.
+
+This is an observed synthetic capture, not a universal storage contract.
+Background, nested and resumed subagents remain unverified.
