@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 
 import { packageCheck } from './package.ts'
 import { policy } from './policy.ts'
+import { portable } from './portable.ts'
 
 function run(command: string, args: string[]): void {
   execFileSync(command, args, { stdio: 'inherit' })
@@ -13,5 +14,6 @@ run('pnpm', ['run', 'typecheck'])
 run('pnpm', ['--filter', '@huihua/usage', 'run', 'check'])
 run('pnpm', ['run', 'knip'])
 await policy()
+await portable()
 run('pnpm', ['test'])
 await packageCheck()

@@ -1,5 +1,5 @@
-import { Buffer } from 'node:buffer'
-import { resolve } from 'node:path'
+import { Buffer } from '#bytes'
+import { resolve } from '#path'
 
 import type { SessionDecoder } from '../contracts/decoder.ts'
 import type { Diagnostic, ErrorCode } from '../contracts/diagnostic.ts'

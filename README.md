@@ -186,10 +186,35 @@ Acquired JSONL is supported by every line-based provider; `opencode`, `cline`, `
 and `devin` require file input, and unsupported input fails `UnsupportedSchema`.
 Antigravity accepts acquired CLI JSONL; SQLite and Markdown sources require their explicit file formats.
 
+`huihua/browser` mirrors every entry in this table and adds mount helpers, so the same sessions can
+be read from files a browser holds in memory; see the [portable guide](docs/browser-portable.md).
+
 `sessions.stream(provider, input)` consumes acquired JSONL incrementally without collecting a
 snapshot.
 Each returned sequence accepts one consumer — including for string and byte-array
 input — and a second iterator throws `TypeError`; call `stream` again to replay.
+
+## Browser and portable parsing
+
+`huihua/browser` is the same parser graph built for a host that has `Blob` instead of `node:fs`, so a
+page or a worker can read session folders the user hands over without uploading them:
+
+```ts
+import { allProviderRoots, entriesFromDrop, mount, sessions } from 'huihua/browser'
+
+const store = mount(await entriesFromDrop(event.dataTransfer), { as: 'home' })
+const { refs, failures } = await sessions.scan({ homeDir: store.homeDir })
+
+store.describe(refs[0]!.source.path) // synthetic evidence path -> the relative hand-off path
+store.dispose()
+```
+
+A home-shaped hand-off scans through the provider defaults (`~/.claude/projects`, `~/.codex/sessions`
+and the rest), because the mount places it under a synthetic home.
+A flat hand-off mounts as explicit roots instead: `sessions.scan({ roots: allProviderRoots(store.paths) })`.
+Mounts are zero-copy, streaming reads keep their byte bounds, and the portable artifact contains no
+Node import and no network API.
+The [portable guide](docs/browser-portable.md) owns the gestures, limits and known differences.
 
 ## Provider coverage
 
@@ -327,6 +352,7 @@ networks, writes to or repairs stores, and never opens a database through a SQLi
 creates sidecars and locks.
 It provides no runtime control, search, indexing or UI, and does
 not infer facts that a source does not establish.
+The portable entry adds mount helpers for handed-over files; it still ships no visual surface.
 
 ## Example packages
 

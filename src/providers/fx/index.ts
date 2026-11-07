@@ -1,6 +1,6 @@
-import { Buffer } from 'node:buffer'
-import { homedir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { Buffer } from '#bytes'
+import { homedir } from '#os'
+import { basename, dirname, join } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions, ScanOptions } from '../../contracts/provider.ts'

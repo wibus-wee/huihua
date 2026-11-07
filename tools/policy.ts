@@ -11,6 +11,8 @@ import { activeProviders, manifest } from './producer-compat/catalog.ts'
 
 const runtimeDependencies = new Set(['fzstd', 'xxhashjs', '@bufbuild/protobuf', 'picomatch']) // Dependency decisions: docs/architecture.md.
 const developmentDependencies = new Set([
+  '@noble/hashes',
+  'buffer',
   'typescript',
   '@types/node',
   '@types/xxhashjs',
@@ -149,6 +151,7 @@ export async function policy(): Promise<void> {
   assert.match(usageCliSource, /from 'huihua\/registry'/, 'selected-provider startup must use the public independent registry')
   const packageExports = (JSON.parse(await readFile('package.json', 'utf8')) as { exports: Record<string, unknown> }).exports
   assert.deepEqual(packageExports['./registry'], { types: './dist/registry.d.ts', import: './dist/registry.js' })
+  assert.deepEqual(packageExports['./browser'], { types: './dist/browser/index.d.ts', import: './dist/browser/index.js' }, 'the portable entry must ship its own declarations and bundle')
   assert.match(await readFile('tsdown.config.ts', 'utf8'), /'registry': 'src\/registry\.ts'/, 'the independent entry must build the existing registry, not a parallel implementation')
   const providerPaths = Object.keys(packageExports).filter(path => path.startsWith('./providers/')).map(path => `huihua/${path.slice(2)}`).sort()
   const cliProviderPaths = Array.from(usageCliSource.matchAll(/import\('(huihua\/providers\/[^']+)'\)/g), match => match[1]!).sort()
@@ -227,7 +230,7 @@ export async function policy(): Promise<void> {
   assert.match(codex, /turn_summary/, 'turn summaries need explicit scope before consumer arithmetic')
   const grok = await readFile('src/providers/grok/index.ts', 'utf8')
   assert.match(grok, /async metadataFiles\(path\)/, 'Grok associations stay in the existing provider-owned companion hook')
-  assert.match(grok, /if \(!\['updates\.jsonl', 'chat_history\.jsonl'\]\.includes\(basename\(path\)\)\)[\s\S]*?await exists\(paths\[0\]!\)[\s\S]*?await readdir\(bucket/, 'sibling discovery requires a native transcript name and its adjacent summary')
+  assert.match(grok, /if \(!\['updates\.jsonl', 'chat_history\.jsonl'\]\.includes\(basename\(path\)\)\)[\s\S]*?await exists\(paths\[0\]!\)[\s\S]*?await fs\.readdir\(bucket/, 'sibling discovery requires a native transcript name and its adjacent summary')
   const antigravity = await readFile('src/providers/antigravity/index.ts', 'utf8')
   assert.match(antigravity, /jsonlProvider\(/, 'CLI transcripts reuse shared JSONL acquisition')
   assert.match(antigravity, /readText\(/, 'Markdown artifacts reuse bounded file acquisition')
@@ -376,6 +379,23 @@ export async function policy(): Promise<void> {
   const builtins = new Set(
     builtinModules.flatMap(name => [name, `node:${name}`]),
   )
+  const seams = new Set(['#bytes', '#crypto', '#env', '#fs', '#os', '#path'])
+  const browserOnlyDependencies = new Set(['@noble/hashes', 'buffer'])
+  const browserArm = /^shared\/platform\/[a-z]+\.browser\.ts$/
+  const platform = (JSON.parse(await readFile('package.json', 'utf8')) as {
+    imports?: Record<string, Record<string, string>>
+  }).imports ?? {}
+  assert.deepEqual(Object.keys(platform).sort(), [...seams].sort(), 'platform seams must be declared exactly once')
+  const platformFiles = new Set(await readdir('src/shared/platform'))
+  for (const seam of seams) {
+    const arm = seam.slice(1)
+    assert.ok(platformFiles.has(`${arm}.node.ts`) && platformFiles.has(`${arm}.browser.ts`), `missing platform arm for ${seam}`)
+    assert.deepEqual(platform[seam], {
+      browser: `./src/shared/platform/${arm}.browser.ts`,
+      node: `./src/shared/platform/${arm}.node.ts`,
+      default: `./src/shared/platform/${arm}.node.ts`,
+    }, `platform seam ${seam} must resolve per condition without a third arm`)
+  }
   const allowedNode = new Set([
     'node:buffer',
     'node:crypto',
@@ -400,7 +420,21 @@ export async function policy(): Promise<void> {
     const fileOpens = new Set<string>()
     const importSource = (specifier: string): void => {
       if (!specifier.startsWith('.')) {
+        if (specifier.startsWith('#')) {
+          if (!seams.has(specifier))
+            throw new Error(`unknown platform seam: ${name} -> ${specifier}`)
+          return
+        }
+        const segments = specifier.split('/')
+        const dependency = specifier.startsWith('@') ? segments.slice(0, 2).join('/') : segments[0]!
+        if (browserOnlyDependencies.has(dependency)) {
+          if (!browserArm.test(name))
+            throw new Error(`browser-only dependency outside its arm: ${name} -> ${specifier}`)
+          return
+        }
         if (builtins.has(specifier)) {
+          if (browserArm.test(name) || name.startsWith('browser/'))
+            throw new Error(`browser layer must not import ${specifier}: ${name}`)
           if (
             !allowedNode.has(specifier)
             || name.startsWith('contracts/')
@@ -444,8 +478,31 @@ export async function policy(): Promise<void> {
           `provider coupling/composition root: ${name} -> ${target}`,
         )
       }
+      if (target.startsWith('browser/') && !name.startsWith('browser/'))
+        throw new Error(`browser layer is an entry surface: ${name} -> ${target}`)
+      if (
+        name.startsWith('browser/')
+        && !(/^(?:contracts|shared|observe)\//.test(target)
+          || target.startsWith('browser/')
+          || target === 'index.ts'
+          || target === 'registry.ts')
+      ) {
+        throw new Error(`browser layer dependency direction: ${name} -> ${target}`)
+      }
+      if ((browserArm.test(name) || name.startsWith('browser/'))) {
+        if (/^shared\/platform\/[a-z]+\.node\.ts$/.test(target))
+          throw new Error(`browser layer must not reach a Node arm: ${name} -> ${target}`)
+      }
     }
+    const domFree = browserArm.test(name) || name.startsWith('browser/')
     const visit = (node: ts.Node): void => {
+      if (
+        domFree
+        && ts.isIdentifier(node)
+        && (node.text === 'document' || node.text === 'window' || node.text === 'navigator')
+      ) {
+        throw new Error(`browser layer must stay DOM-free so workers can import it: ${name}`)
+      }
       if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
         if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier))
           importSource(node.moduleSpecifier.text)

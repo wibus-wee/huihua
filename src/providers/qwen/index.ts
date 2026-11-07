@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, join } from '#path'
 
 import type { Session } from '../../contracts/session.ts'
 import { contentBlocks, jsonlProvider } from '../../shared/ingestion.ts'
@@ -14,7 +14,7 @@ export const qwenProvider = jsonlProvider({
   async roots(options) {
     if (options.roots?.qwen)
       return options.roots.qwen
-    const root = options.homeDir === undefined ? process.env.QWEN_HOME : undefined
+    const root = options.homeDir === undefined ? env.QWEN_HOME : undefined
     const fallback = join(options.homeDir ?? homedir(), '.qwen/projects')
     const configured = root !== undefined && root !== '' ? join(root, 'projects') : undefined
     return [configured !== undefined && await isDirectory(configured) ? configured : fallback]

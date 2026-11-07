@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { isAbsolute, join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { isAbsolute, join } from '#path'
 
 import { chatMessageEvents } from '../../shared/ingestion.ts'
 import { binarySafe } from '../../shared/sqlite.ts'
@@ -12,7 +12,7 @@ export const devinProvider = sqliteStoreProvider({
   id: 'devin',
   format: 'devin_sqlite',
   roots(options) {
-    const xdg = options.homeDir === undefined ? process.env.XDG_DATA_HOME : undefined
+    const xdg = options.homeDir === undefined ? env.XDG_DATA_HOME : undefined
     return options.roots?.devin ?? [join(xdg !== undefined && isAbsolute(xdg) ? xdg : join(options.homeDir ?? homedir(), '.local/share'), 'devin/cli/sessions.db')]
   },
   accepts: path => path.endsWith('.db'),

@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, dirname, join } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
@@ -13,7 +13,7 @@ import { scanSource } from '../../shared/scan.ts'
 import { array, object, optional, string, timestamp } from '../../shared/value.ts'
 
 function roots(options: ScanOptions): readonly string[] {
-  const root = options.homeDir === undefined ? process.env.MISTER_MORPH_FILE_STATE_DIR : undefined
+  const root = options.homeDir === undefined ? env.MISTER_MORPH_FILE_STATE_DIR : undefined
   return options.roots?.morph ?? [root ?? join(options.homeDir ?? homedir(), '.morph')]
 }
 function topicId(native: unknown): string | undefined {

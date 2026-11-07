@@ -1,5 +1,5 @@
-import { Buffer } from 'node:buffer'
-import { open } from 'node:fs/promises'
+import { Buffer } from '#bytes'
+import { fs } from '#fs'
 
 import { SessionError } from '../contracts/diagnostic.ts'
 import { ioError } from './paths.ts'
@@ -15,7 +15,7 @@ async function readBytes(
   signal?.throwIfAborted()
   let file
   try {
-    file = await open(path, 'r')
+    file = await fs.open(path)
   }
   catch (error) {
     ioError(error, path)

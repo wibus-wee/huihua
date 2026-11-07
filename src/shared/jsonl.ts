@@ -1,5 +1,5 @@
-import { Buffer } from 'node:buffer'
-import { createReadStream } from 'node:fs'
+import { Buffer } from '#bytes'
+import { fs } from '#fs'
 
 import { SessionError } from '../contracts/diagnostic.ts'
 import type { ReadOptions } from '../contracts/provider.ts'
@@ -15,14 +15,14 @@ export interface NativeLine {
   readonly bytes?: readonly number[]
   readonly malformed?: boolean
 }
-async function closeReadStream(input: ReturnType<typeof createReadStream>): Promise<void> {
-  if (input.closed)
-    return
-  // Waiting only for close preserves the original consumer or cancellation error.
-  await new Promise<void>((resolve) => {
-    input.once('close', resolve)
-    input.destroy()
-  })
+function asBuffer(chunk: Uint8Array): Buffer {
+  return Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+}
+async function* asBuffers(source: AsyncIterable<Uint8Array>, signal?: AbortSignal): AsyncGenerator<Buffer> {
+  for await (const chunk of source) {
+    signal?.throwIfAborted()
+    yield asBuffer(chunk)
+  }
 }
 async function* chunks(
   path: string,
@@ -31,27 +31,21 @@ async function* chunks(
 ): AsyncGenerator<Buffer> {
   const decode = compressed ? (await import('./binary.ts')).zstdChunks : undefined
   signal?.throwIfAborted()
-  const input = createReadStream(path, {
+  const source = fs.readStream(path, {
     highWaterMark: 262144,
     ...(signal === undefined ? {} : { signal }),
   })
   try {
     if (decode === undefined) {
-      for await (const chunk of input) {
-        signal?.throwIfAborted()
-        yield chunk as Buffer
-      }
+      yield* asBuffers(source, signal)
       return
     }
-    yield* decode(input as AsyncIterable<Buffer>)
+    yield* decode(asBuffers(source, signal))
   }
   catch (error) {
     if (signal?.aborted)
       throw signal.reason
     ioError(error, path)
-  }
-  finally {
-    await closeReadStream(input)
   }
 }
 function line(bytes: Buffer, position: number, decoded?: string): NativeLine | undefined {

@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, join } from '#path'
 
 import type { ScanEvent, ScanOptions } from '../../contracts/provider.ts'
 import type { Session } from '../../contracts/session.ts'
@@ -12,7 +12,7 @@ import { sqliteStoreProvider } from '../../shared/sqlite-store.ts'
 import { array, object, optional, parseNative, string, timestamp } from '../../shared/value.ts'
 
 function roots(options: ScanOptions): readonly string[] {
-  const home = options.homeDir === undefined ? process.env.HERMES_HOME : undefined
+  const home = options.homeDir === undefined ? env.HERMES_HOME : undefined
   const root = home ?? join(options.homeDir ?? homedir(), '.hermes')
   return options.roots?.hermes ?? [join(root, 'state.db'), join(root, 'sessions')]
 }

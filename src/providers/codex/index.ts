@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { join } from '#path'
 
 import type { Session } from '../../contracts/session.ts'
 import {
@@ -15,7 +15,7 @@ export const codexProvider = jsonlProvider({
   usageContext: true,
   roots(options) {
     const root
-      = options.homeDir === undefined ? process.env.CODEX_HOME : undefined
+      = options.homeDir === undefined ? env.CODEX_HOME : undefined
     return (
       options.roots?.codex ?? [
         join(root ?? join(options.homeDir ?? homedir(), '.codex'), 'sessions'),

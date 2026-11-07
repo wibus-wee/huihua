@@ -1,8 +1,8 @@
-import { Buffer } from 'node:buffer'
-import { createHash } from 'node:crypto'
-import { basename, dirname, join } from 'node:path'
-
 import { BinaryReader, WireType } from '@bufbuild/protobuf/wire'
+
+import { Buffer } from '#bytes'
+import { sha256Hex } from '#crypto'
+import { basename, dirname, join } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions } from '../../contracts/provider.ts'
@@ -46,7 +46,7 @@ function single(values: Uint8Array[] | undefined): Uint8Array {
   return values[0]!
 }
 function hash(bytes: Uint8Array): string {
-  return createHash('sha256').update(bytes).digest('hex')
+  return sha256Hex(bytes)
 }
 function hex(value: unknown): Buffer | undefined {
   if (typeof value !== 'string' || !/^(?:[\da-f]{2})+$/i.test(value))

@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, dirname, isAbsolute, join, resolve, sep } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ReadOptions, ScanEvent, ScanOptions } from '../../contracts/provider.ts'
@@ -26,7 +26,7 @@ import {
 
 function roots(options: ScanOptions): readonly string[] {
   const xdg
-    = options.homeDir === undefined ? process.env.XDG_DATA_HOME : undefined
+    = options.homeDir === undefined ? env.XDG_DATA_HOME : undefined
   return (
     options.roots?.opencode ?? [
       join(

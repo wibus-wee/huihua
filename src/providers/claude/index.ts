@@ -1,7 +1,7 @@
-import { readdir } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { basename, delimiter, dirname, isAbsolute, join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { fs } from '#fs'
+import { homedir } from '#os'
+import { basename, delimiter, dirname, isAbsolute, join } from '#path'
 
 import type { ScanOptions } from '../../contracts/provider.ts'
 import type { Session } from '../../contracts/session.ts'
@@ -15,14 +15,14 @@ async function resolveClaudeRoots(options: ScanOptions, siblingsEnabled = true):
     return options.roots.claude
   const home = options.homeDir ?? homedir()
   const config
-    = options.homeDir === undefined ? process.env.CLAUDE_CONFIG_DIR : undefined
-  const multi = options.homeDir === undefined ? process.env.CLAUDE_CONFIG_DIRS : undefined
+    = options.homeDir === undefined ? env.CLAUDE_CONFIG_DIR : undefined
+  const multi = options.homeDir === undefined ? env.CLAUDE_CONFIG_DIRS : undefined
   const xdg
-    = options.homeDir === undefined ? process.env.XDG_CONFIG_HOME : undefined
+    = options.homeDir === undefined ? env.XDG_CONFIG_HOME : undefined
   let siblings: string[] = []
   try {
     siblings = siblingsEnabled
-      ? (await readdir(home, { withFileTypes: true }))
+      ? (await fs.readdir(home))
           .filter(entry => entry.isDirectory() && entry.name.startsWith('.claude'))
           .map(entry => join(home, entry.name, 'projects'))
       : []

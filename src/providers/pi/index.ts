@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { join } from '#path'
 
 import type { SessionDecoder } from '../../contracts/decoder.ts'
 import type { Session } from '../../contracts/session.ts'
@@ -18,7 +18,7 @@ export function createPiProvider(options: PiProviderOptions = {}): ReturnType<ty
     roots(options) {
       const root
         = options.homeDir === undefined
-          ? process.env.PI_CODING_AGENT_DIR
+          ? env.PI_CODING_AGENT_DIR
           : undefined
       return (
         options.roots?.pi ?? [

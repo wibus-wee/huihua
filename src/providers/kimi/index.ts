@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, dirname, join } from '#path'
 
 import type { Session } from '../../contracts/session.ts'
 import { contentBlocks, jsonlProvider } from '../../shared/ingestion.ts'
@@ -16,7 +16,7 @@ function content(part: unknown) {
 export const kimiProvider = jsonlProvider({
   id: 'kimi',
   roots(options) {
-    const home = options.homeDir === undefined ? process.env.KIMI_CODE_HOME : undefined
+    const home = options.homeDir === undefined ? env.KIMI_CODE_HOME : undefined
     return options.roots?.kimi ?? [join(home !== undefined && home !== '' ? home : join(options.homeDir ?? homedir(), '.kimi-code'), 'sessions')]
   },
   accepts: path => basename(path) === 'wire.jsonl',

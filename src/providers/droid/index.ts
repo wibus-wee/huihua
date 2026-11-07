@@ -1,5 +1,5 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { homedir } from '#os'
+import { join } from '#path'
 
 import { chatMessageEvents, contentBlocks, jsonlProvider } from '../../shared/ingestion.ts'
 import { object, optional, string, timestamp } from '../../shared/value.ts'

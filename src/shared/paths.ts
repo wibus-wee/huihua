@@ -1,8 +1,7 @@
-import { readdir, realpath, stat } from 'node:fs/promises'
-import { isAbsolute, join, relative, resolve, sep } from 'node:path'
-import process from 'node:process'
-
 import picomatch from 'picomatch'
+
+import { fs } from '#fs'
+import { isAbsolute, join, relative, resolve, sep } from '#path'
 
 import { SessionError } from '../contracts/diagnostic.ts'
 import type { ScanEvent, ScanOptions } from '../contracts/provider.ts'
@@ -25,14 +24,9 @@ export function pathMatcher(patterns: string | readonly string[]): (path: string
 /** A canonical pathname rejects symbolic links in the file and its ancestors. */
 export async function canonicalPath(path: string): Promise<boolean> {
   try {
-    const absolute = resolve(path)
-    const canonical = await realpath(path)
-    return canonical === absolute
-      || (process.platform === 'darwin' && ['/tmp', '/var'].some(alias => absolute.startsWith(`${alias}/`) && canonical === `/private${absolute}`))
+    return await fs.canonical(path)
   }
   catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-      return false
     ioError(error, path)
   }
 }
@@ -56,7 +50,7 @@ export function ioError(error: unknown, path: string): never {
 }
 export async function exists(path: string): Promise<boolean> {
   try {
-    await stat(path)
+    await fs.stat(path)
     return true
   }
   catch (error) {
@@ -67,7 +61,7 @@ export async function exists(path: string): Promise<boolean> {
 }
 export async function isDirectory(path: string): Promise<boolean> {
   try {
-    return (await stat(path)).isDirectory()
+    return (await fs.stat(path)).isDirectory
   }
   catch (error) {
     if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? ''))
@@ -97,7 +91,7 @@ export async function* files(
     signal?.throwIfAborted()
     let info
     try {
-      info = await stat(path)
+      info = await fs.stat(path)
     }
     catch (error) {
       signal?.throwIfAborted()
@@ -108,18 +102,18 @@ export async function* files(
       yield { type: 'failure', failure: scanFailure(provider, ioErrorOf(error, path), { path }) }
       return
     }
-    if (info.isFile()) {
+    if (info.isFile) {
       if (accepts(path) && !seen.has(path)) {
         seen.add(path)
         yield path
       }
       return
     }
-    if (!info.isDirectory())
+    if (!info.isDirectory)
       return
     let entries
     try {
-      entries = await readdir(path, { withFileTypes: true })
+      entries = await fs.readdir(path)
     }
     catch (error) {
       signal?.throwIfAborted()
@@ -128,7 +122,7 @@ export async function* files(
       yield { type: 'failure', failure: scanFailure(provider, ioErrorOf(error, path), { path }) }
       return
     }
-    for (const entry of entries.sort((a, b) =>
+    for (const entry of [...entries].sort((a, b) =>
       a.name.localeCompare(b.name, 'en'))) {
       if (entry.isDirectory() || entry.isFile())
         yield* visit(join(path, entry.name))

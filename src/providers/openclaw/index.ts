@@ -1,7 +1,7 @@
-import { Buffer } from 'node:buffer'
-import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
-import process from 'node:process'
+import { Buffer } from '#bytes'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, join } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import type { ScanEvent, ScanOptions } from '../../contracts/provider.ts'
@@ -14,7 +14,7 @@ import { sqliteStoreProvider } from '../../shared/sqlite-store.ts'
 import { object, optional, parseNative, string, timestamp } from '../../shared/value.ts'
 
 function roots(options: ScanOptions): readonly string[] {
-  const root = options.homeDir === undefined ? process.env.OPENCLAW_STATE_DIR : undefined
+  const root = options.homeDir === undefined ? env.OPENCLAW_STATE_DIR : undefined
   return options.roots?.openclaw ?? (root !== undefined && root !== '' ? [join(root, 'agents')] : [join(options.homeDir ?? homedir(), '.openclaw/agents'), join(options.homeDir ?? homedir(), '.clawdbot/agents')])
 }
 function metadata(records: readonly unknown[]) {

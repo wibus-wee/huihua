@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
-import process from 'node:process'
+import { env } from '#env'
+import { homedir } from '#os'
+import { basename, dirname, join } from '#path'
 
 import { SessionError } from '../../contracts/diagnostic.ts'
 import { chatMessageEvents } from '../../shared/ingestion.ts'
@@ -11,7 +11,7 @@ export const clineProvider = jsonStoreProvider({
   id: 'cline',
   format: 'cline_json',
   roots(options) {
-    const configured = options.homeDir === undefined ? process.env.CLINE_DATA_DIR : undefined
+    const configured = options.homeDir === undefined ? env.CLINE_DATA_DIR : undefined
     return options.roots?.cline ?? [configured !== undefined && configured.trim() !== '' ? join(configured, 'sessions') : join(options.homeDir ?? homedir(), '.cline/data/sessions')]
   },
   accepts: path => basename(path) === `${basename(dirname(path))}.json`,
