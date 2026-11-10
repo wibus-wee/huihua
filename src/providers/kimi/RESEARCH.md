@@ -73,3 +73,23 @@ No third-party behavior claim is used.
 These are synthetic official-writer captures, not a universal format specification.
 Production mapping and public APIs are unchanged.
 See the [capture review](../../../docs/producer-compatibility.md#october-22-compatibility-review) for replay scope and remaining limits.
+
+## November 9 optional turn-reason review
+
+The official Kimi Code 2.5.2 capture in
+[daily run 42630266010](https://github.com/wibus-wee/huihua/actions/runs/42630266010)
+omits `state.json.lastTurnReason` after both text turns.
+The original pinned baseline already
+reviewed this field as an optional string; the separate latest baseline accidentally required it.
+The [upstream metadata interface](https://github.com/MoonshotAI/kimi-code/blob/823c159a3825a2abaa163c1945893935c3fbab42/packages/agent-core-v2/src/session/sessionMetadata/sessionMetadata.ts)
+also declares it optional.
+That source snapshot supports the interpretation, while the
+versioned writer capture remains the evidence for 2.5.2.
+
+Restore only `$.lastTurnReason:string` and its `state` grouped path as optional in the latest
+baseline.
+Preserve the native state unchanged and do not derive an outcome from absence.
+Other field removal, types, record kinds and unknown/diagnostic growth remain strict.
+No production mapping or third-party interpretation is added.
+This text/resume capture does
+not certify tool roundtrips or all possible session-end states.

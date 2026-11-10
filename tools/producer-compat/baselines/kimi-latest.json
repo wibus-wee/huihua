@@ -1460,5 +1460,11 @@
     "PartialParse",
     "PartialParse",
     "PartialParse"
+  ],
+  "optionalFieldPaths": [
+    "$.lastTurnReason:string"
+  ],
+  "optionalGroupedFieldPaths": [
+    "[\"state\",null]:$.lastTurnReason:string"
   ]
 }
