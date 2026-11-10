@@ -92,3 +92,38 @@ old-writer acceptance and reject wrong types, wrong record kinds, unknown growth
 and missing required fields.
 See the capture hashes and replay scope in
 [producer compatibility](../../../docs/producer-compatibility.md#october-20-metadata-review).
+
+## November 9 one-shot title suppression
+
+### Official source and observed failure
+
+At upstream commit `8a5a7ace84ca34e655a73f328701e1e9e1eb555c`,
+[`_maybe_title_session_at_turn_start`](https://github.com/NousResearch/hermes-agent/blob/8a5a7ace84ca34e655a73f328701e1e9e1eb555c/agent/turn_context.py#L219-L232)
+skips one-shot sessions, with a matching
+[upstream regression](https://github.com/NousResearch/hermes-agent/blob/8a5a7ace84ca34e655a73f328701e1e9e1eb555c/tests/agent/test_turn_context_oneshot_title.py).
+The pinned `0240fa4a84123406a0e5e6e7262e5b772b43f0bd` writer lacks that guard.
+In [daily run 42630266010](https://github.com/wibus-wee/huihua/actions/runs/42630266010),
+the first reply succeeds, but the harness leaves `FIRST-title` queued.
+The resumed model request
+then receives HTTP 400 because it is not a title request.
+The useful error is on stdout;
+reporting only stderr obscured the cause.
+No parser verdict was reached.
+
+### Decision and limits
+
+Both reviewed writers support `auxiliary.title_generation.enabled: false`.
+Set it in the
+isolated compatibility home and omit title exchanges for both versions.
+Continue requiring
+exact first/resumed model requests, an exhausted queue, one native session and both native replies.
+The runner retains separate stdout/stderr artifacts and includes bounded tails of both on failure.
+The state baseline accepts only string/null alternatives for `title` and `title_source`;
+null titles stay absent from canonical metadata.
+Error-message-specific fields from the failed
+resume capture are not accepted as successful conversation drift.
+
+These are official source and synthetic-writer observations, not third-party claims.
+Production parsers and public contracts remain unchanged.
+Tool roundtrips remain unverified.
+See [validation and provenance](../../../docs/producer-compatibility.md#november-9-compatibility-review).

@@ -13,7 +13,7 @@ import { activeProviders, manifest, selectProviders } from '../tools/producer-co
 import { assertDiscovery, assertNativeRead, assertSubagentScenario, inventoryNativeStores } from '../tools/producer-compat/claude.ts'
 import { assertCodexBaseline, assertCodexRead, assertCodexScenario } from '../tools/producer-compat/codex.ts'
 import { assertKimiFacts, assertKimiReplies, normalizeKimiWorkspacePaths } from '../tools/producer-compat/kimi.ts'
-import { grokTitleRequests } from '../tools/producer-compat/live.ts'
+import { grokTitleRequests, run as runProducer } from '../tools/producer-compat/live.ts'
 import { assertFxCancellation, assertFxToolJourney, inventoryStore, nativeDriftSummary } from '../tools/producer-compat/native.ts'
 import { laneResult, renderCompatibilitySummary, renderDailyReport } from '../tools/producer-compat/report.ts'
 import type { DriftSummary } from '../tools/producer-compat/runtime.ts'
@@ -1477,4 +1477,91 @@ await test('Claude tool input timing drift is narrowly reviewed', async () => {
     assert.throws(() => assertNoProducerDrift({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths, '"user":$.toolInputStreamMs:number'] }, baseline), NativeDriftError)
     assert.throws(() => assertNoProducerDrift({ ...actual, groupedFieldPaths: [...actual.groupedFieldPaths, '"assistant":$.futureField:number'] }, baseline), NativeDriftError)
   }
+})
+
+await test('November 9 ACP prompt-time notification retains unknown evidence within exact bounds', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-acp-prompt-time-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/acp.json', 'utf8')) as DriftSummary & { diagnosticCodes: string[] }
+  const method = 'qwen/notify/session/last-user-prompt'
+  const row = { jsonrpc: '2.0', method, params: { v: 1, sessionId: 'synthetic-acp', timestamp: '2026-11-09T13:59:40.389Z' } }
+  const session = await sessions.parse('acp', { jsonl: JSON.stringify(row) })
+  assert.deepEqual(session.records[0]?.native, row)
+  assert.equal(session.id, row.params.sessionId)
+  assert.equal(session.updatedAt, undefined, 'prompt time is not session activity time')
+  assert.equal(session.events.length, 1)
+  assert.equal(session.events[0]?.type, 'unknown')
+  if (session.events[0]?.type === 'unknown')
+    assert.deepEqual(session.events[0].data, { sourceType: method, payload: row })
+  const native = nativeDriftSummary('acp', [row], session)
+  const observed = { ...baseline, fieldPaths: [...baseline.fieldPaths, ...native.fieldPaths], groupedFieldPaths: [...baseline.groupedFieldPaths!, ...native.groupedFieldPaths!], unknown: native.unknown, diagnosticCodes: native.diagnosticCodes }
+  await assertNativeBaseline('acp', observed, root, { stage: 'baseline', completed: [] })
+  await assertNativeBaseline('acp', { ...baseline, unknown: {}, diagnosticCodes: [] }, root, { stage: 'baseline', completed: [] })
+  assert.throws(() => assertNoProducerDrift({ ...observed, unknown: { [method]: 2 } }, baseline), /unknown native/)
+  assert.throws(() => assertNoProducerDrift({ ...observed, unknown: { unexpected: 1 } }, baseline), /unknown native/)
+  for (const path of native.groupedFieldPaths!) {
+    assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, path.replace(/:[^:]+$/, ':boolean')] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, path.replace(method, 'qwen/notify/session/unreviewed')] }, baseline), NativeDriftError)
+  }
+  await assert.rejects(assertNativeBaseline('acp', { ...observed, diagnosticCodes: [] }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+  await assert.rejects(assertNativeBaseline('acp', { ...observed, diagnosticCodes: ['PartialParse', 'PartialParse'] }, root, { stage: 'baseline', completed: [] }), /diagnostic drift/)
+})
+
+await test('November 9 Kimi latest keeps lastTurnReason optional only as a state string', async () => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/kimi-latest.json', 'utf8')) as DriftSummary
+  const field = '$.lastTurnReason:string'
+  const grouped = `["state",null]:${field}`
+  const observed = { ...baseline, fieldPaths: baseline.fieldPaths.filter(path => path !== field), groupedFieldPaths: baseline.groupedFieldPaths!.filter(path => path !== grouped) }
+  assertNoProducerDrift(observed, baseline)
+  assertNoProducerDrift(baseline, baseline)
+  assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, '["state",null]:$.lastTurnReason:number'] }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, '["turn.end",null]:$.lastTurnReason:string'] }, baseline), NativeDriftError)
+  assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: observed.groupedFieldPaths.filter(path => path !== '["state",null]:$.createdAt:number') }, baseline), NativeDriftError)
+  for (const lastTurnReason of ['completed', undefined]) {
+    const state = { id: 'synthetic-kimi', agents: { main: { type: 'main' } }, createdAt: 1, ...(lastTurnReason === undefined ? {} : { lastTurnReason }) }
+    const session = await sessions.parse('kimi', { jsonl: JSON.stringify(state) })
+    assert.deepEqual(session.records[0]?.native, state)
+    assert.equal(session.id, state.id)
+    assert(session.events.some(event => event.type === 'system' && JSON.stringify(event.data.payload) === JSON.stringify(state)))
+  }
+})
+
+await test('November 9 Hermes untitled state accepts null without permitting other drift', async (t) => {
+  const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/hermes.json', 'utf8')) as DriftSummary
+  const prefix = '["state",null,null,null,null,null,null,null]:'
+  const replace = (path: string) => path.replace(/\$\.(title|title_source):string$/, '$.$1:null')
+  const observed = { ...baseline, fieldPaths: baseline.fieldPaths.map(replace), groupedFieldPaths: baseline.groupedFieldPaths!.map(replace) }
+  assertNoProducerDrift(observed, baseline)
+  assertNoProducerDrift(baseline, baseline)
+  for (const key of ['title', 'title_source']) {
+    assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `${prefix}$.${key}:number`] }, baseline), NativeDriftError)
+    assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, `["user",null,null,null,null,null,null,null]:$.${key}:null`] }, baseline), NativeDriftError)
+  }
+  // Do not approve error-message fields from the failed RESUME capture as successful output.
+  assert.throws(() => assertNoProducerDrift({ ...observed, groupedFieldPaths: [...observed.groupedFieldPaths, '["assistant",null,null,null,null,null,null,null]:$.display_kind:string'] }, baseline), NativeDriftError)
+  const root = await mkdtemp(join(tmpdir(), 'huihua-hermes-untitled-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'state.db')
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(path)
+  try {
+    db.exec(await readFile('fixtures/hermes/sessions.sql', 'utf8'))
+    db.exec('ALTER TABLE sessions ADD COLUMN title_source TEXT; UPDATE sessions SET title = NULL')
+  }
+  finally {
+    db.close()
+  }
+  const session = await sessions.parse('hermes', { path, format: 'hermes_sqlite', id: 'hermes-db' })
+  assert.equal(session.title, undefined)
+  assert.equal((session.records[0]?.native as Record<string, unknown>).title, null)
+  assert.equal((session.records[0]?.native as Record<string, unknown>).title_source, null)
+})
+
+await test('November 9 producer failures retain stdout diagnostics and both output artifacts', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-producer-error-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'RESUME')
+  await assert.rejects(runProducer(process.execPath, ['-e', 'process.stdout.write("Scenario FIRST-title mismatch"); process.exitCode = 2'], {}, root, path), /Producer exited 2: .*Scenario FIRST-title mismatch/)
+  assert.equal(await readFile(`${path}.stdout`, 'utf8'), 'Scenario FIRST-title mismatch')
+  assert.equal(await readFile(`${path}.stderr`, 'utf8'), '')
 })

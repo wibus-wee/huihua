@@ -114,6 +114,10 @@ supports_backend_search = false
   }
   if (provider === 'hermes') {
     Object.assign(env, { HERMES_HOME: join(home, '.hermes'), CUSTOM_BASE_URL: `${base}/v1`, CUSTOM_API_KEY: 'synthetic-test-key', OPENAI_BASE_URL: `${base}/v1`, OPENAI_API_KEY: 'synthetic-test-key' })
+    await mkdir(env.HERMES_HOME!)
+    // Both reviewed writers support this setting. Newer oneshot sessions skip titles
+    // entirely; disable them on the old writer too instead of guessing request counts.
+    await writeFile(join(env.HERMES_HOME!, 'config.yaml'), 'auxiliary:\n  title_generation:\n    enabled: false\n')
     args = ['--safe-mode', '--provider', 'custom', '--model', 'gpt-test']
   }
   const simulator = startSimulator(resolve(required('SIMULATOR_DIR')), port)
@@ -165,11 +169,6 @@ supports_backend_search = false
           requestPlan.push({ path: '/v1/chat/completions', marker: prompt, bodyIncludes: refresh })
           await json(`${control}/enqueue`, { provider: 'openai', exchanges: [metadataFailure(`${label}-title-refresh`, '/v1/chat/completions', prompt, refresh)] })
         }
-      }
-      if (provider === 'hermes') {
-        const title = 'You name chat sessions'
-        requestPlan.push({ path: '/v1/chat/completions', marker: prompt, stream: false, bodyIncludes: title })
-        await json(`${control}/enqueue`, { provider: 'openai', exchanges: [metadataFailure(`${label}-title`, '/v1/chat/completions', prompt, title)] })
       }
       const continuation = !index || provider === 'openclaw' ? [] : ['deepseek', 'droid'].includes(provider) ? ['--session-id', resumeId!] : provider === 'fx' ? ['--resume', 'last'] : ['--continue']
       const promptArgs = ['qwen', 'copilot'].includes(provider) ? ['--prompt', prompt] : provider === 'openclaw' ? ['--message', prompt] : provider === 'grok' ? ['-p', prompt] : provider === 'hermes' ? ['-z', prompt] : [prompt]
@@ -378,7 +377,7 @@ function standardAnthropic(response: ReturnType<typeof exchange>): void {
     }
   }
 }
-async function run(binary: string, args: string[], env: NodeJS.ProcessEnv, cwd: string, path: string): Promise<string> {
+export async function run(binary: string, args: string[], env: NodeJS.ProcessEnv, cwd: string, path: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { env, cwd, stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = ''
@@ -404,7 +403,7 @@ async function run(binary: string, args: string[], env: NodeJS.ProcessEnv, cwd: 
         if (code === 0 && !timedOut)
           resolve(stdout)
         else
-          reject(new Error(timedOut ? 'Producer timed out' : `Producer exited ${code}: ${stderr.slice(-2000)}`))
+          reject(new Error(timedOut ? 'Producer timed out' : `Producer exited ${code}: stderr=${stderr.slice(-2000)} stdout=${stdout.slice(-2000)}`))
       }, reject)
     })
   })

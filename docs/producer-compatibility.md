@@ -38,12 +38,15 @@ all queued exchanges to be consumed; missing, extra or mismatched turns fail.
 Auxiliary requests remain restricted to explicitly recognized model/token-count endpoints and
 must receive an explicitly queued response if the producer requires them.
 Failed producer runs preserve their request ledger during shutdown.
-Grok's initial title, per-turn summaries and resumed title refresh, and Hermes's non-streaming
-title calls, receive explicitly queued HTTP 400 metadata-service responses in this text/resume
-journey.
+Grok's initial title, per-turn summaries and resumed title refresh receive explicitly queued
+HTTP 400 metadata-service responses in this text/resume journey.
 Their exact order, protocol, streaming mode and purpose markers are audited alongside
 the successful conversation requests; ignored metadata failures cannot conceal unexpected calls.
 Successful title/summary generation is not certified by this journey.
+Hermes title generation is explicitly disabled with its supported
+`auxiliary.title_generation.enabled: false` setting in the isolated home for both versions.
+Newer one-shot writers already skip titles; the old writer must not leave an unconsumed
+title exchange in front of the resumed conversation request.
 Grok 1.0.62 retries the initial Responses title request after the synthetic HTTP 400 with
 `tool_choice: "auto"`, following the forced `session_title` function request.
 Only that exact observed version gets one queued fallback; 1.0.46 and unreviewed versions keep
@@ -865,3 +868,59 @@ Only the observed field paths are optional; unrelated drift remains an error.
 Copilot's runtime `instruction.update` is retained as a system event, not an authorization decision.
 Grok 1.0.77 retries the forced title request with `tool_choice: auto` after the synthetic metadata endpoint fails; the request ledger still checks the exact pair and unchanged body.
 These are scenario-specific observations, not guarantees about future releases.
+
+### November 9 compatibility review
+
+The [November 9 daily run](https://github.com/wibus-wee/huihua/actions/runs/42630266010)
+reported three different failures, not three confirmed parser regressions:
+
+- [ACP #94](https://github.com/wibus-wee/huihua/issues/94): Qwen 0.27.1 adds
+  `qwen/notify/session/last-user-prompt`.
+  Preserve it as an unknown native record with
+  its existing `PartialParse` diagnostic.
+  The baseline permits only the observed typed
+  paths, at most one such record in this single-prompt scenario, and its matching diagnostic.
+- [Kimi #96](https://github.com/wibus-wee/huihua/issues/96): 2.5.2 omits the state
+  `lastTurnReason` string.
+  The latest baseline now has the same narrow optional-field
+  rule as the pinned baseline.
+  No reason is inferred when it is absent.
+- [Hermes #95](https://github.com/wibus-wee/huihua/issues/95): the writer intentionally
+  stopped requesting titles in one-shot mode.
+  The old harness left a title response
+  queued, so resume received a request-mismatch error before the reader audit.
+  Disable auxiliary titles for both writers, accept string/null title metadata, and
+  preserve useful stdout in failure summaries.
+  Error-message fields from that failed
+  resume are not accepted as successful native output.
+
+Reviewed original ZIP provenance:
+
+| Provider | Artifact ID | SHA-256                                                            |
+| -------- | ----------- | ------------------------------------------------------------------ |
+| ACP      | 13680537075 | `6be806fc000550541b5165ee1ab3496bf8cc0678b7754edf06335824e46d2c98` |
+| Hermes   | 13679739312 | `d88f95313b79486679fd4b790c180b25710d59095725ff720a2ebd5fc74d6c6a` |
+| Kimi     | 13679294318 | `696de3b29c0e81a10e41b38fbe465567883f4f185770b9ddce241d005d83ff33` |
+
+Four focused regressions failed before the changes and passed afterward.
+`pnpm check` passed all 540 tests and the 70-file installed-package verification on
+Node 24.22.1.
+Fresh local runs against pinned simulator
+`4357945b88d16a1a3155c39305ce135dc66b9510` passed native inventory,
+scan/read/snapshot/records/events, baseline checks and their existing scenario assertions:
+
+- ACP 0.25.0 and 0.27.1: one session, 10 and 13 records respectively; single-prompt
+  protocol recording only, not a resume certification.
+- Kimi 2.1.1 and 2.5.2: one session, 41 and 42 records respectively; first turn and resume.
+- Hermes pinned `0240fa4a84123406a0e5e6e7262e5b772b43f0bd`: one session, five records;
+  first turn and resume with titles disabled and the exact request queue exhausted.
+
+Hermes daily `8a5a7ace84ca34e655a73f328701e1e9e1eb555c` and newly resolved latest
+`b3746e35ddd32079697728e2df57a9d78f1e9e32` could not start their gateway in the local
+execution environment: its Unix control socket returned `Operation not permitted`.
+Those attempts reached no parser verdict and are not passes.
+They require CI validation;
+this local result is not a full pinned/latest matrix certification.
+The original daily
+capture and official source establish the stale title-queue failure separately.
+No production parser, public contract, dependency, CI permission or security setting changed.

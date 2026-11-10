@@ -16,7 +16,9 @@
     "october22Review": "Run 39761943610: exact additive metadata reviewed against native artifacts; no canonical mapping changes. Other types, record kinds and required fields remain strict.",
     "october29Review": "Run 40866439284: Qwen ACP 0.26.3 workflow_mode option exposes qwen.workflowMode metadata; review only the five typed additive paths in the state response. Raw result remains preserved."
   },
-  "unknown": {},
+  "unknown": {
+    "qwen/notify/session/last-user-prompt": 1
+  },
   "structured": 0,
   "fieldPaths": [
     "$.id:number",
@@ -320,6 +322,7 @@
   ],
   "diagnosticCodes": [],
   "optionalFieldPaths": [
+    "$.params.timestamp:string",
     "$.params.update._meta.executionLifecycle.durationMs:number",
     "$.params.update._meta.executionLifecycle.endedAt:number",
     "$.params.update._meta.executionLifecycle.executionId:string",
@@ -332,6 +335,7 @@
     "$.params.update._meta.executionLifecycle.startedAt:number",
     "$.params.update._meta.executionLifecycle.v:number",
     "$.params.update._meta.executionLifecycle:object",
+    "$.params.v:number",
     "$.result._meta.generatedUi.enabled:boolean",
     "$.result._meta.generatedUi.reason:string",
     "$.result._meta.generatedUi.version:number",
@@ -351,6 +355,13 @@
     "$.result.models.availableModels[]._meta.modalities:object"
   ],
   "optionalGroupedFieldPaths": [
+    "[\"qwen/notify/session/last-user-prompt\",null,null,null,null,null,null,null]:$.jsonrpc:string",
+    "[\"qwen/notify/session/last-user-prompt\",null,null,null,null,null,null,null]:$.method:string",
+    "[\"qwen/notify/session/last-user-prompt\",null,null,null,null,null,null,null]:$.params.sessionId:string",
+    "[\"qwen/notify/session/last-user-prompt\",null,null,null,null,null,null,null]:$.params.timestamp:string",
+    "[\"qwen/notify/session/last-user-prompt\",null,null,null,null,null,null,null]:$.params.v:number",
+    "[\"qwen/notify/session/last-user-prompt\",null,null,null,null,null,null,null]:$.params:object",
+    "[\"qwen/notify/session/last-user-prompt\",null,null,null,null,null,null,null]:$:object",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.durationMs:number",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.endedAt:number",
     "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params.update._meta.executionLifecycle.executionId:string",
@@ -380,5 +391,8 @@
     "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.modalities.image:boolean",
     "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.modalities.pdf:boolean",
     "[\"state\",null,null,null,null,null,null,null]:$.result.models.availableModels[]._meta.modalities:object"
-  ]
+  ],
+  "optionalDiagnosticRecords": {
+    "qwen/notify/session/last-user-prompt": "PartialParse"
+  }
 }

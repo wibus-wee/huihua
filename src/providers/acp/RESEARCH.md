@@ -42,3 +42,27 @@ This is an observed producer extension, not an ACP-wide requirement or a third-p
 Huihua retains the complete response as native evidence without mapping the metadata into a new public event.
 Only the five observed typed paths on the state response are optional in the compatibility baseline; other types, groups and fields remain strict.
 This one first-turn capture does not establish resume, tool roundtrips or other Qwen versions.
+
+## November 9 prompt-time notification review
+
+### Official facts and capture
+
+Qwen ACP 0.27.1 emits `qwen/notify/session/last-user-prompt` with numeric `v`,
+string `sessionId` and string `timestamp` after recording a human prompt.
+The [upstream design](https://github.com/QwenLM/qwen-code/blob/v0.27.1/docs/design/session-last-user-prompt-time.md)
+distinguishes this time from session creation and assistant/tool activity.
+The [synthetic daily capture](https://github.com/wibus-wee/huihua/actions/runs/42630266010)
+contains one such JSON-RPC notification.
+Its raw record and one unknown event are already retained.
+
+### Decision and limits
+
+Keep this vendor extension as unknown evidence with `PartialParse`; do not invent a second
+user message or set canonical `updatedAt` from a human-prompt-only clock.
+Review exactly seven grouped field/type paths and the two new global paths, with a maximum
+of one occurrence and exactly one corresponding diagnostic.
+Pinned captures without the
+notification remain accepted; wrong types, other methods and extra occurrences still fail.
+No third-party interpretation is used.
+The capture exercises one turn, not resume or tool calls.
+See [validation and provenance](../../../docs/producer-compatibility.md#november-9-compatibility-review).
