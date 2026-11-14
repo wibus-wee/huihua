@@ -93,3 +93,12 @@ Other field removal, types, record kinds and unknown/diagnostic growth remain st
 No production mapping or third-party interpretation is added.
 This text/resume capture does
 not certify tool roundtrips or all possible session-end states.
+
+## November 13 Kimi 2.6.1 compatibility review
+
+The official writer capture in daily run 43431594662 persisted the first and resumed assistant replies as `context.append_loop_event` / `content.part` text, with no `agent.message.appended` projection.
+Huihua already maps these loop parts.
+The scenario oracle now uses those native parts when projections are absent, without combining both representations.
+The latest-only baseline records five observed new typed paths (`block`, `startedAt`, `durationMs`, `min_protocol_version`, and `trigger`) and the observed absence of projection, turn-start/end, and request records.
+This is evidence from one synthetic two-turn journey, not a claim that all Kimi versions or scenarios have changed.
+The pinned baseline is unchanged; unknown records and unreviewed fields continue to be checked.

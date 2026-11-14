@@ -277,7 +277,10 @@ No tool or subagent is requested by the simulator.
 The harness independently inventories wire.jsonl and state.json, verifies scan identity,
 and compares raw native values before checking the two persisted assistant messages
 against read, snapshot, record streaming and event streaming.
-The reply oracle reads `agent.message.appended.message.message` directly from disk;
+The reply oracle reads `agent.message.appended.message.message` directly from disk when present.
+When this projection is absent, it instead reads persisted `context.append_loop_event` text parts;
+the Kimi 2.6.1 capture in daily run 43431594662 contains both scenario replies in that form and no message projections.
+The two representations are not added together because they may mirror the same replies.
 missing, changed, reordered or duplicate normalized replies fail.
 It is scenario-local, not a full Kimi parser or a baseline for all Kimi shapes.
 There is no expected-failure allowance or continue-on-error: a compatibility defect makes
