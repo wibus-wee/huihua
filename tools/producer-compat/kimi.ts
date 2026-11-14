@@ -19,10 +19,21 @@ export function normalizeKimiWorkspacePaths(paths: string[]): string[] {
 // Scenario-local oracle over real writer records, not Huihua's parsing output.
 export function assertKimiReplies(rows: unknown[], events: Session['events']): void {
   const expected: string[] = []
+  const loopParts: string[] = []
+  let hasProjection = false
   for (const row of rows) {
     assert(row !== null && typeof row === 'object')
+    if ('type' in row && row.type === 'context.append_loop_event' && 'event' in row) {
+      const event = row.event
+      assert(event !== null && typeof event === 'object' && 'type' in event)
+      if (event.type === 'content.part') {
+        assert('part' in event && event.part !== null && typeof event.part === 'object' && 'type' in event.part && event.part.type === 'text' && 'text' in event.part && typeof event.part.text === 'string', 'unreviewed Kimi content shape')
+        loopParts.push(event.part.text)
+      }
+    }
     if (!('type' in row) || row.type !== 'agent.message.appended')
       continue
+    hasProjection = true
     const envelope = 'message' in row ? row.message : undefined
     assert(envelope !== null && typeof envelope === 'object' && 'message' in envelope)
     const message = envelope.message
@@ -35,6 +46,8 @@ export function assertKimiReplies(rows: unknown[], events: Session['events']): v
       expected.push(part.text)
     }
   }
+  if (!hasProjection)
+    expected.push(...loopParts)
   assert.equal(expected.length, 2, 'real Kimi must persist both first-turn and resumed replies')
   assert.deepEqual(expected, ['HUIHUA_KIMI_REPLY', 'HUIHUA_KIMI_RESUMED'], 'native replies do not match the simulator scenario')
   const actual = events.flatMap(event => event.type === 'assistant_message' ? event.data.content.filter(block => block.type === 'text').map(block => block.data) : [])
