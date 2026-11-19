@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { Buffer } from 'node:buffer'
+import fsCallbacks from 'node:fs'
 import fs, { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { syncBuiltinESMExports } from 'node:module'
 import os, { tmpdir } from 'node:os'
@@ -736,6 +737,104 @@ void it('scanStream propagates consumer throw and early-return cleanup errors wi
   await thrown.next()
   await assert.rejects(thrown.throw(reason), error => error === reason)
   assert.equal(closed, 2)
+})
+void it('scan prefetch keeps traversal order when header reads resolve out of order', async (t) => {
+  const root = await directory(t)
+  const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l']
+  for (const name of names)
+    await put(join(root, `${name}.jsonl`), `{"n":"${name}"}\n`)
+  // Each prefetched read gates inside its task; releasing in reverse start
+  // order finishes reads out of order while refs must stay in traversal order.
+  const gates = new Map<string, () => void>()
+  const released = new Set<string>()
+  const provider = jsonlProvider({
+    id: 'custom',
+    roots: () => [root],
+    metadataFiles: async path => new Promise<readonly string[]>(resolve => gates.set(path, () => resolve([]))),
+    metadata(records) {
+      const n = (records[0] as { n?: string }).n
+      return n === undefined ? {} : { id: n }
+    },
+    parse() { throw new Error('scan must not parse transcript events') },
+  })
+  const stream = createSessionRegistry([provider]).scanStream()
+  const events: ScanEvent[] = []
+  const collected = (async () => {
+    for await (const event of stream) events.push(event)
+  })()
+  for (let spins = 0; events.length < names.length && spins < 1000; spins++) {
+    const pending = [...gates.entries()].filter(([path]) => !released.has(path))
+    for (const [path] of pending) released.add(path)
+    for (const [, release] of pending.reverse()) release()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+  }
+  if (events.length !== names.length)
+    await stream.return(undefined)
+  await collected
+  assert.deepEqual(events.map(event => event.type === 'ref' ? event.ref.id : event.type), names)
+})
+void it('scan prefetch lands a read failure at its own position and emits siblings', async (t) => {
+  const root = await directory(t)
+  for (const name of ['first', 'second', 'third'])
+    await put(join(root, `${name}.jsonl`), `{"n":"${name}"}\n`)
+  const denied = join(root, 'second.jsonl')
+  const original = fsCallbacks.createReadStream
+  const broken = Object.assign(new Error('header denied'), { code: 'EACCES', syscall: 'read' })
+  t.mock.method(fsCallbacks, 'createReadStream', (path: fsCallbacks.PathLike, ...rest: unknown[]) => {
+    if (path === denied)
+      throw broken
+    return original(path, ...rest as [never])
+  })
+  syncBuiltinESMExports()
+  t.after(() => {
+    t.mock.restoreAll()
+    syncBuiltinESMExports()
+  })
+  const provider = jsonlProvider({
+    id: 'custom',
+    roots: () => [root],
+    metadata(records) {
+      const n = (records[0] as { n?: string }).n
+      return n === undefined ? {} : { id: n }
+    },
+    parse() { throw new Error('scan must not parse transcript events') },
+  })
+  const events: ScanEvent[] = []
+  for await (const event of createSessionRegistry([provider]).scanStream()) events.push(event)
+  assert.deepEqual(events.map((event) => {
+    if (event.type === 'ref')
+      return event.ref.id
+    return `failure:${event.failure.code}`
+  }), ['first', 'failure:PermissionDenied', 'third'])
+})
+void it('scan early return stops prefetching reads and yields no further events', async (t) => {
+  const root = await directory(t)
+  const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+  for (const name of names)
+    await put(join(root, `${name}.jsonl`), `{"n":"${name}"}\n`)
+  const started: string[] = []
+  const provider = jsonlProvider({
+    id: 'custom',
+    roots: () => [root],
+    metadataFiles: async (path) => {
+      started.push(path)
+      return []
+    },
+    metadata(records) {
+      const n = (records[0] as { n?: string }).n
+      return n === undefined ? {} : { id: n }
+    },
+    parse() { throw new Error('scan must not parse transcript events') },
+  })
+  const stream = createSessionRegistry([provider]).scanStream()
+  const first = await stream.next()
+  assert.equal(first.done, false)
+  await stream.return(undefined)
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  assert.deepEqual(await stream.next(), { done: true, value: undefined })
+  // At most the bounded read window ran; the traversal tail was never read.
+  assert.ok(started.length < names.length)
+  assert.equal(started.includes(join(root, 'j.jsonl')), false)
 })
 for (const [provider, header, message] of [
   [
