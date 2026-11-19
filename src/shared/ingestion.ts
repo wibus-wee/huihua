@@ -18,6 +18,7 @@ import type {
   ScanOptions,
   SessionProvider,
 } from '../contracts/provider.ts'
+import { scanFailure } from '../contracts/provider.ts'
 import type {
   FrameConsumer,
   FrameSelection,
@@ -36,7 +37,7 @@ import { readJson } from './json-file.ts'
 import type { NativeLine } from './jsonl.ts'
 import { header, jsonLines, jsonLinesFrom } from './jsonl.ts'
 import { exists, files, positiveLimit } from './paths.ts'
-import { scanSource } from './scan.ts'
+import { prefetch, scanSource } from './scan.ts'
 import { array, object, optional, string, timestamp } from './value.ts'
 
 export class Ingestion {
@@ -719,7 +720,52 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
       const roots = (await adapter.roots(options)).map(path => resolve(path))
       const explicit = new Set(options.roots?.[adapter.id]?.map(path => resolve(path)))
       const candidate = (path: string): JsonlCandidate => ({ path, roots, explicitFile: explicit.has(path) })
-      for await (const path of files(roots, p => adapter.accepts?.(p, candidate(p)) ?? p.endsWith('.jsonl'), options, adapter.id)) {
+      const headerLimit = positiveLimit(options.headerBytes, 65536)
+      type Item = string | Extract<ScanEvent, { type: 'failure' }>
+      interface Reads {
+        readonly records: unknown[]
+        readonly metadata: unknown[]
+        readonly rejected?: Extract<ScanEvent, { type: 'failure' }>
+      }
+      // Read-only acquisition runs inside a bounded window; emission stays in traversal order.
+      async function readAhead(path: string, compressed: boolean): Promise<Reads> {
+        const companions = await adapter.metadataFiles?.(path) ?? []
+        const metadata: unknown[] = []
+        const load = async () => {
+          for (const companion of companions) {
+            let rejected: Extract<ScanEvent, { type: 'failure' }> | undefined
+            for await (const event of scanSource(adapter.id, { path: companion }, options, async function* () {
+              if (await exists(companion))
+                metadata.push((await readJson(companion, headerLimit, true, options.signal)).native)
+            })) {
+              if (event.type === 'failure')
+                rejected = event
+            }
+            if (rejected !== undefined)
+              return { records: [], metadata, rejected }
+          }
+          return { records: await header(path, compressed, options.headerBytes, options.signal), metadata }
+        }
+        try {
+          return await load()
+        }
+        catch (error) {
+          // Preserve companion failure order: a transcript read error after
+          // loaded companions keeps those companions and fails the source.
+          if (metadata.length === 0)
+            throw error
+          return { records: [], metadata, rejected: { type: 'failure', failure: scanFailure(adapter.id, error, { path }) } }
+        }
+      }
+      const traversal = files(roots, p => adapter.accepts?.(p, candidate(p)) ?? p.endsWith('.jsonl'), options, adapter.id)[Symbol.asyncIterator]()
+      for await (const item of prefetch<Item, Reads>(
+        8,
+        async () => traversal.next(),
+        async value => typeof value === 'string'
+          ? readAhead(value, /\.jsonl\.zstd?$/.test(value))
+          : { records: [], metadata: [] },
+      )) {
+        const path = item.value
         if (typeof path !== 'string') {
           yield path
           continue
@@ -727,20 +773,14 @@ export function jsonlProvider(adapter: JsonlAdapter): SessionProvider & {
         const compressed = /\.jsonl\.zstd?$/.test(path)
         const source = { path, format: compressed ? 'jsonl_zstd' : 'jsonl' }
         yield* scanSource(adapter.id, source, options, async function* () {
-          const records = await header(path, compressed, options.headerBytes, options.signal)
-          const metadata: unknown[] = []
-          for (const companion of await adapter.metadataFiles?.(path) ?? []) {
-            let failed = false
-            for await (const event of scanSource(adapter.id, { path: companion }, options, async function* () {
-              if (await exists(companion))
-                metadata.push((await readJson(companion, positiveLimit(options.headerBytes, 65536), true, options.signal)).native)
-            })) {
-              failed = true
-              yield event
-            }
-            if (failed)
-              return
+          // Re-throw inside the source boundary so read errors classify at their own position.
+          const reads = await item.ready
+          if (reads.rejected !== undefined) {
+            yield reads.rejected
+            return
           }
+          const records = reads.records
+          const metadata = reads.metadata
           const facts = adapter.metadata([...metadata, ...records], path, { fileBacked: true })
           const identity = adapter.identify?.({ ...candidate(path), header: records, companions: metadata })
           if (identity === false)

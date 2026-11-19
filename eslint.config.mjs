@@ -26,6 +26,11 @@ export default defineConfig({
   files: ['tools/**/*.ts', 'tests/**/*.ts'],
   rules: { 'no-console': 'off', 'antfu/no-top-level-await': 'off' },
 }, {
+  // The browser viewer owns its own tsconfig (DOM libs, JSX, bundler resolution); typed lint
+  // still applies, resolved against that project instead of the Node test config.
+  files: ['packages/web/**/*.{ts,tsx}'],
+  languageOptions: { parserOptions: { project: './packages/web/tsconfig.json' } },
+}, {
   // Documentation snippets are isolated examples, not members of the compiled TypeScript project.
   files: ['**/*.md/**'],
   languageOptions: { parserOptions: { project: false, projectService: false } },

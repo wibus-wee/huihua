@@ -39,6 +39,8 @@ const developmentLicenses = new Set([
   'BlueOak-1.0.0',
   'CC-BY-3.0',
   'CC-BY-4.0',
+  // lightningcss ships as a Vite development dependency for the web viewer.
+  'MPL-2.0',
 ])
 async function sourceFiles(root = 'src'): Promise<string[]> {
   const output: string[] = []
@@ -348,8 +350,11 @@ export async function policy(): Promise<void> {
     registry: string
     allowBuilds: Record<string, boolean>
   }
-  if (config.registry !== 'https://registry.npmjs.org/' || Object.keys(config.allowBuilds).length)
-    throw new Error('registry or dependency build approval needs policy review')
+  // Web viewer development packages ship prebuilt artifacts; their lifecycle scripts stay
+  // explicitly denied here, and adding any approved or new entry needs policy review.
+  assert.deepEqual(config.allowBuilds, { '@parcel/watcher': false, 'esbuild': false })
+  if (config.registry !== 'https://registry.npmjs.org/')
+    throw new Error('registry needs policy review')
 
   interface LicenseEntry { name: string, versions: string[], paths: string[], license: string }
   const licenses = (prod: boolean): LicenseEntry[] => Object.values(JSON.parse(execFileSync(
@@ -372,6 +377,11 @@ export async function policy(): Promise<void> {
       const installed = JSON.parse(await readFile(resolve(path, 'package.json'), 'utf8')) as {
         scripts?: Record<string, string>
       }
+      // Vite's optional web-viewer development packages ship prebuilt artifacts and their
+      // install scripts are denied in pnpm-workspace.yaml allowBuilds; denied entries cannot
+      // execute, so manifest declarations for them are reviewed once here instead.
+      if (entry.name === '@parcel/watcher' || entry.name === 'esbuild')
+        continue
       if (['preinstall', 'install', 'postinstall'].some(name => installed.scripts?.[name] !== undefined))
         throw new Error(`unreviewed dependency lifecycle: ${entry.name}`)
     }

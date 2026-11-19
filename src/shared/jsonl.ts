@@ -28,11 +28,12 @@ async function* chunks(
   path: string,
   compressed: boolean,
   signal?: AbortSignal,
+  readSize = 262144,
 ): AsyncGenerator<Buffer> {
   const decode = compressed ? (await import('./binary.ts')).zstdChunks : undefined
   signal?.throwIfAborted()
   const source = fs.readStream(path, {
-    highWaterMark: 262144,
+    highWaterMark: readSize,
     ...(signal === undefined ? {} : { signal }),
   })
   try {
@@ -167,7 +168,8 @@ export async function header(
   const parts: Buffer[] = []
   let size = 0
   let complete = true
-  for await (const chunk of chunks(path, compressed, signal)) {
+  // The header prefix is bounded by limit; full-session reads keep the default chunk size.
+  for await (const chunk of chunks(path, compressed, signal, limit)) {
     const take = Math.min(chunk.length, limit - size)
     parts.push(chunk.subarray(0, take))
     size += take
