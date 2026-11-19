@@ -155,3 +155,11 @@ The [synthetic latest compatibility run](https://github.com/wibus-wee/huihua/act
 Huihua maps this native update to the existing system event, preserving its complete envelope and content.
 It does not infer a permission grant or execute the instruction.
 This is one observed producer record, not a guarantee that all variants have identical fields.
+
+## Copilot 1.0.114 session.resume fields
+
+Run 44321480142 captured Copilot 1.0.114 (requested 1.0.95). `session.resume`
+gained `remoteSteerable`, and `reasoningEffort` no longer appears on
+`session.start`/`session.resume` rows in this capture.
+The removed paths move to
+the optional lists; the new boolean is a reviewed addition.

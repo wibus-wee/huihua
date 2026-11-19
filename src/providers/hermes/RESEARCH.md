@@ -127,3 +127,12 @@ These are official source and synthetic-writer observations, not third-party cla
 Production parsers and public contracts remain unchanged.
 Tool roundtrips remain unverified.
 See [validation and provenance](../../../docs/producer-compatibility.md#november-9-compatibility-review).
+
+## Hermes 0922303 state columns
+
+Run 44321480142 captured Hermes commit 0922303631b7ee4ae9a1c3512eab8002da153888
+(pinned 0240fa4a). `state` rows gained `prompt_cache_clock`, and `title`/
+`title_source` now appear as `null` in this capture where earlier captures wrote
+strings.
+Both type variants are optional in the baseline; the new column is a
+required reviewed path.

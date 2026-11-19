@@ -53,3 +53,11 @@ Huihua retains the native
 rows and emits the original usage object; no new cross-provider primitive is inferred.
 The capture covers first turn and resume, not a tool roundtrip or all SQLite migrations.
 No third-party interpretation is used.
+
+## OpenClaw 2026.11.5 system-prompt payload
+
+Run 44321480142 captured OpenClaw 2026.11.5 (requested 2026.9.8).
+`openclaw.system-prompt` events now decode to `data` carrying `hash`, `prefix`,
+`renderedPrefix`, `restart`, `historyId`, `routeKey`, `toolPolicy` and a full
+`tools[]` schema.
+All are additive reviewed paths; no reader mapping changes.

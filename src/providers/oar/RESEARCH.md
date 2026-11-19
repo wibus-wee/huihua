@@ -56,3 +56,15 @@ The reviewed baseline allows exactly these boolean paths and the presence or abs
 previously observed numeric index; unrelated paths and types still cause drift.
 No producer
 dependency is constrained and no public primitive is added.
+
+## OAR 0.118.0 SDK layout
+
+`@botiverse/oar` 0.118.0 (requested 0.54.3, run 44321480142) no longer re-exports
+`piSession` at the package root; the session factory lives under
+`piRuntime.session`, and `awaitTurnEnd` moved from the top level to the `observe`
+entrypoint.
+The recorder resolves both export layouts and loads `observe`
+relative to the producer entrypoint (`dist/observe/index.js`), keeping the
+pinned-0.54.3 and latest lanes working.
+No reader or baseline changes — this was
+a harness import fix, not format drift.

@@ -165,31 +165,40 @@ async function captureAcp(binary: string, cwd: string, env: NodeJS.ProcessEnv, r
 async function oarChild(): Promise<void> {
   // Actual installed OAR SDK + bundled Pi, isolated in a separate process before import.
   // It receives only deterministic loopback text; no coding task or remote model is delegated.
-  const module = await import(pathToFileURL(requiredArg(3)).href) as {
-    piSession: (installation: object, options: object) => Promise<{
-      id: string
-      rawEvents: (fn: (record: unknown) => void) => () => void
-      prompt: (text: string) => Promise<{
-        seq: number
-      }>
-      dispose: () => Promise<void>
+  interface OarSession {
+    id: string
+    rawEvents: (fn: (record: unknown) => void) => () => void
+    prompt: (text: string) => Promise<{
+      seq: number
     }>
+    dispose: () => Promise<void>
+  }
+  const url = pathToFileURL(requiredArg(3)).href
+  const module = await import(url) as {
+    piSession?: (installation: object, options: object) => Promise<OarSession>
+    piRuntime?: { session: (installation: object, options: object) => Promise<OarSession> }
     openVoyage: (path: string, header: object) => {
       record: (record: unknown) => void
       end: (reason: string) => void
     }
-    awaitTurnEnd: (session: unknown, seq: number) => Promise<{
+    awaitTurnEnd?: (session: unknown, seq: number) => Promise<{
       kind: string
     }>
   }
+  // 0.118.x removed the top-level piSession/awaitTurnEnd exports; the session
+  // starter moved onto piRuntime.session and turn observation to ./observe.
+  const startSession = module.piSession ?? module.piRuntime?.session
+  assert(startSession !== undefined, 'OAR SDK exposes neither piSession nor piRuntime.session')
+  const awaitTurnEnd = module.awaitTurnEnd
+    ?? (await import(new URL('./observe/index.js', url).href) as { awaitTurnEnd: (session: unknown, seq: number) => Promise<{ kind: string }> }).awaitTurnEnd
   const root = requiredArg(4)
   const cwd = join(root, 'workspace')
-  const session = await module.piSession({ kind: 'available', via: 'bundled' }, { cwd, model: 'synthetic/claude-sonnet-4-5' })
+  const session = await startSession({ kind: 'available', via: 'bundled' }, { cwd, model: 'synthetic/claude-sonnet-4-5' })
   const writer = module.openVoyage(join(root, 'session.voyage.jsonl'), { runtime: 'pi', model: 'synthetic/claude-sonnet-4-5', cwd, sessionId: session.id, startedAt: Date.now(), recorder: 'huihua-producer-compat' })
   const unsubscribe = session.rawEvents(record => writer.record(record))
   try {
     const request = await session.prompt('HUIHUA_OAR_FIRST')
-    const outcome = await module.awaitTurnEnd(session, request.seq)
+    const outcome = await awaitTurnEnd(session, request.seq)
     assert.equal(outcome.kind, 'completed')
   }
   finally {

@@ -1076,6 +1076,12 @@ void it('fx v2 journal discovers and preserves the real resumed conversation', a
   assert.deepEqual(conversationOf(session).map(e => e.data.content), ['HUIHUA_FX_FIRST', 'HUIHUA_FX_REPLY', 'HUIHUA_FX_RESUME', 'HUIHUA_FX_RESUMED'].map(data => [{ type: 'text', data }]))
   assert.deepEqual(conversationOf(session).map(e => e.record), [5, 6, 12, 13])
   assert.equal(session.title, 'HUIHUA_FX_FIRST')
+  // fx 0.0.17 journals model telemetry, injected context and provisional tool
+  // state as items; they are preserved as system evidence, not conversation.
+  assert.deepEqual(
+    session.events.filter(e => e.type === 'system').map(e => e.data.sourceType),
+    ['session_created', 'set', 'set', 'set', 'turn_started', 'turn_end', 'turn_committed', 'set', 'closed', 'turn_started', 'turn_end', 'turn_committed', 'closed', 'runtime_context', 'model_call', 'tool_running'],
+  )
   assert.deepEqual(session.diagnostics, [])
   const handle = await sessions.open(scan.refs[0]!)
   assert.deepEqual(await handle.snapshot(), session)

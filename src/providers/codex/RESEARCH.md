@@ -133,3 +133,17 @@ This single capture does not prove behavior for every version.
 
 Only this typed path in the reviewed event message shape is optional.
 It remains native evidence, without a new public mapping; other changes remain subject to drift checks.
+
+## 0.170.0 fourth reviewed shape
+
+Run 44321480142 captured Codex 0.170.0 (requested 0.161.0) matching the third
+baseline variant plus four additions: `thread_settings_applied` gained
+`requested_approvals_reviewer`, `turn_context` no longer carries
+`current_date`/`timezone`/`workspace_roots`, and `exec_command_end` items dropped
+`formatted_output`/`stdout`/`stderr`.
+A fourth `reviewedPathVariants` entry records
+this complete shape with its unknown counts (`task_started:2`,
+`world_state:1`, `thread_settings_applied:3`, `item_completed:5`) and eleven
+`PartialParse` diagnostics.
+Earlier variants remain accepted verbatim; unknown
+growth and removed required paths still fail.

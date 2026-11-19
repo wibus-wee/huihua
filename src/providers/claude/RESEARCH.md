@@ -329,3 +329,13 @@ No new canonical timing semantics are inferred from the name alone.
 
 This is an observed synthetic capture, not a universal storage contract.
 Background, nested and resumed subagents remain unverified.
+
+## Claude 2.1.327 assistant writer metadata
+
+Run 44321480142 captured Claude Code 2.1.327 (requested 2.1.292).
+Every assistant row now carries `madeBy: "model"`; `promptCacheRequested` and
+`toolInputStreamMs` (already optional since the November 7 review) remain
+optional. `madeBy` is a writer-attribution constant, not conversation content.
+`claude.json` accepts `madeBy` on `assistant`; the foreground-child
+`claude-subagents.json` accepts it too — no subagent-specific shape change was
+observed.

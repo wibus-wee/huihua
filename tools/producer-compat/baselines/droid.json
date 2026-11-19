@@ -22,6 +22,7 @@
     "$.cwd:string",
     "$.hostId:string",
     "$.id:string",
+    "$.isSessionTitleLoadRetryDisabled:boolean",
     "$.isSessionTitleManuallySet:boolean",
     "$.message.content:array",
     "$.message.content[].text:string",
@@ -32,6 +33,7 @@
     "$.message.openaiMessageId:string",
     "$.message.reasoningEffort:string",
     "$.message.role:string",
+    "$.message.systemNotice:boolean",
     "$.message.visibility:string",
     "$.message:object",
     "$.owner:string",
@@ -74,6 +76,7 @@
     "[\"message\",\"user\",null,null,null,null,null,null]:$.message.content[]:object",
     "[\"message\",\"user\",null,null,null,null,null,null]:$.message.interactionMode:string",
     "[\"message\",\"user\",null,null,null,null,null,null]:$.message.role:string",
+    "[\"message\",\"user\",null,null,null,null,null,null]:$.message.systemNotice:boolean",
     "[\"message\",\"user\",null,null,null,null,null,null]:$.message.visibility:string",
     "[\"message\",\"user\",null,null,null,null,null,null]:$.message:object",
     "[\"message\",\"user\",null,null,null,null,null,null]:$.parentId:string",
@@ -84,6 +87,7 @@
     "[\"session_start\",null,null,null,null,null,null,null]:$.cwd:string",
     "[\"session_start\",null,null,null,null,null,null,null]:$.hostId:string",
     "[\"session_start\",null,null,null,null,null,null,null]:$.id:string",
+    "[\"session_start\",null,null,null,null,null,null,null]:$.isSessionTitleLoadRetryDisabled:boolean",
     "[\"session_start\",null,null,null,null,null,null,null]:$.isSessionTitleManuallySet:boolean",
     "[\"session_start\",null,null,null,null,null,null,null]:$.owner:string",
     "[\"session_start\",null,null,null,null,null,null,null]:$.title:string",
@@ -94,5 +98,13 @@
   "diagnosticCodes": [
     "PartialParse",
     "PartialParse"
+  ],
+  "optionalFieldPaths": [
+    "$.isSessionTitleLoadRetryDisabled:boolean",
+    "$.message.systemNotice:boolean"
+  ],
+  "optionalGroupedFieldPaths": [
+    "[\"message\",\"user\",null,null,null,null,null,null]:$.message.systemNotice:boolean",
+    "[\"session_start\",null,null,null,null,null,null,null]:$.isSessionTitleLoadRetryDisabled:boolean"
   ]
 }

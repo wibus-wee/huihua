@@ -31,3 +31,11 @@ owns the behavior inventory; [Dependency and ingestion decisions](../../../docs/
 and [Reading and streaming](../../../docs/architecture.md#reading-and-streaming) own ingestion and read-only boundaries.
 This research file owns provider-native compatibility evidence.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
+
+## Opencode 1.19.6 producer failure
+
+Run 44321480142 captured opencode 1.19.6 (requested 1.18.35) emitting
+`{"type":"error","error":{"name":"UnknownError"}}` on stdout before its first
+simulator request; the request ledger is empty.
+This is an upstream server fault,
+not format drift — no baseline or reader changes, and the lane needs a rerun.

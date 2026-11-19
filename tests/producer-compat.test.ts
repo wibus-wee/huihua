@@ -875,6 +875,8 @@ await test('metadata fallback checks exact tool choice and unchanged request bod
 await test('Grok title fallback is limited to the observed producer version', () => {
   const latest = grokTitleRequests('1.0.62', 'FIRST')
   assert.equal(latest.length, 2)
+  assert.equal(grokTitleRequests('1.0.89', 'FIRST').length, 2)
+  assert.equal(grokTitleRequests('1.0.100', 'FIRST').length, 2)
   const requests = latest.map(item => ({ method: 'POST', path: item.path, body: { stream: true, input: 'FIRST generating the session title', model: 'synthetic', tool_choice: item.toolChoice } }))
   assertSimulatorRequests({ requests }, latest)
   for (const version of ['1.0.46', '1.0.63', undefined]) {
@@ -1199,7 +1201,7 @@ await test('missing installation progress is blocked and never certified by arti
 
 await test('Codex reviewed settings counts account for exactly their diagnostics', async () => {
   const baseline = JSON.parse(await readFile('tools/producer-compat/baselines/codex.json', 'utf8')) as DriftSummary & { diagnosticCodes: string[], reviewedPathVariants: (DriftSummary & { diagnosticCodes: string[] })[] }
-  const shape = { ...baseline, ...baseline.reviewedPathVariants.at(-1)! }
+  const shape = { ...baseline, ...baseline.reviewedPathVariants.find(variant => variant.unknown?.thread_settings_applied === 3)! }
   for (const count of [2, 3]) {
     const actual = { ...shape, unknown: { ...shape.unknown, thread_settings_applied: count } }
     const reviewed = assertCodexBaseline(actual, baseline)
@@ -1369,11 +1371,8 @@ await test('Qwen ACP workflow mode metadata is preserved and reviewed narrowly',
 
 await test('October 30 Fx and Codex additions stay narrowly scoped', async () => {
   const fx = JSON.parse(await readFile('tools/producer-compat/baselines/fx-v2.json', 'utf8')) as DriftSummary
-  assert.equal(fx.unknown.runtime_context, 1)
-  assert.equal(fx.unknown.tool_running, 1)
-  assert.equal(fx.optionalDiagnosticRecords?.tool_running, 'PartialParse')
-  assert.throws(() => assertNoProducerDrift({ ...fx, unknown: { ...fx.unknown, tool_running: 2 } }, fx), /unknown native/)
-  assert.equal(fx.optionalDiagnosticRecords?.runtime_context, 'PartialParse')
+  // fx 0.0.17 reads runtime_context/tool_running as system evidence; neither stays unknown.
+  assert.deepEqual(fx.unknown, {})
   const fxPath = '["runtime_context",null,"",null,null,null,null,null]:$.data.messages:array'
   const observedFx = { ...fx, groupedFieldPaths: [...fx.groupedFieldPaths!, fxPath] }
   assertNoProducerDrift(observedFx, fx)

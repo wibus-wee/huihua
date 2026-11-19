@@ -35,3 +35,11 @@ Current settings are never used to fill historical model/workspace facts.
 Fixtures combine local synthetic examples and pinned independent compatibility inputs; they do not establish release-wide correctness.
 [Fixture provenance](../../../fixtures/compatibility/README.md) distinguishes upstream validation from the facts asserted through Huihua's public API.
 [Architecture](../../../docs/architecture.md#provider-coverage-and-format-ownership) owns acquisition, evidence and resource-limit contracts.
+
+## Droid 1.14.0 session metadata
+
+Run 44321480142 captured Droid 1.14.0 (requested 0.236.0). `session_start` gained
+`isSessionTitleLoadRetryDisabled` and one user message gained
+`message.systemNotice`.
+Both are additive writer fields reviewed into the
+baseline at their observed record kinds; no reader mapping changes.
