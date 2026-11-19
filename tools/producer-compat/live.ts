@@ -15,7 +15,12 @@ export function grokTitleRequests(version: string | undefined, prompt: string): 
   const title = { path: '/v1/responses', marker: prompt, bodyIncludes: 'generating the session title' }
   return [
     { ...title, toolChoice: { type: 'function', name: 'session_title' } },
-    ...(['1.0.62', '1.0.67', '1.0.70', '1.0.77'].includes(version ?? '') ? [{ ...title, toolChoice: 'auto', sameBodyAsPrevious: true }] : []),
+    // Grok retries the title call with tool_choice auto when the function
+    // variant fails; newer releases keep both requests. Reviewed in 1.0.62,
+    // 1.0.67, 1.0.70, 1.0.77, and every release since 1.0.89.
+    ...(['1.0.62', '1.0.67', '1.0.70', '1.0.77'].includes(version ?? '') || Number(version?.split('.')[2]) >= 89
+      ? [{ ...title, toolChoice: 'auto', sameBodyAsPrevious: true }]
+      : []),
   ]
 }
 

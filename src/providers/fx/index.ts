@@ -128,6 +128,11 @@ function conversation(ingest: Ingestion, native: unknown, evidenceNative: unknow
       ingest.emit('assistant_message', { content: contentBlocks(data.partial_text) }, envelope, evidence)
     ingest.emit('system', { sourceType: kind, payload: event[kind] }, envelope, evidence)
   }
+  // fx 0.0.17 journals per-call telemetry and the injected context block as items.
+  // They are not conversation turns; preserve the full payload as system evidence.
+  else if (kind === 'model_call' || kind === 'runtime_context' || kind === 'tool_running') {
+    ingest.emit('system', { sourceType: kind, payload: event[kind] }, envelope, evidence)
+  }
   else {
     ingest.unknown(kind ?? 'fx_conversation', evidenceNative, undefined, envelope, evidence)
   }

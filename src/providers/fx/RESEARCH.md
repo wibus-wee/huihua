@@ -145,3 +145,28 @@ The live lane verifies the summary, original messages and tool records on all
 four read surfaces, without following referenced blobs.
 No user-facing session archive operation was found in the tested Fx CLI help;
 this observation does not establish behavior for every producer or version.
+
+## fx 0.0.17 journal additions
+
+Run 44321480142 captured fx 0.0.17 (requested 0.0.13) emitting three new v2 journal
+item types: `model_call` (three per session), `tool_running` (one) and
+`runtime_context` (one).
+They previously surfaced only as `ingest.unknown` with
+`PartialParse` diagnostics.
+
+Observed payloads: `model_call` carries `data` with `model`, `provider`,
+`input_tokens`/`output_tokens` (number or null), `finish`, `outcome`,
+`generation_id`, `elapsed_ms`, `failure`, `purpose`, `served_by`,
+`retry_after_s`, `at_ms`, `after_steering_count`, `after_tool_step_count`.
+`tool_running` mirrors `tool_call` fields (`call_id`, `tool_name`,
+`arguments_json`, `argument_integrity`, `provenance`, `final_identity`,
+`provider_result`, `provisional_id`) and precedes the completed `tool_call`.
+`runtime_context` carries `data.messages[]` strings.
+
+Huihua now maps all three to `system` events with the full payload preserved:
+`tool_running` is a provisional in-progress copy, not a result; `model_call` is
+telemetry, not a message; `runtime_context` is prompt evidence, not conversation.
+The `fx-v2` baseline returns to zero tolerated unknown records and diagnostics;
+capture paths absent from the small fixture are optional.
+No public primitive or
+dependency changes.

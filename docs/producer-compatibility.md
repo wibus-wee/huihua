@@ -927,3 +927,60 @@ this local result is not a full pinned/latest matrix certification.
 The original daily
 capture and official source establish the stale title-queue failure separately.
 No production parser, public contract, dependency, CI permission or security setting changed.
+
+## November 18 compatibility review
+
+[Daily run 44321480142](https://github.com/wibus-wee/huihua/actions/runs/44321480142)
+produced drift-review anomalies in the Claude, Codex, Copilot, Droid, fx, Hermes and
+OpenClaw latest lanes and environment-blocked Grok, OAR and Opencode lanes.
+All pinned lanes passed.
+
+Benign native additions were reviewed into baselines without reader changes:
+
+- Claude 2.1.327: `assistant` rows gained `madeBy`, `promptCacheRequested` and
+  `toolInputStreamMs` in main stores; `madeBy` and `promptCacheRequested` in
+  foreground-child stores.
+  Both `claude.json` and `claude-subagents.json` accept
+  exactly the observed record kind and types.
+- Droid 1.14.0: `session_start` gained `isSessionTitleLoadRetryDisabled` and a user
+  message gained `message.systemNotice`.
+- Hermes `0922303`: `state` rows gained `prompt_cache_clock`; `title`/`title_source`
+  now also appear as `null`, so both type variants are optional.
+- OpenClaw 2026.11.5: `system-prompt` events carry `hash`, `prefix`,
+  `renderedPrefix`, `restart` and the expanded decoded tool schema.
+- Copilot 1.0.114: `session.resume` gained `remoteSteerable`; `reasoningEffort`
+  moved record kinds, so prior paths stay optional.
+- Codex 0.170.0: a fourth `reviewedPathVariants` shape —
+  `thread_settings_applied` now carries `requested_approvals_reviewer`,
+  `turn_context` dropped `current_date`/`timezone`/`workspace_roots`, and
+  `exec_command_end` items dropped `formatted_output`/`stdout`/`stderr`.
+  Earlier variants remain accepted; unknown counts stay bounded.
+
+fx 0.0.17 was real producer evolution, not benign drift: the v2 journal added
+`model_call`, `tool_running` and `runtime_context` items that previously fell into
+`ingest.unknown` with `PartialParse` diagnostics.
+The fx reader now maps them to
+`system` events preserving the full payload; `tool_running` is a provisional copy
+of the later `tool_call`, `model_call` carries token/finish/outcome telemetry, and
+`runtime_context` carries `data.messages[]`.
+The `fx-v2` baseline records the new
+field paths and returns to zero tolerated unknowns/diagnostics; capture-only paths
+that the fixture does not cover are optional.
+
+Grok 1.0.89 keeps the reviewed title-fallback pair (`tool_choice` function then
+`auto`, identical bodies).
+The accepted-version list now covers every release at
+or after 1.0.89 instead of only 1.0.62/1.0.67/1.0.70; ordering, body equality and
+queue exhaustion checks are unchanged.
+
+OAR was blocked by an SDK breaking change: `@botiverse/oar` 0.118.0 no longer
+re-exports `piSession` at the package root and moved `awaitTurnEnd` under
+`observe`.
+The recorder now resolves `piSession` or `piRuntime.session` and loads
+observe relative to the producer entrypoint, so the lane works across both
+layouts.
+Opencode 1.19.6 failed before its first simulator request with the
+producer's own `UnknownError`; no request or native evidence exists, so nothing is
+baselined and the lane should be retried.
+
+No release-wide storage contract is inferred from these captures.

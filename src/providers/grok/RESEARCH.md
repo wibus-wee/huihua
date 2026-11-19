@@ -62,3 +62,12 @@ No arbitrary retry allowance or version wildcard is accepted.
 Native capture replay passes eight records across all four surfaces and the baseline.
 Artifact 12555837460 SHA-256: 0560225c5a2d0bdea12073e8519504f1fefcd406c74681b073037b6f318ad453.
 No third-party interpretation is used; production mapping remains unchanged.
+
+## Grok 1.0.89 title fallback
+
+Run 44321480142 captured Grok 1.0.89 (requested 1.0.46).
+The reviewed
+forced-then-`auto` title pair now ships in every release at or after 1.0.89, so
+the accepted-version list covers the range instead of enumerating releases.
+Ordering, same-body-except-tool-choice, request-purpose and queue-exhaustion
+assertions are unchanged; no wildcard retry tolerance is accepted.
