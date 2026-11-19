@@ -1,26 +1,42 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "tests/*.test.ts",
-    "tools/compressed-fixture.ts",
-    "tools/producer-compat/report.ts",
-    "tools/producer-compat/publish.ts",
-    "tools/producer-compat/live.ts",
-    "tools/producer-compat/catalog.ts",
-    "tools/producer-compat/recording.ts",
-    "src/shared/platform/*.ts"
-  ],
-  "project": [
-    "src/**/*.ts",
-    "tests/**/*.ts",
-    "tools/**/*.ts"
-  ],
   "ignoreIssues": {
     "src/index.ts": [
       "duplicates"
     ]
   },
-  "ignoreBinaries": [
-    "script"
-  ]
+  "workspaces": {
+    ".": {
+      "entry": [
+        "tests/*.test.ts",
+        "tools/compressed-fixture.ts",
+        "tools/producer-compat/report.ts",
+        "tools/producer-compat/publish.ts",
+        "tools/producer-compat/live.ts",
+        "tools/producer-compat/catalog.ts",
+        "tools/producer-compat/recording.ts",
+        "src/shared/platform/*.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "tests/**/*.ts",
+        "tools/**/*.ts"
+      ],
+      "ignoreBinaries": [
+        "script"
+      ]
+    },
+    "packages/web": {
+      "entry": [
+        "index.html",
+        "src/huihua.worker.ts"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ],
+      "ignoreDependencies": [
+        "@parcel/watcher"
+      ]
+    }
+  }
 }

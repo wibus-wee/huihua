@@ -1,4 +1,8 @@
 packages:
   - packages/*
 registry: https://registry.npmjs.org/
-allowBuilds: {}
+allowBuilds:
+  # Vite's optional watcher and esbuild peer ship prebuilt binaries; the viewer relies on
+  # the shipped artifacts and never invokes their install scripts, so both are denied.
+  '@parcel/watcher': false
+  esbuild: false
