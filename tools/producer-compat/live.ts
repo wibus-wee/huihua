@@ -24,6 +24,11 @@ export function grokTitleRequests(version: string | undefined, prompt: string): 
   ]
 }
 
+export function openCodeConfig(base: string) {
+  // Override inherited catalog deprecation for this simulator-only model.
+  return { model: 'anthropic/claude-sonnet-4-5', small_model: 'anthropic/claude-sonnet-4-5', provider: { anthropic: { models: { 'claude-sonnet-4-5': { name: 'Synthetic compatibility model', status: 'active', limit: { context: 200000, output: 1024 } } }, options: { baseURL: `${base}/v1`, apiKey: 'synthetic-test-key' } } }, permission: { '*': 'deny' }, share: 'disabled', autoupdate: false }
+}
+
 async function main(): Promise<void> {
   const provider = required('COMPAT_PROVIDER')
   assert(['pi', 'qwen', 'copilot', 'opencode', 'cline', 'deepseek', 'openclaw', 'fx', 'grok', 'droid', 'hermes'].includes(provider), 'unsupported live producer')
@@ -58,8 +63,8 @@ async function main(): Promise<void> {
   if (provider === 'opencode') {
     const config = join(home, '.config/opencode')
     await mkdir(config, { recursive: true })
-    await writeFile(join(config, 'opencode.json'), JSON.stringify({ model: 'anthropic/claude-sonnet-4-5', small_model: 'anthropic/claude-sonnet-4-5', provider: { anthropic: { options: { baseURL: `${base}/v1`, apiKey: 'synthetic-test-key' } } }, permission: { '*': 'deny' }, share: 'disabled', autoupdate: false }))
-    Object.assign(env, { OPENCODE_DISABLE_MODELS_FETCH: 'true', OPENCODE_DISABLE_LSP_DOWNLOAD: 'true' })
+    await writeFile(join(config, 'opencode.json'), JSON.stringify(openCodeConfig(base)))
+    Object.assign(env, { OPENCODE_DISABLE_MODELS_FETCH: 'true', OPENCODE_DISABLE_LSP_DOWNLOAD: 'true', OPENCODE_PRINT_LOGS: '1' })
     args = ['run', '--pure', '--format', 'json', '--title', 'Synthetic Huihua compatibility']
   }
   if (provider === 'cline') {
