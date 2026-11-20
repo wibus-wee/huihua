@@ -462,7 +462,8 @@
     "\"user\":$.permissionDecision.reasonType:string",
     "\"user\":$.permissionDecision.ruleSource:string",
     "\"user\":$.permissionDecision.source:string",
-    "\"user\":$.permissionDecision:object"
+    "\"user\":$.permissionDecision:object",
+    "null:$.model:string"
   ],
   "evidence": {
     "october22Review": "Run 39761943610: exact additive metadata reviewed against native artifacts; no canonical mapping changes. Other types, record kinds and required fields remain strict."

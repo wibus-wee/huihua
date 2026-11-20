@@ -59,3 +59,25 @@ old-writer acceptance and reject wrong types, wrong record kinds, unknown growth
 and missing required fields.
 See the capture hashes and replay scope in
 [producer compatibility](../../../docs/producer-compatibility.md#october-20-metadata-review).
+
+## November 19 native drift review
+
+Official synthetic writer captures from run [44544229373](https://github.com/wibus-wee/huihua/actions/runs/44544229373) were downloaded as original ZIPs and SHA-256 checked against GitHub artifact metadata.
+
+DeepSeek 0.2.2-rc.5 adds response `prefixDigest` in assistant message source and stream replay state; request tool schemas replace `agent_id` and `scope` with `agent`.
+These are native evidence, not new normalized semantics.
+Only these exact field/type and record-kind combinations are optional across pinned/latest captures.
+Unknown future paths, wrong types/kinds and unrelated required-field loss still fail.
+No third-party format claim or production parser change is introduced.
+
+- `synthetic-deepseek-compatibility-latest` (artifact 14540156274): SHA-256 `6d884cb7848d4e550e6ed8614aa1bba50c048d2e29cde3e26d486c14f64190da`.
+- `synthetic-deepseek-compatibility-pinned` (artifact 14539413158): SHA-256 `1d26c164212c4d7c84be1d97460a509e1bada8b7e47e88566287ac47911fa819`.
+
+### November 20 confirmation
+
+The pinned/latest artifacts from [run 44750241419](https://github.com/wibus-wee/huihua/actions/runs/44750241419) were independently downloaded and their ZIP SHA-256 verified against GitHub metadata.
+Both lanes pass the existing independent native-store audit, discovery, read/snapshot/record/event surfaces and the reviewed baseline.
+The original pinned field arrays remain unchanged; only exact reviewed optional paths extend compatibility.
+
+- `synthetic-deepseek-compatibility-pinned` (artifact 14635360682): SHA-256 `4852f4b245f9f75d60166bd1d18ae6e3c6a6071215f362509225f361379498f0`.
+- `synthetic-deepseek-compatibility-latest` (artifact 14634782479): SHA-256 `f020b17c15931aacb5a06016c3cdc12958473cce54578f3b5b1b2504d59084a3`.

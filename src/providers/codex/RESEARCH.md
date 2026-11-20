@@ -147,3 +147,15 @@ this complete shape with its unknown counts (`task_started:2`,
 `PartialParse` diagnostics.
 Earlier variants remain accepted verbatim; unknown
 growth and removed required paths still fail.
+
+## Codex 0.171.0 response metadata (2026-11-20)
+
+Run [44750241419](https://github.com/wibus-wee/huihua/actions/runs/44750241419)
+retains `metadata.model_search_state: "unused"` on a response item in the latest
+lane; pinned 0.161.0 omits it.
+This is captured compatibility evidence, not a
+claim about all official producer states.
+The reader already preserves the
+complete native record.
+Accept only this optional string at the response-item
+path; do not infer a message, model selection or search action from it.

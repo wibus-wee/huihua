@@ -536,6 +536,7 @@
     "$.message.content[].input:object",
     "$.message.content[].name:string",
     "$.message.content[].tool_use_id:string",
+    "$.model:string",
     "$.modelUsage.claude-sonnet-4-5.cacheCreationEphemeral1hInputTokens:number",
     "$.modelUsage.claude-sonnet-4-5.cacheCreationEphemeral5mInputTokens:number",
     "$.modelUsage.claude-sonnet-4-5.cacheCreationInputTokens:number",
@@ -899,6 +900,7 @@
     "\"user\":$.turnPosition:object",
     "null:$.finished:boolean",
     "null:$.isBuiltIn:boolean",
+    "null:$.model:string",
     "null:$.pickedEffortModel:string"
   ],
   "evidence": {

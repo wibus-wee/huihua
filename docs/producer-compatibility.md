@@ -980,7 +980,51 @@ The recorder now resolves `piSession` or `piRuntime.session` and loads
 observe relative to the producer entrypoint, so the lane works across both
 layouts.
 Opencode 1.19.6 failed before its first simulator request with the
-producer's own `UnknownError`; no request or native evidence exists, so nothing is
-baselined and the lane should be retried.
+producer's own `UnknownError` before producing a readable session; no reader
+verdict was established.
+The model-catalog cause and harness fix are documented
+in the November 19–20 review below.
 
 No release-wide storage contract is inferred from these captures.
+
+## November 19–20 compatibility review
+
+The [November 19 run](https://github.com/wibus-wee/huihua/actions/runs/44544229373)
+reported four baseline reviews and one producer startup failure; the
+[November 20 run](https://github.com/wibus-wee/huihua/actions/runs/44750241419)
+added Codex and OAR baseline reviews on the same Huihua commit, `d2152961`.
+All pinned lanes passed in both runs.
+A baseline review is not a confirmed reader
+regression, and a producer failure before the first model request establishes no
+reader verdict.
+
+The provider research files own the native-field decisions and capture evidence:
+[Claude](../src/providers/claude/RESEARCH.md),
+[Copilot](../src/providers/copilot/RESEARCH.md),
+[DeepSeek](../src/providers/deepseek/RESEARCH.md),
+[Grok](../src/providers/grok/RESEARCH.md),
+[Codex](../src/providers/codex/RESEARCH.md) and
+[OAR](../src/providers/oar/RESEARCH.md).
+Reviewed optional metadata uses the existing exact field/type and record-kind
+mechanism; it does not authorize future fields, wrong types, missing required
+facts, additional unknown records or additional diagnostics.
+No public contract, runtime dependency or serialized session schema changes.
+
+OpenCode #117/#120 share a synthetic-model setup failure: the bundled catalog
+marks the configured model deprecated.
+The harness explicitly registers its
+loopback-only model as active, supplies limits and retains producer stderr logs.
+Pure mode, deny-all permissions and disabled remote model fetching remain unchanged.
+Fresh official 1.18.35 and 1.19.6 first-turn/resume journeys pass the ordered
+request plan, native inventory, all four read surfaces and unchanged baseline.
+[OpenCode research](../src/providers/opencode/RESEARCH.md#opencode-1196-producer-model-selection)
+owns the upstream cause and validation scope.
+
+Hash-verified archived captures are replayed through the existing independent
+native oracles, not reconstructed stores.
+Claude replay includes both ordinary
+and foreground-child baselines and lineage checks; Copilot, DeepSeek, Grok,
+Codex and OAR retain complete native records and compare read, snapshot, record
+stream and event stream.
+This is captured-writer replay, not a fresh full-matrix
+producer certification; existing journey gaps remain visible.

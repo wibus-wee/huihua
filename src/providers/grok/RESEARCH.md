@@ -71,3 +71,25 @@ forced-then-`auto` title pair now ships in every release at or after 1.0.89, so
 the accepted-version list covers the range instead of enumerating releases.
 Ordering, same-body-except-tool-choice, request-purpose and queue-exhaustion
 assertions are unchanged; no wildcard retry tolerance is accepted.
+
+## November 19 native drift review
+
+Official synthetic writer captures from run [44544229373](https://github.com/wibus-wee/huihua/actions/runs/44544229373) were downloaded as original ZIPs and SHA-256 checked against GitHub artifact metadata.
+
+Grok 1.0.89 adds numeric `timestamp_us` to the four observed update kinds.
+Existing mapping remains unchanged; complete native records retain the timestamp.
+Only these exact field/type and record-kind combinations are optional across pinned/latest captures.
+Unknown future paths, wrong types/kinds and unrelated required-field loss still fail.
+No third-party format claim or production parser change is introduced.
+
+- `synthetic-grok-compatibility-latest` (artifact 14540530538): SHA-256 `4a463769c31457affb205aceac36f21675f9b70ec533487e667981e9eb217767`.
+- `synthetic-grok-compatibility-pinned` (artifact 14539676357): SHA-256 `fcb30d0e7a8b9ad43a795a82bc21bf8fe1bac3197218cd8b38502621bd51346a`.
+
+### November 20 confirmation
+
+The pinned/latest artifacts from [run 44750241419](https://github.com/wibus-wee/huihua/actions/runs/44750241419) were independently downloaded and their ZIP SHA-256 verified against GitHub metadata.
+Both lanes pass the existing independent native-store audit, discovery, read/snapshot/record/event surfaces and the reviewed baseline.
+The original pinned field arrays remain unchanged; only exact reviewed optional paths extend compatibility.
+
+- `synthetic-grok-compatibility-latest` (artifact 14634862777): SHA-256 `c443247ab48951943dd3d0cd9ff129238b3aeaac9b1b2148dc4a423388d9a632`.
+- `synthetic-grok-compatibility-pinned` (artifact 14633994784): SHA-256 `4fc3fa79abda144c868fcc91983a640f3b99377a5293d5690098c292e86b69fc`.

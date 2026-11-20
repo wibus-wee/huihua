@@ -163,3 +163,29 @@ gained `remoteSteerable`, and `reasoningEffort` no longer appears on
 `session.start`/`session.resume` rows in this capture.
 The removed paths move to
 the optional lists; the new boolean is a reviewed addition.
+
+## November 19–20, 2026: global reasoning effort observation
+
+The official producer's synthetic captures from
+[run 44544229373](https://github.com/wibus-wee/huihua/actions/runs/44544229373)
+confirm that pinned 1.0.95 persists `data.reasoningEffort: "medium"` on
+`session.start` and `session.resume`.
+Latest 1.0.114 omits the field on both;
+none of its 16 native records contains `reasoningEffort`.
+This is observed
+producer behavior, not a documented stable storage guarantee or a third-party
+compatibility claim.
+Both original pinned/latest captures from
+[run 44750241419](https://github.com/wibus-wee/huihua/actions/runs/44750241419)
+confirm the same native presence/absence, versions and exact drift.
+Each pinned
+capture has 15 records; each latest capture has 16.
+Independent native/read,
+snapshot and record/event-stream replay passes for all four stores.
+
+The previous review already made both per-record paths optional, but omitted
+the global `$.data.reasoningEffort:string` path.
+Make only that exact global
+path optional too.
+Keep all required paths and unknown-field/type checks;
+there is no parser change, default effort, or inferred replacement value.

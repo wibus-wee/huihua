@@ -339,3 +339,29 @@ optional. `madeBy` is a writer-attribution constant, not conversation content.
 `claude.json` accepts `madeBy` on `assistant`; the foreground-child
 `claude-subagents.json` accepts it too — no subagent-specific shape change was
 observed.
+
+## November 19–20, 2026: foreground child companion model
+
+The official producer's synthetic captures in runs
+[44544229373](https://github.com/wibus-wee/huihua/actions/runs/44544229373) and
+[44750241419](https://github.com/wibus-wee/huihua/actions/runs/44750241419)
+use Claude Code 2.1.328 and 2.1.329 respectively; pinned remains 2.1.292.
+Both latest captures add `model: "claude-sonnet-4-5"` to both foreground
+children's `.meta.json` companions, alongside `pickedEffortModel`.
+This is
+observed native producer behavior, not a documented stable storage guarantee;
+no third-party compatibility claim is needed for this change.
+
+The independent inventory groups companions under `null` because they have no
+`type`.
+Accept only `null:$.model:string` as optional in both `claude.json` and
+`claude-subagents.json`: the ordinary inventory includes companion records too.
+The ordinary global `$.model:string` path already exists; accept that exact
+optional path in the child baseline too.
+Preserve the complete companion
+as native evidence; do not infer new canonical model semantics.
+Other record
+kinds, value types, future fields and required-field losses still fail drift
+review.
+The latest captures contain 88 and 89 records respectively across five
+sessions; the changed record count does not broaden the reviewed field contract.

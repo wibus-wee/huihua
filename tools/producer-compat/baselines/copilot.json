@@ -585,6 +585,7 @@
     "$.data.providerModelMetrics[].modelId:string",
     "$.data.providerModelMetrics[].provider:null",
     "$.data.providerModelMetrics[]:object",
+    "$.data.reasoningEffort:string",
     "$.data.sessionWasActive:boolean",
     "$.data.usage.accounting.sequence:number",
     "$.data.usage.accounting.sourceSessionId:string",

@@ -2459,5 +2459,11 @@
         "PartialParse"
       ]
     }
+  ],
+  "optionalFieldPaths": [
+    "$.metadata.model_search_state:string"
+  ],
+  "optionalGroupedFieldPaths": [
+    "\"response_item\":$.metadata.model_search_state:string"
   ]
 }
