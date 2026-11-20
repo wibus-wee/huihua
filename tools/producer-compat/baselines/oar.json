@@ -541,6 +541,8 @@
   "optionalFieldPaths": [
     "$.record.body.admission:string",
     "$.record.body.events[].inputId:string",
+    "$.record.body.events[].usage.cacheWriteByTtl.1h:number",
+    "$.record.body.events[].usage.cacheWriteByTtl:object",
     "$.record.body.native.assistantMessageEvent.partial.usage.cost.totalFromProvider:boolean",
     "$.record.body.native.disposition:string",
     "$.record.body.native.message.content[].index:number",
@@ -550,6 +552,8 @@
   ],
   "optionalGroupedFieldPaths": [
     "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.events[].inputId:string",
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.events[].usage.cacheWriteByTtl.1h:number",
+    "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.events[].usage.cacheWriteByTtl:object",
     "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.assistantMessageEvent.partial.usage.cost.totalFromProvider:boolean",
     "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.disposition:string",
     "[\"record\",null,null,null,\"frame\",null,null,null]:$.record.body.native.message.content[].index:number",

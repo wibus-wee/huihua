@@ -68,3 +68,21 @@ relative to the producer entrypoint (`dist/observe/index.js`), keeping the
 pinned-0.54.3 and latest lanes working.
 No reader or baseline changes — this was
 a harness import fix, not format drift.
+
+## OAR 0.125.0 cache-write TTL evidence (2026-11-20)
+
+Run [44750241419](https://github.com/wibus-wee/huihua/actions/runs/44750241419)
+records projected usage with `cacheWriteByTtl.1h` in latest 0.125.0, absent in
+pinned 0.54.3.
+This is captured compatibility experience rather than a universal
+official schema guarantee.
+The existing usage mapping retains the projected
+usage object, including this numeric TTL breakdown; native Pi usage separately
+retains `cacheWrite1h`.
+Do not add the breakdown to the aggregate count or
+manufacture another usage event.
+The baseline permits only the optional object
+and numeric `1h` leaf at the projected frame-event path; other types and paths
+still require review.
+This text-only journey does not establish tool or resume
+compatibility.

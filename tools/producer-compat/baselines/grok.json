@@ -198,9 +198,14 @@
     "PartialParse"
   ],
   "optionalFieldPaths": [
-    "$.params._meta.requestTrimmedTokens:number"
+    "$.params._meta.requestTrimmedTokens:number",
+    "$.timestamp_us:number"
   ],
   "optionalGroupedFieldPaths": [
-    "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.requestTrimmedTokens:number"
+    "[\"_x.ai/session/update\",null,null,\"background_tasks\",null,null,null,null]:$.timestamp_us:number",
+    "[\"_x.ai/session/update\",null,null,\"turn_completed\",null,null,null,null]:$.timestamp_us:number",
+    "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.params._meta.requestTrimmedTokens:number",
+    "[\"session/update\",null,null,\"agent_message_chunk\",null,null,null,null]:$.timestamp_us:number",
+    "[\"session/update\",null,null,\"user_message_chunk\",null,null,null,null]:$.timestamp_us:number"
   ]
 }

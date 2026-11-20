@@ -32,10 +32,31 @@ and [Reading and streaming](../../../docs/architecture.md#reading-and-streaming)
 This research file owns provider-native compatibility evidence.
 The adjacent TypeScript implementation and shared compatibility fixtures are the maintained sources of truth.
 
-## Opencode 1.19.6 producer failure
+## OpenCode 1.19.6 producer model selection
 
-Run 44321480142 captured opencode 1.19.6 (requested 1.18.35) emitting
-`{"type":"error","error":{"name":"UnknownError"}}` on stdout before its first
-simulator request; the request ledger is empty.
-This is an upstream server fault,
-not format drift — no baseline or reader changes, and the lane needs a rerun.
+Runs 44544229373 (#117) and 44750241419 (#120) use the same 1.19.6
+binary SHA-256 and fail before the first simulator request.
+Their stdout exposes
+only an UnknownError with a random error reference.
+An isolated 1.19.6 run with
+`OPENCODE_PRINT_LOGS=1` exposes the underlying ProviderModelNotFoundError for
+`anthropic/claude-sonnet-4-5`; this is producer configuration, not reader drift.
+
+Official [v1.19.6 provider implementation](https://github.com/anomalyco/opencode/blob/v1.19.6/packages/opencode/src/provider/provider.ts#L1568) inherits a configured
+model's status from the bundled catalog (line 1568) and removes deprecated models
+(line 1748).
+Merely adding model limits does not override that status.
+The harness
+explicitly declares this synthetic model active and supplies its limits, rather
+than depending on a changing catalog's availability.
+This changes only synthetic
+producer configuration; native reader contracts and baselines remain unchanged.
+The existing deny-all permissions, pure mode, and disabled remote model fetching
+remain in force.
+Producer stderr logging preserves the internal cause on failure.
+
+Local validation with the official 1.18.35 and 1.19.6 binaries and simulator commit
+4357945b88d16a1a3155c39305ce135dc66b9510 passed the complete first-turn/resume
+journey, request ledger, scan, read, snapshot, records, events, and native baseline
+checks (one session, 13 records).
+No baseline update was needed.

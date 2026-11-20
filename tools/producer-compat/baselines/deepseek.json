@@ -734,6 +734,12 @@
     "PartialParse"
   ],
   "optionalFieldPaths": [
+    "$.data.header.tools[].parameters.properties.agent.description:string",
+    "$.data.header.tools[].parameters.properties.agent.type:string",
+    "$.data.header.tools[].parameters.properties.agent:object",
+    "$.data.header.tools[].parameters.properties.agent_id.description:string",
+    "$.data.header.tools[].parameters.properties.agent_id.type:string",
+    "$.data.header.tools[].parameters.properties.agent_id:object",
     "$.data.header.tools[].parameters.properties.cd.description:string",
     "$.data.header.tools[].parameters.properties.cd.type:string",
     "$.data.header.tools[].parameters.properties.cd:object",
@@ -747,9 +753,24 @@
     "$.data.header.tools[].parameters.properties.queries.items.type:string",
     "$.data.header.tools[].parameters.properties.queries.items:object",
     "$.data.header.tools[].parameters.properties.queries.type:string",
-    "$.data.header.tools[].parameters.properties.queries:object"
+    "$.data.header.tools[].parameters.properties.queries:object",
+    "$.data.header.tools[].parameters.properties.scope.description:string",
+    "$.data.header.tools[].parameters.properties.scope.enum:array",
+    "$.data.header.tools[].parameters.properties.scope.enum[]:string",
+    "$.data.header.tools[].parameters.properties.scope.type:string",
+    "$.data.header.tools[].parameters.properties.scope:object",
+    "$.data.message.source.replayState.response.prefixDigest:string",
+    "$.data.stream[].chunk.replayState.response.prefixDigest:string"
   ],
   "optionalGroupedFieldPaths": [
+    "[\"assistant/message\",null,null,null,null,null,null,null]:$.data.message.source.replayState.response.prefixDigest:string",
+    "[\"assistant/message\",null,null,null,null,null,null,null]:$.data.stream[].chunk.replayState.response.prefixDigest:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.agent.description:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.agent.type:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.agent:object",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.agent_id.description:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.agent_id.type:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.agent_id:object",
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cd.description:string",
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cd.type:string",
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.cd:object",
@@ -763,6 +784,11 @@
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries.items.type:string",
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries.items:object",
     "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries.type:string",
-    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries:object"
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.queries:object",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.scope.description:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.scope.enum:array",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.scope.enum[]:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.scope.type:string",
+    "[\"request/header\",null,null,null,null,null,null,null]:$.data.header.tools[].parameters.properties.scope:object"
   ]
 }
