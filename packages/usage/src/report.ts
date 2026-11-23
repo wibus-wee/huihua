@@ -1,5 +1,8 @@
 import type { RawRecord, SessionEvent, SessionFrame, SessionRef, Timestamp, UsageFact, UsageFactItem } from 'huihua'
 
+import type { CostAccumulator, SessionCost } from './cost.ts'
+import { addCost, emptyCost, formatCost, formatSessionCost, mergeCost, messageCost, sessionCost, summarizeCost } from './cost.ts'
+
 export interface ReportOptions {
   readonly providers?: readonly string[]
   readonly providerIds?: readonly string[]
@@ -19,6 +22,7 @@ interface TokenTotals {
 interface TokenSummary extends TokenTotals {
   readonly availability: Availability
   readonly usageEventCount: number
+  readonly cost: ReturnType<typeof summarizeCost>
 }
 interface ModelBreakdown extends TokenSummary {
   readonly provider: string
@@ -40,6 +44,7 @@ interface SessionUsageReport extends TokenSummary {
   readonly id: string
   readonly title?: string
   readonly source: SessionRef['source']
+  readonly sessionCost: SessionCost | null
   readonly undatedUsageEventCount: number
   readonly daily: readonly DailyUsage[]
   readonly diagnostics: readonly string[]
@@ -72,11 +77,13 @@ interface Aggregate extends MutableTotals {
   partial: boolean
   usageEventCount: number
   overflow: Set<keyof TokenTotals>
+  cost: CostAccumulator
 }
 interface ModelAccumulator extends Aggregate {
   date: string | null
   provider: string
   model: string | null
+  costPartial: boolean
 }
 interface SessionAccumulator {
   ref: SessionRef
@@ -84,6 +91,10 @@ interface SessionAccumulator {
   assistant?: { record: number, id?: string, model: string } | undefined
   branches: Map<string, string>
   embeddedModels: WeakMap<object, string> | undefined
+  clineMetrics?: WeakSet<object> | undefined
+  assistantRecord?: number | undefined
+  sessionCost?: SessionCost | null
+  claudeSessionId?: string
   lastGroup?: ModelAccumulator
   groups: Map<string, ModelAccumulator>
   diagnostics: Set<string>
@@ -105,6 +116,7 @@ export interface UsagePartition {
   readonly sessions: readonly {
     readonly key: string
     readonly groups: readonly ModelAccumulator[]
+    readonly sessionCost: SessionCost | null
     readonly diagnostics: readonly string[]
     readonly partial: boolean
     readonly usageEventCount: number
@@ -124,7 +136,7 @@ const semantics = [
   'Claude and Pi-style cache counters are additional; Codex cached input is a subset of input and reasoning output is a subset of output.',
   'Models come from explicit usage, same-record native/normalized facts, or recorded Codex turn context with provenance. Null denotes unknown; no session-wide last-model guess is used.',
   'Native timestamps determine local calendar dates. Undated usage has a null-date bucket without bounds and is excluded when bounds are active.',
-  'No price estimates, native cost sums or actual billing claims are produced.',
+  'Cost sums only recognized native USD message amounts, split by origin. Coverage is for observed usage records, not a bill. Lifetime session snapshots appear separately only in unbounded reports. No prices are fetched or inferred.',
 ]
 
 function object(value: unknown): Record<string, unknown> {
@@ -159,7 +171,7 @@ function knownSum(values: readonly (number | null)[], diagnostics: Set<string>):
   return sum
 }
 function empty(): Aggregate {
-  return { inputTokens: null, outputTokens: null, cacheCreationTokens: null, cacheReadTokens: null, totalTokens: null, partial: false, usageEventCount: 0, overflow: new Set() }
+  return { inputTokens: null, outputTokens: null, cacheCreationTokens: null, cacheReadTokens: null, totalTokens: null, partial: false, usageEventCount: 0, overflow: new Set(), cost: emptyCost() }
 }
 function merge(target: Aggregate, next: TokenTotals & { readonly overflow?: ReadonlySet<keyof TokenTotals> }, partial: boolean, eventCount = 0): void {
   target.partial ||= partial
@@ -191,8 +203,9 @@ function summary(value: Aggregate, forcePartial = false): TokenSummary {
     cacheCreationTokens: value.cacheCreationTokens,
     cacheReadTokens: value.cacheReadTokens,
     totalTokens: value.totalTokens,
-    availability: value.totalTokens === null ? 'unavailable' : value.partial || forcePartial ? 'partial' : 'complete',
+    availability: value.totalTokens === null ? 'unavailable' : value.partial ? 'partial' : 'complete',
     usageEventCount: value.usageEventCount,
+    cost: summarizeCost(value.cost, forcePartial),
   }
 }
 function sameRecordModel(provider: string, event: UsageFact, session: SessionAccumulator): string | null {
@@ -416,34 +429,40 @@ function groupOf(session: SessionAccumulator, date: string | null, model: string
   const key = JSON.stringify([date, model])
   let group = session.groups.get(key)
   if (group === undefined) {
-    group = { ...empty(), date, provider: session.ref.provider, model }
+    group = { ...empty(), date, provider: session.ref.provider, model, costPartial: false }
     session.groups.set(key, group)
   }
   session.lastGroup = group
   return group
 }
 function daily(groups: readonly ModelAccumulator[], partial = false): DailyUsage[] {
-  const days = new Map<string | null, { total: Aggregate, models: Map<string, ModelAccumulator> }>()
+  const days = new Map<string | null, { total: Aggregate, models: Map<string, ModelAccumulator>, costPartial: boolean }>()
   for (const group of groups) {
-    const day = days.get(group.date) ?? { total: empty(), models: new Map<string, ModelAccumulator>() }
+    const day = days.get(group.date) ?? { total: empty(), models: new Map<string, ModelAccumulator>(), costPartial: false }
+    day.costPartial ||= partial || group.costPartial
     days.set(group.date, day)
     merge(day.total, group, partial || group.partial, group.usageEventCount)
+    mergeCost(day.total.cost, group.cost)
     const key = JSON.stringify([group.provider, group.model])
-    const model = day.models.get(key) ?? { ...empty(), date: group.date, provider: group.provider, model: group.model }
+    const model = day.models.get(key) ?? { ...empty(), date: group.date, provider: group.provider, model: group.model, costPartial: false }
     merge(model, group, partial || group.partial, group.usageEventCount)
+    mergeCost(model.cost, group.cost)
+    model.costPartial ||= partial || group.costPartial
     day.models.set(key, model)
   }
   return [...days].sort(([a], [b]) => a === null ? b === null ? 0 : 1 : b === null ? -1 : a.localeCompare(b)).map(([date, day]) => ({
     date,
-    ...summary(day.total),
+    ...summary(day.total, day.costPartial),
     modelsUsed: [...new Set([...day.models.values()].flatMap(model => model.model === null ? [] : [model.model]))].sort(),
-    modelBreakdowns: [...day.models.values()].sort((a, b) => JSON.stringify([a.provider, a.model]).localeCompare(JSON.stringify([b.provider, b.model]))).map(model => ({ provider: model.provider, model: model.model, ...summary(model) })),
+    modelBreakdowns: [...day.models.values()].sort((a, b) => JSON.stringify([a.provider, a.model]).localeCompare(JSON.stringify([b.provider, b.model]))).map(model => ({ provider: model.provider, model: model.model, ...summary(model, model.costPartial) })),
   }))
 }
 function aggregate(groups: readonly ModelAccumulator[], partial: boolean, eventCount: number): Aggregate {
   const result = empty()
-  for (const group of groups)
+  for (const group of groups) {
     merge(result, group, partial || group.partial)
+    mergeCost(result.cost, group.cost)
+  }
   result.usageEventCount = eventCount
   return result
 }
@@ -501,13 +520,28 @@ export class UsageReportBuilder {
     if (frame.type === 'record') {
       session.current = frame.record
       session.assistant = undefined
+      session.assistantRecord = undefined
       session.embeddedModels = undefined
+      session.clineMetrics = undefined
       const native = object(frame.record.native)
+      if (this.#options.since === undefined && this.#options.until === undefined) {
+        if (ref.provider === 'claude' && (native.type === 'assistant' || native.type === 'user') && native.isSidechain !== true) {
+          const id = text(native.sessionId)
+          if (id !== undefined)
+            session.claudeSessionId ??= id
+        }
+        const snapshot = sessionCost(ref, frame.record, session.claudeSessionId)
+        if (snapshot !== undefined)
+          session.sessionCost = snapshot
+      }
       if (ref.provider === 'cline' && Array.isArray(native.messages)) {
         session.embeddedModels = new WeakMap()
+        session.clineMetrics = new WeakSet()
         for (const value of native.messages) {
           const message = object(value)
           const tokens = message.usage ?? message.metrics
+          if (message.role === 'assistant' && tokens === message.metrics && typeof tokens === 'object' && tokens !== null)
+            session.clineMetrics.add(tokens)
           const model = text(message.model) ?? text(object(message.modelInfo).id)
           if (model !== undefined && typeof tokens === 'object' && tokens !== null)
             session.embeddedModels.set(tokens, model)
@@ -531,12 +565,15 @@ export class UsageReportBuilder {
       return
     }
     const event = frame.event
-    if (event.type === 'assistant_message' && event.data.model !== undefined) {
-      session.assistant = { record: event.record, ...(event.id === undefined ? {} : { id: event.id }), model: event.data.model }
+    if (event.type === 'assistant_message') {
+      session.assistantRecord = event.record
+      if (event.data.model !== undefined)
+        session.assistant = { record: event.record, ...(event.id === undefined ? {} : { id: event.id }), model: event.data.model }
       return
     }
     if (event.type === 'user_message') {
       session.assistant = undefined
+      session.assistantRecord = undefined
       return
     }
     if (event.type !== 'usage')
@@ -605,10 +642,12 @@ export class UsageReportBuilder {
     const group = groupOf(session, date, projection?.model ?? null)
     merge(group, projection?.tokens ?? unavailableTokens, projection === undefined || !projection.complete || projection.model === null || date === null, 1)
     const id = identity(ref.provider, event, session)
+    let repeated = false
     if (id !== undefined) {
       const identityKey = JSON.stringify([ref.provider, ['claude', 'codex'].includes(ref.provider) ? null : ref.source, id])
       const previous = this.#identities.get(identityKey)
       if (previous !== undefined) {
+        repeated = true
         for (const affected of [previous, session]) {
           affected.partial = true
           affected.diagnostics.add('Repeated response identity was retained in the token sum; distinct billable work cannot be established.')
@@ -619,6 +658,13 @@ export class UsageReportBuilder {
     else if (projection !== undefined) {
       session.partial = true
       session.diagnostics.add('Response identity is absent; repeated work cannot be ruled out for this native counter sum.')
+    }
+    if (!(ref.provider === 'opencode' && object(event.data.usage).type === 'step-finish')) {
+      const record = session.current?.sequence === event.record ? session.current : undefined
+      const cost = messageCost(ref.provider, event.data.usage, record, session.clineMetrics, session.assistantRecord === event.record)
+      if (cost !== undefined && (id === undefined || repeated))
+        session.diagnostics.add('A native message cost without a distinct source-local identity was excluded.')
+      addCost(group.cost, id === undefined || repeated ? undefined : cost)
     }
     if (ref.provider === 'claude' && Array.isArray(object(event.data.usage).iterations)) {
       // The empirical advisor_message shape is a separate model contribution. Ordinary message iterations repeat outer counters.
@@ -654,7 +700,9 @@ export class UsageReportBuilder {
       return
     delete session.current
     session.assistant = undefined
+    session.assistantRecord = undefined
     session.embeddedModels = undefined
+    session.clineMetrics = undefined
     session.branches.clear()
     session.selectedDate = undefined
     session.selectedTimestamp = undefined
@@ -667,6 +715,7 @@ export class UsageReportBuilder {
       sessions: Array.from(this.#sessions, ([key, session]) => ({
         key,
         groups: [...session.groups.values()],
+        sessionCost: session.sessionCost ?? null,
         diagnostics: [...session.diagnostics],
         partial: session.partial,
         usageEventCount: session.usageEventCount,
@@ -696,6 +745,7 @@ export class UsageReportBuilder {
       delete session.lastGroup
       session.diagnostics = new Set(state.diagnostics)
       session.partial = state.partial
+      session.sessionCost = state.sessionCost
       session.usageEventCount = state.usageEventCount
       session.undatedUsageEventCount = state.undatedUsageEventCount
       this.#imported.add(state.key)
@@ -717,20 +767,23 @@ export class UsageReportBuilder {
 
   finish(): UsageReport {
     const allGroups: ModelAccumulator[] = []
-    const byProvider = new Map<string, { aggregate: Aggregate, sessions: number, undated: number, diagnostics: Set<string> }>()
+    const byProvider = new Map<string, { aggregate: Aggregate, sessions: number, undated: number, diagnostics: Set<string>, costPartial: boolean }>()
     for (const provider of this.#providerIds) {
       const diagnostics = new Set<string>()
       if (noUsage.has(provider))
         diagnostics.add('Huihua has no native usage mapping for this provider; token totals are unavailable.')
       else if (noTokenContract.has(provider))
         diagnostics.add('Native fields do not establish an additive token contract; token totals are unavailable.')
-      byProvider.set(provider, { aggregate: empty(), sessions: 0, undated: 0, diagnostics })
+      byProvider.set(provider, { aggregate: empty(), sessions: 0, undated: 0, diagnostics, costPartial: false })
     }
     const sessionReports = Array.from(this.#sessions.values(), (session): SessionUsageReport => {
       this.end(session.ref)
       const groups = [...session.groups.values()]
       if (session.partial) {
-        for (const group of groups) group.partial = true
+        for (const group of groups) {
+          group.partial = true
+          group.costPartial = true
+        }
       }
       allGroups.push(...groups)
       const total = aggregate(groups, session.partial, session.usageEventCount)
@@ -741,6 +794,8 @@ export class UsageReportBuilder {
         provider.sessions += 1
         provider.undated += session.undatedUsageEventCount
         merge(provider.aggregate, total, session.partial || total.partial, session.usageEventCount)
+        mergeCost(provider.aggregate.cost, total.cost)
+        provider.costPartial ||= session.partial && total.cost.observed > 0
         for (const diagnostic of session.diagnostics) provider.diagnostics.add(diagnostic)
       }
       return {
@@ -749,12 +804,13 @@ export class UsageReportBuilder {
         ...(session.ref.title === undefined ? {} : { title: session.ref.title }),
         source: session.ref.source,
         ...summary(total, session.partial),
+        sessionCost: this.#options.since === undefined && this.#options.until === undefined ? session.sessionCost ?? null : null,
         undatedUsageEventCount: session.undatedUsageEventCount,
         daily: daily(groups, session.partial),
         diagnostics: [...session.diagnostics].sort(),
       }
     }).sort((a, b) => JSON.stringify([a.provider, a.source, a.id]).localeCompare(JSON.stringify([b.provider, b.source, b.id])))
-    const providers = Array.from(byProvider, ([provider, state]): ProviderUsageReport => ({ provider, ...summary(state.aggregate), sessionCount: state.sessions, undatedUsageEventCount: state.undated, diagnostics: [...state.diagnostics, ...(state.aggregate.overflow.size > 0 ? ['Token aggregation exceeds the safe integer range; affected fields are unavailable.'] : [])].sort() }))
+    const providers = Array.from(byProvider, ([provider, state]): ProviderUsageReport => ({ provider, ...summary(state.aggregate, state.costPartial), sessionCount: state.sessions, undatedUsageEventCount: state.undated, diagnostics: [...state.diagnostics, ...(state.aggregate.overflow.size > 0 ? ['Token aggregation exceeds the safe integer range; affected fields are unavailable.'] : [])].sort() }))
     const events = sessionReports.reduce((sum, session) => sum + session.usageEventCount, 0)
     const total = aggregate(allGroups, sessionReports.some(session => session.availability !== 'complete' && session.usageEventCount > 0), events)
     return {
@@ -769,7 +825,7 @@ export class UsageReportBuilder {
       usageEventCount: events,
       undatedUsageEventCount: sessionReports.reduce((sum, session) => sum + session.undatedUsageEventCount, 0),
       daily: daily(allGroups),
-      totals: summary(total),
+      totals: summary(total, allGroups.some(group => group.costPartial)),
       providers,
       sessions: sessionReports,
       semantics,
@@ -786,8 +842,8 @@ export function createUsageReport(refs: readonly SessionRef[], frames: ReadonlyM
   return builder.finish()
 }
 export function formatUsageReport(report: UsageReport): string {
-  const header = ['DATE', 'PROVIDER / MODEL', 'INPUT', 'OUTPUT', 'CACHE WRITE', 'CACHE READ', 'TOTAL', 'STATUS']
-  const row = (date: string, model: string, tokens: TokenSummary): string[] => [date, model, ...tokenKeys.map(field => tokens[field] === null ? 'unavailable' : tokens[field].toLocaleString('en-US')), tokens.availability]
+  const header = ['DATE', 'PROVIDER / MODEL', 'INPUT', 'OUTPUT', 'CACHE WRITE', 'CACHE READ', 'TOTAL', 'STATUS', 'COST (USD)']
+  const row = (date: string, model: string, tokens: TokenSummary): string[] => [date, model, ...tokenKeys.map(field => tokens[field] === null ? 'unavailable' : tokens[field].toLocaleString('en-US')), tokens.availability, formatCost(tokens.cost)]
   const rows = [header]
   for (const day of report.daily) {
     rows.push(row(day.date ?? 'undated', 'all models', day))
@@ -797,5 +853,6 @@ export function formatUsageReport(report: UsageReport): string {
   const widths = header.map((_, index) => Math.max(...rows.map(cells => cells[index]!.length)))
   const table = rows.map(cells => cells.map((cell, index) => cell.padEnd(widths[index]!)).join('  ')).join('\n')
   const diagnostics = report.providers.flatMap(provider => provider.diagnostics.map(message => `[${provider.provider}] ${message}`))
-  return [table, '', `${report.sessionsScanned} sessions; timezone ${report.filters.timeZone}. Partial totals include only known counters; unavailable is not zero.`, ...(report.undatedUsageEventCount > 0 ? [`${report.undatedUsageEventCount} usage events have no usable timestamp.`] : []), ...diagnostics].join('\n')
+  const snapshots = report.sessions.flatMap(session => session.sessionCost === null ? [] : [`${session.provider} / ${JSON.stringify(session.title ?? session.id)}: ${formatSessionCost(session.sessionCost)}`])
+  return [table, ...(snapshots.length === 0 ? [] : ['', 'Lifetime session cost snapshots (not included in daily or grand totals)', ...snapshots]), '', `${report.sessionsScanned} sessions; timezone ${report.filters.timeZone}. Partial totals include only known counters; unavailable is not zero.`, ...(report.undatedUsageEventCount > 0 ? [`${report.undatedUsageEventCount} usage events have no usable timestamp.`] : []), ...diagnostics].join('\n')
 }

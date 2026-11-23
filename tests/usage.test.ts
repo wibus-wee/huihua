@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
+import { DatabaseSync } from 'node:sqlite'
 import { it } from 'node:test'
 import { pathToFileURL } from 'node:url'
 
@@ -766,4 +767,144 @@ void it('captured Copilot per-call usage excludes cumulative shutdown accounting
   assert.equal(report.totals.inputTokens, 2)
   assert.equal(report.totals.outputTokens, 24)
   assert.equal(report.totals.totalTokens, 26)
+})
+
+void it('cost separates estimates, reported values, unknown amounts and retained replays', async () => {
+  const timestamp = '2026-01-01T17:00:00Z'
+  const msg = (id: string, cost?: unknown, role = 'assistant') => ({ type: 'message', id, timestamp, message: { role, model: 'metered', content: 'fixture', usage: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, ...(cost === undefined ? {} : { cost }) } } })
+  const input = (id: string, rows: readonly unknown[]) => [{ type: 'session', id, version: 3, timestamp }, ...rows].map(row => JSON.stringify(row)).join('\n')
+  const pi = await sessions.parse('pi', { source: 'pi.jsonl', jsonl: input('pi', [msg('a', { total: 0, totalFromProvider: false }), msg('b', { total: 0.002, totalFromProvider: true, input: 0.002 }), msg('b', { total: 0.002, totalFromProvider: true }), msg('c'), msg('d', { total: '0.05' }), msg('e', { total: 0.5 }, 'user')]) })
+  const claw = await sessions.parse('openclaw', { source: 'openclaw.jsonl', jsonl: input('openclaw', [msg('a', { total: 0.03 }), msg('b', { total: -1 })]) })
+  const opts = { since: '2026-01-02', until: '2026-01-02', timeZone: 'Asia/Shanghai' }
+  const report = createUsageReport([pi, claw], new Map([[key(pi), framesOf(pi)], [key(claw), framesOf(claw)]]), opts)
+  assert.deepEqual(report.daily[0]?.cost.amounts, { providerReported: 0.002, estimated: 0, nativeUnclassified: 0.03 })
+  assert.equal(report.daily[0]?.date, '2026-01-02')
+  assert.equal(report.totals.cost.coveredUsageEventCount, 3)
+  assert.equal(report.totals.cost.availability, 'partial')
+  assert.equal(report.totals.totalTokens, 24, 'cost identity filtering does not alter token counting')
+  const formatted = formatUsageReport(report)
+  assert.match(formatted, /COST \(USD\)/)
+  assert.match(formatted, /\$0 estimated/)
+  assert.match(formatted, /\$0\.002 reported/)
+  assert.match(formatted, /\$0\.03 native, source unknown/)
+})
+
+void it('Claude uses the last session checkpoint, not a sum or daily charge, including across worker partitions', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-cost-claude-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const projects = join(root, '.claude/projects/test')
+  await mkdir(projects, { recursive: true })
+  for (const id of ['first', 'second']) {
+    const rows = [
+      { type: 'assistant', uuid: id, sessionId: id, timestamp: '2026-01-01T10:00:00Z', message: { id, model: 'test', content: [], usage: { input_tokens: 1, output_tokens: 1 } } },
+      { type: 'cost-state', sessionId: id, totalCostUSD: 0.000366 },
+      { type: 'cost-state', sessionId: id, totalCostUSD: 0.000549, hasUnknownModelCost: true, modelUsage: { test: { costUSD: 0.000549 }, unknown: { costUSD: null } } },
+      { type: 'cost-state', sessionId: id, isSidechain: true, totalCostUSD: 4 },
+      { type: 'cost-state', sessionId: 'other-session', totalCostUSD: 9 },
+    ]
+    await writeFile(join(projects, `${id}.jsonl`), `${rows.map(row => JSON.stringify(row)).join('\n')}\n`)
+  }
+  const cli = (flags: readonly string[]) => execFileSync(process.execPath, ['packages/usage/dist/cli.js', '--provider', 'claude', ...flags], { encoding: 'utf8', env: { ...process.env, HOME: root, CLAUDE_CONFIG_DIR: join(root, '.claude'), CLAUDE_CONFIG_DIRS: '' } })
+  const output = cli(['--json'])
+  assert.equal(cli(['--json', '--workers', '2']), output)
+  type Report = ReturnType<UsageReportBuilder['finish']>
+  const report = JSON.parse(output) as Report
+  assert.equal(report.sessions.length, 2)
+  assert.deepEqual(report.sessions[0]?.sessionCost, { amount: 0.000549, currency: 'USD', scope: 'session', source: 'nativeUnclassified', partial: true, models: { test: 0.000549 } })
+  assert.equal(report.totals.cost.availability, 'unavailable')
+  assert.match(cli([]), /Lifetime session cost snapshots/)
+  const bounded = JSON.parse(cli(['--json', '--since', '2026-01-01', '--until', '2026-01-01'])) as Report
+  assert.ok(bounded.sessions.every(session => session.sessionCost === null))
+  assert.equal(bounded.totals.totalTokens, report.totals.totalTokens)
+})
+
+void it('OpenCode reads only assistant costs, not mirrors; Hermes distinguishes explicit accounting from defaults', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-cost-sqlite-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const opencodePath = join(root, 'opencode.db')
+  const hermesPath = join(root, 'state.db')
+  const openDB = new DatabaseSync(opencodePath)
+  try {
+    openDB.exec(await readFile(resolve('fixtures/opencode/simple.sql'), 'utf8'))
+    openDB.exec(`
+      UPDATE message SET data = '{"role":"assistant","modelID":"fixture-model","tokens":{"input":1,"output":2},"cost":0.000183}' WHERE id = 'm1';
+      INSERT INTO part VALUES ('p1','m1','session-1',1767225600000,'{"type":"step-finish","cost":0.000183,"tokens":{"input":1,"output":2}}');
+    `)
+  }
+  finally {
+    openDB.close()
+  }
+  const hermesDB = new DatabaseSync(hermesPath)
+  try {
+    hermesDB.exec(await readFile(resolve('fixtures/hermes/sessions.sql'), 'utf8'))
+    hermesDB.exec(`
+      ALTER TABLE sessions ADD COLUMN estimated_cost_usd REAL DEFAULT 0;
+      ALTER TABLE sessions ADD COLUMN actual_cost_usd REAL;
+      ALTER TABLE sessions ADD COLUMN cost_status TEXT DEFAULT 'unknown';
+      ALTER TABLE sessions ADD COLUMN cost_source TEXT DEFAULT 'none';
+      INSERT INTO sessions(id, cost_status, cost_source, estimated_cost_usd, actual_cost_usd) VALUES
+        ('actual','actual','provider_reported',1.5,0.4), ('estimate','estimated','catalog',0.2,NULL);
+    `)
+  }
+  finally {
+    hermesDB.close()
+  }
+  const open = await sessions.parse('opencode', { path: opencodePath, format: 'opencode_sqlite', id: 'session-1' })
+  const hermes = await Promise.all(['hermes-db', 'actual', 'estimate'].map(async id => sessions.parse('hermes', { path: hermesPath, format: 'hermes_sqlite', id })))
+  const parsed = [open, ...hermes]
+  const report = createUsageReport(parsed, new Map(parsed.map(item => [key(item), framesOf(item)])))
+  assert.equal(report.totals.cost.amounts.nativeUnclassified, 0.000183)
+  assert.equal(report.totals.cost.coveredUsageEventCount, 1)
+  assert.equal(report.totals.cost.observedUsageEventCount, 1)
+  assert.equal(report.sessions.find(s => s.id === 'hermes-db')?.sessionCost, null)
+  assert.equal(report.sessions.find(s => s.id === 'actual')?.sessionCost?.amount, 0.4)
+  assert.equal(report.sessions.find(s => s.id === 'estimate')?.sessionCost?.source, 'estimated')
+})
+
+void it('Cline uses explicit persisted assistant metrics, not a missing amount or a session aggregate', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-cost-cline-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const folder = join(root, 'metered')
+  await mkdir(folder)
+  const messages = [
+    { role: 'assistant', id: 'charged', ts: 1767225600000, content: 'answer', metrics: { inputTokens: 1, outputTokens: 12, cost: 0.000183 } },
+    { role: 'assistant', id: 'missing', ts: 1767225601000, content: 'answer', metrics: { inputTokens: 1, outputTokens: 12 } },
+    { role: 'user', id: 'other', ts: 1767225602000, content: 'request', metrics: { cost: 7 } },
+  ]
+  const path = join(folder, 'metered.json')
+  await writeFile(path, JSON.stringify({ version: 1, sessionId: 'metered', usage: { totalCost: 10 } }))
+  await writeFile(join(folder, 'metered.messages.json'), JSON.stringify({ version: 1, sessionId: 'metered', messages }))
+  const session = await sessions.parse('cline', { path, format: 'cline_json' })
+  const report = createUsageReport([session], new Map([[key(session), framesOf(session)]]))
+  assert.equal(report.totals.cost.amounts.nativeUnclassified, 0.000183)
+  assert.equal(report.totals.cost.coveredUsageEventCount, 1)
+  assert.equal(report.totals.cost.availability, 'partial')
+})
+
+void it('OpenClaw SQLite keeps same-record assistant cost in the CLI but excludes user usage', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'huihua-cost-openclaw-'))
+  t.after(async () => rm(root, { recursive: true, force: true }))
+  const path = join(root, 'openclaw-agent.sqlite')
+  const db = new DatabaseSync(path)
+  try {
+    db.exec(await readFile(resolve('fixtures/openclaw/openclaw-agent.sql'), 'utf8'))
+    db.exec('DELETE FROM transcript_events WHERE seq > 0')
+    const insert = db.prepare('INSERT INTO transcript_events VALUES (?, ?, ?, NULL, NULL, ?)')
+    for (const [seq, role, total] of [[1, 'assistant', 0.004], [2, 'user', 9]] as const) {
+      insert.run('openclaw-db', seq, JSON.stringify({ type: 'message', id: `msg-${seq}`, timestamp: '2026-01-01T10:00:00Z', message: { role, content: 'fixture', usage: { input: 1, output: 1, cost: { total } } } }), 1767261600000)
+    }
+  }
+  finally {
+    db.close()
+  }
+  const ref = { provider: 'openclaw', id: 'openclaw-db', source: { path, format: 'openclaw_sqlite' as const, locator: { id: 'openclaw-db' } }, metadata: {} }
+  const opener = await sessions.open(ref)
+  const builder = new UsageReportBuilder([ref])
+  // Exercise the exact package consumer binding, including native frame selection.
+  const { consumeRef } = await import('../packages/usage/src/cli.ts')
+  await consumeRef(builder, ref, opener, {})
+  const report = builder.finish()
+  assert.equal(report.totals.cost.amounts.nativeUnclassified, 0.004)
+  assert.equal(report.totals.cost.coveredUsageEventCount, 1)
+  assert.equal(report.totals.cost.observedUsageEventCount, 2)
 })

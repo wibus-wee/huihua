@@ -7,6 +7,7 @@ import { isMainThread, Worker } from 'node:worker_threads'
 import type { FrameSelection, OpenSession, SessionFrame, SessionProvider, SessionRef, Timestamp, UsageFactItem } from 'huihua'
 import { createSessionRegistry } from 'huihua/registry'
 
+import { compactClaudeRecord } from './cost.ts'
 import { parseUsageArgs } from './options.ts'
 import type { UsagePartition } from './report.ts'
 import { formatUsageReport, UsageReportBuilder } from './report.ts'
@@ -41,7 +42,7 @@ function usage(): string {
     '',
     'Read local session usage through Huihua discovery and streaming contracts.',
     'Date bounds are inclusive calendar days in the selected timezone (default UTC).',
-    'Report daily input/output/cache token totals and model breakdowns, with per-session totals in JSON.',
+    'Report daily token totals, native USD costs and model breakdowns, with per-session totals in JSON.',
     'Unavailable counters are null; partial totals and unsupported cumulative scopes have diagnostics.',
     'Workers parse multiple JSONL sessions on separate CPU threads; default 1. More workers use more memory.',
   ].join('\n')
@@ -49,6 +50,7 @@ function usage(): string {
 
 /** Private benchmark controls; these are not CLI flags or Huihua public API. */
 export interface ExecutionOptions {
+  readonly bounded?: boolean
   readonly facts?: boolean
   readonly batchDecode?: boolean
   readonly pushdown?: boolean
@@ -75,13 +77,15 @@ export interface UsageSink {
 }
 
 export async function consumeRef(builder: UsageSink, ref: SessionRef, open: OpenSession, execution: ExecutionOptions, useCallback = true): Promise<void> {
-  const selection: FrameSelection = { events: ['usage'], records: true, metadata: true, metadataKeys: ['parentSessionId'] }
-  if (useCallback && execution.facts && open.consumeUsageFacts) {
+  const selection: FrameSelection = { events: ref.source.format === 'openclaw_sqlite' ? ['usage', 'assistant_message'] : ['usage'], records: true, metadata: true, metadataKeys: ['parentSessionId'] }
+  // Claude's cumulative cost-state is native record evidence, not a token usage fact.
+  const recordless = useCallback && (ref.provider !== 'claude' || execution.bounded === true)
+  if (recordless && execution.facts && open.consumeUsageFacts) {
     await open.consumeUsageFacts(item => builder.addFact(ref, item), execution.pushdown
       ? { acceptTimestamp: timestamp => builder.acceptTimestamp(ref, timestamp) }
       : {})
   }
-  else if (useCallback && open.consumeUsage) {
+  else if (recordless && open.consumeUsage) {
     await open.consumeUsage(frame => builder.add(ref, frame))
   }
   else if (useCallback && open.consume) {
@@ -186,7 +190,7 @@ export async function run(argv: readonly string[] = process.argv.slice(2), useCa
   const controller = new AbortController()
   // The measured benefit is a narrow date query, not compact envelopes alone.
   const singleDay = args.since !== undefined && args.since === args.until
-  execution = { ...execution, facts: execution.facts ?? singleDay, pushdown: execution.pushdown ?? singleDay }
+  execution = { ...execution, facts: execution.facts ?? singleDay, pushdown: execution.pushdown ?? singleDay, bounded: args.since !== undefined || args.until !== undefined }
   const workerCount = execution.workers ?? args.workers
   if (![1, 2, 4].includes(workerCount))
     throw new TypeError('usage workers must be one, two or four')
@@ -200,7 +204,11 @@ export async function run(argv: readonly string[] = process.argv.slice(2), useCa
     for (let attempt = 0; attempt < 3; attempt++) {
       const captured: ((builder: UsageReportBuilder) => void)[] = []
       const sink: UsageSink = {
-        add: (current, frame) => captured.push(target => target.add(current, frame)),
+        add(current, frame) {
+          const compact = current.provider === 'claude' ? compactClaudeRecord(frame) : frame
+          if (compact !== undefined)
+            captured.push(target => target.add(current, compact))
+        },
         addFact: (current, item) => captured.push(target => target.addFact(current, item)),
         end: () => {},
         acceptTimestamp: (current, timestamp) => builder.acceptTimestamp(current, timestamp),
