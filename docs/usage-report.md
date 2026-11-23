@@ -3,8 +3,9 @@
 `@huihua/usage` is a standalone workspace CLI.
 It discovers through public `sessions.scan()` and streams public `sessions.open(ref)` frames.
 Any reported discovery failure produces a nonzero exit with diagnostics and no report, even when other sources are readable; incomplete source coverage must not look like complete daily totals.
-Claude and Codex expose optional `consumeUsage`: the same provider parser supplies Usage events with recorded model/identity context (same-record Claude facts and provenanced Codex turn contexts), parent-lineage metadata and all diagnostics, without constructing or delivering complete native records.
+Codex and date-bounded Claude reports use optional `consumeUsage`: the same provider parser supplies Usage events with recorded model/identity context (same-record Claude facts and provenanced Codex turn contexts), parent-lineage metadata and all diagnostics, without constructing or delivering complete native records.
 An explicit single-day query (`since` equals `until`) uses their optional direct usage facts and consumer-owned date predicate, bypassing canonical usage envelopes and excluding dates before context allocation.
+Unbounded Claude reports need the same parser’s record frames for cumulative cost-state snapshots; buffered retry state keeps only their cost and identity/model fields.
 Other providers retain callback consume/select/full-stream delivery with records for attribution, avoiding unselected message normalization where supported.
 The native JSON decoder is still active; this capability removes evidence construction/delivery, not complete JSON decoding.
 Explicit provider filters compose the existing registry through `huihua/registry` and load only selected public provider subpaths; unfiltered discovery still covers all builtins.
@@ -17,7 +18,7 @@ After `pnpm build` emits Huihua and the standalone CLI, run:
 pnpm --filter @huihua/usage start -- --provider claude --since 2026-01-01 --until 2026-01-31 --timezone America/Los_Angeles --json
 ```
 
-The default text output is a daily token table with model rows and grand totals: input, output, cache creation, cache read and total tokens.
+The default text output is a daily table with model rows and grand totals for input, output, cache creation, cache read, total tokens and observed native USD cost.
 JSON `huihua-usage/v2` contains `daily`, `totals`, provider summaries and per-session `daily`/totals with the original source selector.
 Each day includes `modelsUsed` and `modelBreakdowns`; each model row carries its provider.
 There is no project breakdown.
@@ -96,8 +97,44 @@ It does not apply ccusage's replacement/replay heuristics, subtract cumulative s
 A no-replay/no-duplicate input with complete supported counters can produce a complete daily total; uncertainty in other providers does not prevent that provider's total.
 
 A missing model is a null/unknown bucket rather than an invented session-wide last model.
-The CLI never creates prices, estimated cost, native cost sums or invoice amounts, and performs no runtime network fetches.
-This release focuses on the requested daily token/model report.
+
+## Native cost
+
+The CLI displays cost already present in native evidence.
+It neither applies a
+pricing catalog nor fetches prices, and it cannot verify an invoice.
+The additive `cost` field in `huihua-usage/v2` groups USD message amounts by
+`providerReported`, `estimated`, or `nativeUnclassified`.
+It exposes the count
+of covered and observed usage events (excluding OpenCode step mirrors), not
+the share of all billable activity.
+A null amount or `—` is unavailable, not zero.
+A native zero is only an observation and does not imply free usage.
+The CLI projects the following evidence:
+
+| Source      | Supported scope                                                                                                                                                                                                                                                                              |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenCode    | Assistant message `cost`; never add step-finish or session totals. The stored amount alone does not establish origin.                                                                                                                                                                        |
+| Pi          | Assistant `usage.cost.total`; according to [Pi's API documentation](https://github.com/earendil-works/pi/blob/main/packages/ai/README.md#usage-and-cost), `totalFromProvider: true` marks a provider-reported amount; false or absent marks an estimate. Never add components to that total. |
+| OpenClaw    | Assistant `usage.cost.total`; native amount, origin unclassified. SQLite requires a same-record assistant event from the existing mapper.                                                                                                                                                    |
+| Cline       | Explicit persisted assistant `metrics.cost` on the same usage observation; native amount, origin unclassified. A missing field is not filled from CLI run/session aggregates.                                                                                                                |
+| Claude Code | Last matching parent-transcript `cost-state.totalCostUSD` in record order, with available `modelUsage.*.costUSD` as separate detail. `hasUnknownModelCost` marks the checkpoint partial.                                                                                                     |
+| Hermes      | Native SQLite session-row amount only when status and source establish actual or estimated cost. Default-zero/unknown rows are unavailable.                                                                                                                                                  |
+
+Message sums use source-local response identities and exclude repeated or missing
+identities when combining amounts; token arithmetic is unchanged.
+Forks or
+replay across different source selectors are not reconciled or billed and
+can cause overlap in a partial report.
+Session snapshots (`sessionCost`) are
+not added to daily, provider or grand totals or presented under date bounds.
+They may represent overlapping model detail, work from previous days, or
+only a subset of actual charges.
+Credits, quotas and other non-USD counters
+are not converted.
+These decisions use [observed compatibility
+  captures](https://github.com/wibus-wee/huihua/actions/runs/45027392183)
+and are narrower than the native format inventory above.
 
 ## Validation and performance
 

@@ -842,6 +842,10 @@ Cumulative checkpoints without safe per-request allocation are excluded from add
 
 Alternatives were retaining the observation-only report (does not meet the requested daily report), applying ccusage's deduplication heuristics globally (would assert unsupported provider semantics), and adding model/billing fields to canonical provider events (changes serialized session semantics and goldens).
 Public record associations plus existing normalized facts meet this report's attribution needs without a new parser, dependency or core schema field.
+The usage package also owns its additive native USD cost projection: an orthogonal message accumulator, with source-separated amounts and missing-data coverage, plus per-session lifetime checkpoints from public record evidence.
+The full and worker paths use the same accumulators and snapshots, and date-bounded Claude reports retain compact usage delivery because they omit lifetime checkpoints.
+Unlike a price-table lookup or a new canonical cost event, this preserves observed amounts and the existing parser, provider SPI, core serialization and token arithmetic.
+See [the cost scope and source rules](usage-report.md#native-cost).
 The private CLI's JSON intentionally changes from observation-only v1 to daily/model v2; Huihua's provider SPI, `agent-session/v1`, public selection API and static compatibility goldens are unchanged. `tools/policy.ts` checks the report schema and public-only/no-source-I/O boundary; fixture-backed report and subprocess tests enforce arithmetic, attribution, partial/unavailable values and full-stream equivalence.
 
 `packages/usage/tools/bench.ts` is owned by Usage validation.
